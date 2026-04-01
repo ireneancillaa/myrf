@@ -16,9 +16,9 @@ class LoginPage extends StatelessWidget {
           final double contentWidth = maxWidth < 500 ? maxWidth : 400;
           final double horizontalPadding = maxWidth < 500 ? 16 : 24;
           final double verticalPadding = maxWidth < 500 ? 16 : 32;
-          final double logoSize = maxWidth < 500 ? 72 : 100;
-          final double logoRadius = maxWidth < 500 ? 16 : 24;
-          final double logoImg = maxWidth < 500 ? 40 : 60;
+          final double logoSize = maxWidth < 500 ? 90 : 120;
+          final double logoRadius = maxWidth < 500 ? 20 : 28;
+          final double logoImg = maxWidth < 500 ? 60 : 90;
           final double space1 = maxWidth < 500 ? 10 : 16;
           final double space2 = maxWidth < 500 ? 12 : 24;
           final double space3 = maxWidth < 500 ? 4 : 8;
