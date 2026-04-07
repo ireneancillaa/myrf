@@ -11,8 +11,8 @@ class LoginController extends GetxController {
   }
 
   void login() {
-    // TODO: Implementasi login
-    Get.snackbar('Login', 'Fitur login belum diimplementasikan');
+    // Sementara arahkan ke homepage untuk preview tampilan setelah login.
+    Get.offAllNamed('/home');
   }
 
   void forgotPassword() {

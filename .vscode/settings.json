@@ -1,3 +1,4 @@
 {
-    "dart.flutterSdkPath": "/Users/tnd/Downloads/flutter"
+  "dart.flutterSdkPath": "/Users/tnd/Downloads/flutter",
+  "cmake.sourceDirectory": "/Users/ireneancilla/Work/myrf/linux"
 }

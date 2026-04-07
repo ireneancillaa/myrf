@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'pages/login_page.dart';
+import 'pages/home_page.dart';
+import 'pages/broiler_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,14 +18,16 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'MYRF',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF22C55E)),
         useMaterial3: true,
         fontFamily: 'Roboto',
       ),
-      initialRoute: '/login',
+      // initialRoute: '/login',
+      initialRoute: '/home',
       getPages: [
         GetPage(name: '/login', page: () => const LoginPage()),
-        // Tambahkan GetPage lain di sini jika ada halaman lain
+        GetPage(name: '/home', page: () => const HomePage()),
+        GetPage(name: '/broiler', page: () => const BroilerPage()),
       ],
     );
   }
