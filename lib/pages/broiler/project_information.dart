@@ -6,6 +6,10 @@ import '../../controller/broiler_controller.dart';
 class BroilerProjectInformationSection extends StatelessWidget {
   const BroilerProjectInformationSection({super.key, required this.controller});
 
+  static const double _fieldTextSize = 14;
+  static const double _fieldHintSize = 14;
+  static const double _fieldHeight = 50;
+
   final BroilerController controller;
 
   @override
@@ -67,6 +71,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
               ),
               onChanged: (value) {
                 controller.selectedTrialHouse.value = value;
+                controller.trialHouseController.text = value ?? '';
               },
             ),
             const SizedBox(height: 16),
@@ -83,6 +88,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
               ],
               onChanged: (value) {
                 controller.selectedStrain.value = value;
+                controller.strainController.text = value ?? '';
               },
             ),
             const SizedBox(height: 16),
@@ -107,6 +113,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
               ],
               onChanged: (value) {
                 controller.selectedHatchery.value = value;
+                controller.hatcheryController.text = value ?? '';
               },
             ),
             const SizedBox(height: 16),
@@ -220,6 +227,11 @@ class BroilerProjectInformationSection extends StatelessWidget {
     return InputDecoration(
       labelText: label,
       hintText: hint,
+      hintStyle: const TextStyle(
+        fontSize: _fieldHintSize,
+        color: Color(0xFF9CA3AF),
+      ),
+      labelStyle: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
       prefixIcon: Icon(icon),
       filled: true,
       fillColor: Colors.white,
@@ -242,10 +254,14 @@ class BroilerProjectInformationSection extends StatelessWidget {
     required IconData icon,
     TextInputType? keyboardType,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: _fieldDecoration(label: label, hint: hint, icon: icon),
+    return SizedBox(
+      height: _fieldHeight,
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        style: const TextStyle(fontSize: _fieldTextSize),
+        decoration: _fieldDecoration(label: label, hint: hint, icon: icon),
+      ),
     );
   }
 
@@ -259,16 +275,23 @@ class BroilerProjectInformationSection extends StatelessWidget {
   }) {
     return Obx(() {
       final selectedValue = valueListenable.value;
-      return DropdownButtonFormField<String>(
-        value: selectedValue,
-        dropdownColor: Colors.white,
-        decoration: _fieldDecoration(
-          label: selectedValue == null ? null : label,
-          hint: hint,
-          icon: icon,
+      return SizedBox(
+        height: _fieldHeight,
+        child: DropdownButtonFormField<String>(
+          initialValue: selectedValue,
+          style: const TextStyle(
+            fontSize: _fieldTextSize,
+            color: Color(0xFF111827),
+          ),
+          dropdownColor: Colors.white,
+          decoration: _fieldDecoration(
+            label: selectedValue == null ? null : label,
+            hint: hint,
+            icon: icon,
+          ),
+          items: items,
+          onChanged: onChanged,
         ),
-        items: items,
-        onChanged: onChanged,
       );
     });
   }
@@ -283,16 +306,23 @@ class BroilerProjectInformationSection extends StatelessWidget {
   }) {
     return Obx(() {
       final selectedValue = valueListenable.value;
-      return DropdownButtonFormField<int>(
-        value: selectedValue,
-        dropdownColor: Colors.white,
-        decoration: _fieldDecoration(
-          label: selectedValue == null ? null : label,
-          hint: hint,
-          icon: icon,
+      return SizedBox(
+        height: _fieldHeight,
+        child: DropdownButtonFormField<int>(
+          initialValue: selectedValue,
+          style: const TextStyle(
+            fontSize: _fieldTextSize,
+            color: Color(0xFF111827),
+          ),
+          dropdownColor: Colors.white,
+          decoration: _fieldDecoration(
+            label: selectedValue == null ? null : label,
+            hint: hint,
+            icon: icon,
+          ),
+          items: items,
+          onChanged: onChanged,
         ),
-        items: items,
-        onChanged: onChanged,
       );
     });
   }
@@ -304,15 +334,19 @@ class BroilerProjectInformationSection extends StatelessWidget {
     required IconData icon,
     required VoidCallback onTap,
   }) {
-    return TextFormField(
-      readOnly: true,
-      controller: controller,
-      decoration: _fieldDecoration(
-        label: label,
-        hint: label,
-        icon: icon,
-      ).copyWith(suffixIcon: const Icon(Icons.arrow_drop_down)),
-      onTap: onTap,
+    return SizedBox(
+      height: _fieldHeight,
+      child: TextFormField(
+        readOnly: true,
+        controller: controller,
+        style: const TextStyle(fontSize: _fieldTextSize),
+        decoration: _fieldDecoration(
+          label: label,
+          hint: label,
+          icon: icon,
+        ).copyWith(suffixIcon: const Icon(Icons.arrow_drop_down)),
+        onTap: onTap,
+      ),
     );
   }
 

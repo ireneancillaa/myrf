@@ -1,39 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class BroilerProjectData {
-  BroilerProjectData({
-    required this.projectName,
-    required this.trialDate,
-    required this.trialHouse,
-    required this.strain,
-    required this.hatchery,
-    required this.breedingFarm,
-    required this.boxBatchCode,
-    required this.selector,
-    required this.docInDate,
-    required this.docWeight,
-    required this.weighing3Weeks,
-    required this.weighing5Weeks,
-    required this.numberOfBirds,
-    required this.dietReplication,
-  });
-
-  final String projectName;
-  final String trialDate;
-  final String trialHouse;
-  final String strain;
-  final String hatchery;
-  final String breedingFarm;
-  final String boxBatchCode;
-  final String selector;
-  final String docInDate;
-  final String docWeight;
-  final String weighing3Weeks;
-  final String weighing5Weeks;
-  final String numberOfBirds;
-  final int? dietReplication;
-}
+import '../models/broiler_project_data.dart';
 
 class BroilerController extends GetxController {
   final projectNameController = TextEditingController();
@@ -78,11 +46,6 @@ class BroilerController extends GetxController {
   void updateDietPens(int dietNumber, List<int> pens) {
     dietPenSelections[dietNumber] = List<int>.from(pens)..sort();
     dietPenSelections.refresh();
-  }
-
-  @override
-  void onInit() {
-    super.onInit();
   }
 
   void selectProject(String? projectName) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../controller/user_session_controller.dart';
 import 'login_page.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -15,14 +16,25 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const userName = 'Breeder';
-    const email = 'breeder@myrf.local';
+    final sessionController = Get.isRegistered<UserSessionController>()
+        ? Get.find<UserSessionController>()
+        : Get.put(UserSessionController(), permanent: true);
+
+    final userName = sessionController.displayName;
+    final email = sessionController.emailOrId;
     const role = 'BREEDER';
     const farmName = 'My Research Farm';
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        foregroundColor: const Color(0xFF111827),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: const Text('Profile'),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -57,7 +69,7 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     userName,
                     style: TextStyle(
                       fontSize: 24,
@@ -139,9 +151,34 @@ class ProfilePage extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Contact admin to delete account'),
-                      backgroundColor: _textSecondary,
+                    SnackBar(
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: const Color(0xFF1F2937),
+                      elevation: 0,
+                      margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      content: const Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Contact admin to delete account',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      duration: const Duration(seconds: 3),
                     ),
                   );
                 },
@@ -178,6 +215,8 @@ class ProfilePage extends StatelessWidget {
     required String value,
   }) {
     return Card(
+      color: Colors.white,
+      surfaceTintColor: Colors.white,
       child: ListTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
@@ -204,34 +243,107 @@ class ProfilePage extends StatelessWidget {
   }
 
   void _showLogoutDialog(BuildContext context) {
+    final sessionController = Get.isRegistered<UserSessionController>()
+        ? Get.find<UserSessionController>()
+        : Get.put(UserSessionController(), permanent: true);
+
     showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber, color: _warningColor),
-            SizedBox(width: 12),
-            Text('Logout'),
-          ],
-        ),
-        content: const Text(
-          'Are you sure you want to logout? You will need to sign in again to access your data.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: _warningColor.withOpacity(0.16),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: _warningColor,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Logout',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: _textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Are you sure you want to logout? You will need to sign in again to access your data.',
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: _textSecondary,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _textPrimary,
+                        side: const BorderSide(color: Color(0xFFD1D5DB)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        sessionController.clear();
+                        Get.offAll(() => const LoginPage());
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _errorColor,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Logout',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Get.offAll(() => const LoginPage());
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: _errorColor),
-            child: const Text('Logout'),
-          ),
-        ],
+        ),
       ),
     );
   }

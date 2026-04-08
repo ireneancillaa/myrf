@@ -1,17 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'user_session_controller.dart';
+
 class LoginController extends GetxController {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final obscurePassword = true.obs;
+  late final UserSessionController _sessionController;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _sessionController = Get.isRegistered<UserSessionController>()
+        ? Get.find<UserSessionController>()
+        : Get.put(UserSessionController(), permanent: true);
+  }
 
   void toggleObscurePassword() {
     obscurePassword.value = !obscurePassword.value;
   }
 
   void login() {
-    // Sementara arahkan ke homepage untuk preview tampilan setelah login.
+    final emailOrId = emailController.text.trim();
+    final password = passwordController.text;
+
+    if (emailOrId.isEmpty || password.isEmpty) {
+      Get.snackbar('Login Gagal', 'Email/ID dan password wajib diisi');
+      return;
+    }
+
+    _sessionController.setLoginIdentifier(emailOrId);
     Get.offAllNamed('/home');
   }
 

@@ -15,15 +15,34 @@ class BroilerPage extends StatefulWidget {
 
 class _BroilerPageState extends State<BroilerPage> {
   late final BroilerController controller;
+  late final ScrollController _scrollController;
   int _currentStep = 0;
   static const _stepCount = 3;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
     controller = Get.isRegistered<BroilerController>()
         ? Get.find<BroilerController>()
         : Get.put(BroilerController(), permanent: true);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _goToStep(int step) {
+    setState(() {
+      _currentStep = step;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.jumpTo(0);
+    });
   }
 
   @override
@@ -57,6 +76,7 @@ class _BroilerPageState extends State<BroilerPage> {
             const SizedBox(height: 28),
             Expanded(
               child: SingleChildScrollView(
+                controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,9 +90,7 @@ class _BroilerPageState extends State<BroilerPage> {
                         child: ElevatedButton(
                           onPressed: () {
                             controller.saveProject();
-                            setState(() {
-                              _currentStep = 1;
-                            });
+                            _goToStep(1);
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF22C55E),
@@ -85,7 +103,7 @@ class _BroilerPageState extends State<BroilerPage> {
                           child: const Text(
                             'Next',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -99,9 +117,7 @@ class _BroilerPageState extends State<BroilerPage> {
                               height: 48,
                               child: OutlinedButton(
                                 onPressed: () {
-                                  setState(() {
-                                    _currentStep--;
-                                  });
+                                  _goToStep(_currentStep - 1);
                                 },
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: const Color(0xFF22C55E),
@@ -115,7 +131,7 @@ class _BroilerPageState extends State<BroilerPage> {
                                 child: const Text(
                                   'Back',
                                   style: TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -128,11 +144,9 @@ class _BroilerPageState extends State<BroilerPage> {
                               height: 48,
                               child: ElevatedButton(
                                 onPressed: () {
-                                  setState(() {
-                                    if (_currentStep < 2) {
-                                      _currentStep++;
-                                    }
-                                  });
+                                  if (_currentStep < 2) {
+                                    _goToStep(_currentStep + 1);
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF22C55E),
@@ -185,6 +199,10 @@ class BroilerStepperTabs extends StatelessWidget {
     required this.totalSteps,
   });
 
+  static const double _stepperHeight = 70;
+  static const double _lineTop = 21;
+  static const double _lineHeight = 2;
+
   final int currentStep;
   final int totalSteps;
 
@@ -194,7 +212,7 @@ class BroilerStepperTabs extends StatelessWidget {
     final progress = totalSteps <= 1 ? 0.0 : safeStep / (totalSteps - 1);
 
     return SizedBox(
-      height: 72,
+      height: _stepperHeight,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final progressWidth = constraints.maxWidth * progress;
@@ -202,17 +220,20 @@ class BroilerStepperTabs extends StatelessWidget {
             alignment: Alignment.center,
             children: [
               Positioned(
-                top: 18,
+                top: _lineTop,
                 left: 0,
                 right: 0,
-                child: Container(height: 3, color: const Color(0xFFE0E0E0)),
+                child: Container(
+                  height: _lineHeight,
+                  color: const Color(0xFFE0E0E0),
+                ),
               ),
               Positioned(
-                top: 18,
+                top: _lineTop,
                 left: 0,
                 child: Container(
                   width: progressWidth,
-                  height: 3,
+                  height: _lineHeight,
                   color: const Color(0xFF22C55E),
                 ),
               ),
@@ -251,6 +272,9 @@ class _BroilerStepTab extends StatelessWidget {
     required this.active,
   });
 
+  static const double _iconCardSize = 42;
+  static const double _iconSize = 24;
+
   final IconData icon;
   final String label;
   final bool active;
@@ -265,8 +289,8 @@ class _BroilerStepTab extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 38,
-          height: 38,
+          width: _iconCardSize,
+          height: _iconCardSize,
           decoration: BoxDecoration(
             color: backgroundColor,
             shape: BoxShape.circle,
@@ -280,7 +304,7 @@ class _BroilerStepTab extends StatelessWidget {
                   ]
                 : null,
           ),
-          child: Icon(icon, color: color, size: 22),
+          child: Icon(icon, color: color, size: _iconSize),
         ),
         const SizedBox(height: 10),
         Text(

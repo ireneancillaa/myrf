@@ -6,6 +6,10 @@ import '../../controller/broiler_controller.dart';
 class DietPenMappingSection extends StatelessWidget {
   const DietPenMappingSection({super.key, required this.controller});
 
+  static const double _fieldTextSize = 14;
+  static const double _fieldHintSize = 14;
+  static const double _fieldHeight = 50;
+
   final BroilerController controller;
 
   @override
@@ -25,7 +29,7 @@ class DietPenMappingSection extends StatelessWidget {
           child: const Text(
             'Pilih Diet/Replication pada Project Information terlebih dahulu.',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: _fieldTextSize,
               color: Color(0xFF666666),
               fontWeight: FontWeight.w500,
             ),
@@ -81,6 +85,9 @@ class _DietCard extends StatefulWidget {
 }
 
 class _DietCardState extends State<_DietCard> {
+  static const double _selectPensDialogRadius = 28;
+  static const double _selectPensButtonRadius = 14;
+
   Future<void> _selectPens() async {
     final selectedPens = widget.controller
         .dietPensFor(widget.dietNumber)
@@ -101,166 +108,311 @@ class _DietCardState extends State<_DietCard> {
             return Dialog(
               insetPadding: const EdgeInsets.symmetric(horizontal: 20),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(_selectPensDialogRadius),
               ),
-              backgroundColor: const Color(0xFFF2F2EC),
+              backgroundColor: Colors.white,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 640),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Select Pens',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF111111),
+                constraints: const BoxConstraints(maxHeight: 680),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(
+                              _selectPensDialogRadius,
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                const Color(0xFFF8FAF4),
+                                const Color(0xFFFFFFFF),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Expanded(
-                        child: Scrollbar(
-                          child: ListView.separated(
-                            itemCount: 42,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final penNumber = index + 1;
-                              final isSelected = tempSelectedPens.contains(
-                                penNumber,
-                              );
-                              final isUsedByOtherDiet =
-                                  usedPens.contains(penNumber) && !isSelected;
-
-                              return InkWell(
-                                onTap: isUsedByOtherDiet
-                                    ? null
-                                    : () {
-                                        setDialogState(() {
-                                          if (isSelected) {
-                                            tempSelectedPens.remove(penNumber);
-                                          } else {
-                                            tempSelectedPens.add(penNumber);
-                                          }
-                                        });
-                                      },
-                                borderRadius: BorderRadius.circular(16),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 4,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Pen $penNumber',
-                                              style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w400,
-                                                color: isUsedByOtherDiet
-                                                    ? const Color(0xFFB6B6B6)
-                                                    : const Color(0xFF1D1D1D),
-                                              ),
-                                            ),
-                                            if (isUsedByOtherDiet) ...[
-                                              const SizedBox(height: 4),
-                                              const Text(
-                                                'Used by another diet',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  color: Color(0xFFE15757),
-                                                  fontWeight: FontWeight.w400,
-                                                ),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8F6ED),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: const Icon(
+                                  Icons.view_week_rounded,
+                                  color: Color(0xFF1D8F47),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Select Pens',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF111111),
                                       ),
-                                      Checkbox(
-                                        value: isSelected,
-                                        onChanged: isUsedByOtherDiet
-                                            ? null
-                                            : (value) {
-                                                setDialogState(() {
-                                                  if (value == true) {
-                                                    tempSelectedPens.add(
-                                                      penNumber,
-                                                    );
-                                                  } else {
-                                                    tempSelectedPens.remove(
-                                                      penNumber,
-                                                    );
-                                                  }
-                                                });
-                                              },
-                                        activeColor: const Color(0xFF1D8F47),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Pilih pen untuk diet ini dan simpan perubahan.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF6B7280),
+                                        fontWeight: FontWeight.w500,
                                       ),
-                                    ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  '${selectedPens.length}/42 selected',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF334155),
                                   ),
                                 ),
-                              );
-                            },
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () => Navigator.of(dialogContext).pop(),
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1D8F47),
+                          const SizedBox(height: 16),
+                          Expanded(
+                            child: Scrollbar(
+                              child: ListView.separated(
+                                itemCount: 42,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(height: 10),
+                                itemBuilder: (context, index) {
+                                  final penNumber = index + 1;
+                                  final isSelected = tempSelectedPens.contains(
+                                    penNumber,
+                                  );
+                                  final isUsedByOtherDiet =
+                                      usedPens.contains(penNumber) &&
+                                      !isSelected;
+
+                                  final cardColor = isSelected
+                                      ? const Color(0xFFE8F6ED)
+                                      : Colors.white;
+
+                                  return InkWell(
+                                    onTap: isUsedByOtherDiet
+                                        ? null
+                                        : () {
+                                            setDialogState(() {
+                                              if (isSelected) {
+                                                tempSelectedPens.remove(
+                                                  penNumber,
+                                                );
+                                              } else {
+                                                tempSelectedPens.add(penNumber);
+                                              }
+                                            });
+                                          },
+                                    borderRadius: BorderRadius.circular(18),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 180,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: cardColor,
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? const Color(0xFF1D8F47)
+                                              : isUsedByOtherDiet
+                                              ? const Color(0xFFF2B4B4)
+                                              : const Color(0xFFE5E7EB),
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              isSelected ? 0.06 : 0.03,
+                                            ),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Pen $penNumber',
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        DietPenMappingSection
+                                                            ._fieldTextSize,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: isUsedByOtherDiet
+                                                        ? const Color(
+                                                            0xFFB6B6B6,
+                                                          )
+                                                        : const Color(
+                                                            0xFF1D1D1D,
+                                                          ),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  isUsedByOtherDiet
+                                                      ? 'Used by another diet'
+                                                      : isSelected
+                                                      ? 'Selected for diet ${widget.dietNumber}'
+                                                      : 'Tap to select this pen',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: isUsedByOtherDiet
+                                                        ? const Color(
+                                                            0xFFE15757,
+                                                          )
+                                                        : isSelected
+                                                        ? const Color(
+                                                            0xFF1D8F47,
+                                                          )
+                                                        : const Color(
+                                                            0xFF6B7280,
+                                                          ),
+                                                    fontWeight: FontWeight.w400,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Checkbox(
+                                            value: isSelected,
+                                            onChanged: isUsedByOtherDiet
+                                                ? null
+                                                : (value) {
+                                                    setDialogState(() {
+                                                      if (value == true) {
+                                                        tempSelectedPens.add(
+                                                          penNumber,
+                                                        );
+                                                      } else {
+                                                        tempSelectedPens.remove(
+                                                          penNumber,
+                                                        );
+                                                      }
+                                                    });
+                                                  },
+                                            activeColor: const Color(
+                                              0xFF1D8F47,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ),
-                          const SizedBox(width: 14),
-                          ElevatedButton(
-                            onPressed: () {
-                              Navigator.of(
-                                dialogContext,
-                              ).pop(tempSelectedPens.toList()..sort());
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1D8F47),
-                              foregroundColor: Colors.white,
-                              elevation: 4,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 26,
-                                vertical: 14,
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () =>
+                                      Navigator.of(dialogContext).pop(),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF1D8F47),
+                                    side: const BorderSide(
+                                      color: Color(0xFF1D8F47),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(_selectPensButtonRadius),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      fontSize:
+                                          DietPenMappingSection._fieldTextSize,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.of(
+                                      dialogContext,
+                                    ).pop(tempSelectedPens.toList()..sort());
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF1D8F47),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        _selectPensButtonRadius,
+                                      ),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Save',
+                                    style: TextStyle(
+                                      fontSize:
+                                          DietPenMappingSection._fieldTextSize,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                            child: const Text(
-                              'Save',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             );
@@ -292,7 +444,7 @@ class _DietCardState extends State<_DietCard> {
               Text(
                 'Diet ${widget.dietNumber}',
                 style: const TextStyle(
-                  fontSize: 24,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF1B1B1B),
                 ),
@@ -301,7 +453,7 @@ class _DietCardState extends State<_DietCard> {
               Text(
                 'Replication : ${widget.replication}',
                 style: const TextStyle(
-                  fontSize: 14,
+                  fontSize: DietPenMappingSection._fieldTextSize,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF666666),
                 ),
@@ -326,7 +478,7 @@ class _DietCardState extends State<_DietCard> {
           const Text(
             'Pen Mapping',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
               color: Color(0xFF1B1B1B),
             ),
@@ -358,7 +510,7 @@ class _DietCardState extends State<_DietCard> {
                           Text(
                             'Pen $penNumber',
                             style: const TextStyle(
-                              fontSize: 15,
+                              fontSize: DietPenMappingSection._fieldTextSize,
                               color: Color(0xFF444444),
                             ),
                           ),
@@ -385,7 +537,7 @@ class _DietCardState extends State<_DietCard> {
                   .toList(),
             );
           }),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5),
           OutlinedButton.icon(
             onPressed: _selectPens,
             icon: const Icon(Icons.add, size: 18, color: Color(0xFF22C55E)),
@@ -393,7 +545,7 @@ class _DietCardState extends State<_DietCard> {
               'Select Pens',
               style: TextStyle(
                 color: Color(0xFF22C55E),
-                fontSize: 18,
+                fontSize: DietPenMappingSection._fieldTextSize,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -401,7 +553,7 @@ class _DietCardState extends State<_DietCard> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               side: const BorderSide(color: Color(0xFF22C55E)),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
               ),
             ),
           ),
@@ -424,11 +576,17 @@ class _DietInputField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    final field = TextField(
       maxLines: maxLines,
+      style: const TextStyle(fontSize: DietPenMappingSection._fieldTextSize),
       decoration: InputDecoration(
         labelText: label,
         hintText: label,
+        hintStyle: const TextStyle(
+          fontSize: DietPenMappingSection._fieldHintSize,
+          color: Color(0xFF9CA3AF),
+        ),
+        labelStyle: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
         prefixIcon: Icon(icon, color: const Color(0xFF444444)),
         filled: true,
         fillColor: Colors.white,
@@ -445,5 +603,11 @@ class _DietInputField extends StatelessWidget {
         ),
       ),
     );
+
+    if (maxLines == 1) {
+      return SizedBox(height: DietPenMappingSection._fieldHeight, child: field);
+    }
+
+    return field;
   }
 }
