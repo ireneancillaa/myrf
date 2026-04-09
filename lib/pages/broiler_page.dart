@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controller/broiler_controller.dart';
+import '../controller/diet_mapping_controller.dart';
 import '../controller/sample_doc_controller.dart';
 import 'broiler/sample_doc.dart';
 import 'broiler/diet_pen_mapping.dart';
@@ -16,6 +17,7 @@ class BroilerPage extends StatefulWidget {
 
 class _BroilerPageState extends State<BroilerPage> {
   late final BroilerController controller;
+  late final DietMappingController dietMappingController;
   late final SampleDocController sampleDocController;
   late final ScrollController _scrollController;
   int _currentStep = 0;
@@ -28,6 +30,9 @@ class _BroilerPageState extends State<BroilerPage> {
     controller = Get.isRegistered<BroilerController>()
         ? Get.find<BroilerController>()
         : Get.put(BroilerController(), permanent: true);
+    dietMappingController = Get.isRegistered<DietMappingController>()
+        ? Get.find<DietMappingController>()
+        : Get.put(DietMappingController(), permanent: true);
     sampleDocController = Get.isRegistered<SampleDocController>()
         ? Get.find<SampleDocController>()
         : Get.put(SampleDocController());
@@ -200,7 +205,7 @@ class _BroilerPageState extends State<BroilerPage> {
       case 0:
         return BroilerProjectInformationSection(controller: controller);
       case 1:
-        return DietPenMappingSection(controller: controller);
+        return DietPenMappingSection(controller: dietMappingController);
       case 2:
         return SampleDocSection(
           boxHeaviestController: sampleDocController.boxHeaviestController,
@@ -214,7 +219,7 @@ class _BroilerPageState extends State<BroilerPage> {
           onDocDistributionsChanged: (distributions) {
             sampleDocController.docDistributions.assignAll(distributions);
           },
-          dietReplication: controller.dietReplication.value ?? 1,
+          dietReplication: dietMappingController.dietReplication.value ?? 1,
           totalPens: sampleDocController.totalPens.value,
         );
       default:

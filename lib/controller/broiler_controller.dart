@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'diet_mapping_controller.dart';
 import '../models/broiler_project_data.dart';
 
 class BroilerController extends GetxController {
@@ -26,30 +27,9 @@ class BroilerController extends GetxController {
   final selectedStrain = RxnString();
   final selectedHatchery = RxnString();
   final selectedDocInDate = RxnString();
-  final dietCount = RxnInt();
-  final dietReplication = RxnInt();
-  final dietPenSelections = <int, List<int>>{}.obs;
 
   List<String> get projectNames =>
       projects.map((item) => item.projectName).toList();
-
-  List<int> dietPensFor(int dietNumber) {
-    return List<int>.from(dietPenSelections[dietNumber] ?? const <int>[]);
-  }
-
-  Set<int> usedPensExcept(int dietNumber) {
-    final usedPens = <int>{};
-    for (final entry in dietPenSelections.entries) {
-      if (entry.key == dietNumber) continue;
-      usedPens.addAll(entry.value);
-    }
-    return usedPens;
-  }
-
-  void updateDietPens(int dietNumber, List<int> pens) {
-    dietPenSelections[dietNumber] = List<int>.from(pens)..sort();
-    dietPenSelections.refresh();
-  }
 
   void selectProject(String? projectName) {
     if (projectName == null) return;
@@ -78,8 +58,14 @@ class BroilerController extends GetxController {
     selectedStrain.value = project.strain;
     selectedHatchery.value = project.hatchery;
     selectedDocInDate.value = project.docInDate;
-    dietCount.value = int.tryParse(project.diet);
-    dietReplication.value = project.dietReplication;
+
+    final dietMappingController = Get.isRegistered<DietMappingController>()
+        ? Get.find<DietMappingController>()
+        : Get.put(DietMappingController(), permanent: true);
+    dietMappingController.syncFromValues(
+      diet: project.diet,
+      replication: project.replication,
+    );
   }
 
   bool saveProject() {
@@ -120,7 +106,6 @@ class BroilerController extends GetxController {
       return false;
     }
 
-    final dietNumber = (int.tryParse(diet) ?? 1).clamp(1, 9999);
     final replicationNumber = (int.tryParse(replication) ?? 1).clamp(1, 9999);
 
     final data = BroilerProjectData(
@@ -152,12 +137,11 @@ class BroilerController extends GetxController {
     }
 
     selectedProjectName.value = projectName;
-    dietCount.value = dietNumber;
-    dietReplication.value = replicationNumber;
 
-    // Keep pen selections valid when diet count changes.
-    dietPenSelections.removeWhere((key, value) => key > dietNumber);
-    dietPenSelections.refresh();
+    final dietMappingController = Get.isRegistered<DietMappingController>()
+        ? Get.find<DietMappingController>()
+        : Get.put(DietMappingController(), permanent: true);
+    dietMappingController.syncFromValues(diet: diet, replication: replication);
 
     Get.snackbar('Saved', 'Project tersimpan di dropdown');
     return true;

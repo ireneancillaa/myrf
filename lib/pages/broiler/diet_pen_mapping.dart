@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../controller/broiler_controller.dart';
+import '../../controller/diet_mapping_controller.dart';
 
 class DietPenMappingSection extends StatelessWidget {
   const DietPenMappingSection({super.key, required this.controller});
@@ -10,7 +10,7 @@ class DietPenMappingSection extends StatelessWidget {
   static const double _fieldHintSize = 14;
   static const double _fieldHeight = 50;
 
-  final BroilerController controller;
+  final DietMappingController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +78,7 @@ class _DietCard extends StatefulWidget {
     required this.replication,
   });
 
-  final BroilerController controller;
+  final DietMappingController controller;
 
   final int dietNumber;
   final int replication;
