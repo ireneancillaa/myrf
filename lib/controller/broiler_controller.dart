@@ -30,14 +30,6 @@ class BroilerController extends GetxController {
   final dietReplication = RxnInt();
   final dietPenSelections = <int, List<int>>{}.obs;
 
-  // Sample DOC section
-  final boxHeaviestController = TextEditingController();
-  final boxAverageController = TextEditingController();
-  final boxLightestController = TextEditingController();
-  final docWeights = <double>[].obs;
-  final docDistributions = <Map<String, dynamic>>[].obs;
-  final totalPens = 10.obs;
-
   List<String> get projectNames =>
       projects.map((item) => item.projectName).toList();
 
@@ -188,9 +180,6 @@ class BroilerController extends GetxController {
     numberOfBirdsController.dispose();
     dietController.dispose();
     replicationController.dispose();
-    boxHeaviestController.dispose();
-    boxAverageController.dispose();
-    boxLightestController.dispose();
     super.onClose();
   }
 }

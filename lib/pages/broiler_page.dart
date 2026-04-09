@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controller/broiler_controller.dart';
+import '../controller/sample_doc_controller.dart';
 import 'broiler/sample_doc.dart';
 import 'broiler/diet_pen_mapping.dart';
 import 'broiler/project_information.dart';
@@ -15,6 +16,7 @@ class BroilerPage extends StatefulWidget {
 
 class _BroilerPageState extends State<BroilerPage> {
   late final BroilerController controller;
+  late final SampleDocController sampleDocController;
   late final ScrollController _scrollController;
   int _currentStep = 0;
   static const _stepCount = 3;
@@ -26,10 +28,16 @@ class _BroilerPageState extends State<BroilerPage> {
     controller = Get.isRegistered<BroilerController>()
         ? Get.find<BroilerController>()
         : Get.put(BroilerController(), permanent: true);
+    sampleDocController = Get.isRegistered<SampleDocController>()
+        ? Get.find<SampleDocController>()
+        : Get.put(SampleDocController());
   }
 
   @override
   void dispose() {
+    if (Get.isRegistered<SampleDocController>()) {
+      Get.delete<SampleDocController>();
+    }
     _scrollController.dispose();
     super.dispose();
   }
@@ -195,19 +203,19 @@ class _BroilerPageState extends State<BroilerPage> {
         return DietPenMappingSection(controller: controller);
       case 2:
         return SampleDocSection(
-          boxHeaviestController: controller.boxHeaviestController,
-          boxAverageController: controller.boxAverageController,
-          boxLightestController: controller.boxLightestController,
-          docWeights: controller.docWeights,
+          boxHeaviestController: sampleDocController.boxHeaviestController,
+          boxAverageController: sampleDocController.boxAverageController,
+          boxLightestController: sampleDocController.boxLightestController,
+          docWeights: sampleDocController.docWeights,
           onDocWeightsChanged: (weights) {
-            controller.docWeights.assignAll(weights);
+            sampleDocController.docWeights.assignAll(weights);
           },
-          docDistributions: controller.docDistributions,
+          docDistributions: sampleDocController.docDistributions,
           onDocDistributionsChanged: (distributions) {
-            controller.docDistributions.assignAll(distributions);
+            sampleDocController.docDistributions.assignAll(distributions);
           },
           dietReplication: controller.dietReplication.value ?? 1,
-          totalPens: controller.totalPens.value,
+          totalPens: sampleDocController.totalPens.value,
         );
       default:
         return BroilerProjectInformationSection(controller: controller);
