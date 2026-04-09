@@ -13,6 +13,8 @@ class BroilerProjectData {
     required this.weighing3Weeks,
     required this.weighing5Weeks,
     required this.numberOfBirds,
+    required this.diet,
+    required this.replication,
     required this.dietReplication,
   });
 
@@ -29,5 +31,7 @@ class BroilerProjectData {
   final String weighing3Weeks;
   final String weighing5Weeks;
   final String numberOfBirds;
+  final String diet;
+  final String replication;
   final int? dietReplication;
 }

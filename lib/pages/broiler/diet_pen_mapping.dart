@@ -14,57 +14,60 @@ class DietPenMappingSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final replication = controller.dietReplication.value ?? 0;
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Obx(() {
+        final diet = controller.dietCount.value ?? 0;
+        final replication = controller.dietReplication.value ?? 0;
 
-      if (replication <= 0) {
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE0E0E0)),
-          ),
-          child: const Text(
-            'Pilih Diet/Replication pada Project Information terlebih dahulu.',
-            style: TextStyle(
-              fontSize: _fieldTextSize,
-              color: Color(0xFF666666),
-              fontWeight: FontWeight.w500,
+        if (diet <= 0 || replication <= 0) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE0E0E0)),
             ),
-          ),
+            child: const Text(
+              'Pilih Diet dan Replication pada Project Information terlebih dahulu.',
+              style: TextStyle(
+                fontSize: _fieldTextSize,
+                color: Color(0xFF666666),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Diet Configuration',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF22C55E),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ...List.generate(
+              diet,
+              (index) => Padding(
+                padding: EdgeInsets.only(bottom: index == diet - 1 ? 0 : 20),
+                child: _DietCard(
+                  controller: controller,
+                  dietNumber: index + 1,
+                  replication: replication,
+                ),
+              ),
+            ),
+          ],
         );
-      }
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Diet Configuration',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF22C55E),
-            ),
-          ),
-          const SizedBox(height: 20),
-          ...List.generate(
-            replication,
-            (index) => Padding(
-              padding: EdgeInsets.only(
-                bottom: index == replication - 1 ? 0 : 20,
-              ),
-              child: _DietCard(
-                controller: controller,
-                dietNumber: index + 1,
-                replication: replication,
-              ),
-            ),
-          ),
-        ],
-      );
-    });
+      }),
+    );
   }
 }
 
@@ -362,7 +365,9 @@ class _DietCardState extends State<_DietCard> {
                                       vertical: 14,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(_selectPensButtonRadius),
+                                      borderRadius: BorderRadius.circular(
+                                        _selectPensButtonRadius,
+                                      ),
                                     ),
                                   ),
                                   child: const Text(
@@ -582,24 +587,24 @@ class _DietInputField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         hintText: label,
+        labelStyle: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
         hintStyle: const TextStyle(
           fontSize: DietPenMappingSection._fieldHintSize,
           color: Color(0xFF9CA3AF),
         ),
-        labelStyle: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-        prefixIcon: Icon(icon, color: const Color(0xFF444444)),
+        prefixIcon: Icon(icon),
         filled: true,
         fillColor: Colors.white,
-        border: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(8)),
-        ),
+        border: const OutlineInputBorder(),
         enabledBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(8)),
           borderSide: BorderSide(color: Color(0xFFE0E0E0)),
         ),
         focusedBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(8)),
           borderSide: BorderSide(color: Color(0xFF22C55E)),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 16,
         ),
       ),
     );

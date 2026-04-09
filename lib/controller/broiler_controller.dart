@@ -17,6 +17,8 @@ class BroilerController extends GetxController {
   final weighing3WeeksController = TextEditingController();
   final weighing5WeeksController = TextEditingController();
   final numberOfBirdsController = TextEditingController();
+  final dietController = TextEditingController();
+  final replicationController = TextEditingController();
 
   final projects = <BroilerProjectData>[].obs;
   final selectedProjectName = RxnString();
@@ -24,8 +26,17 @@ class BroilerController extends GetxController {
   final selectedStrain = RxnString();
   final selectedHatchery = RxnString();
   final selectedDocInDate = RxnString();
+  final dietCount = RxnInt();
   final dietReplication = RxnInt();
   final dietPenSelections = <int, List<int>>{}.obs;
+
+  // Sample DOC section
+  final boxHeaviestController = TextEditingController();
+  final boxAverageController = TextEditingController();
+  final boxLightestController = TextEditingController();
+  final docWeights = <double>[].obs;
+  final docDistributions = <Map<String, dynamic>>[].obs;
+  final totalPens = 10.obs;
 
   List<String> get projectNames =>
       projects.map((item) => item.projectName).toList();
@@ -69,35 +80,74 @@ class BroilerController extends GetxController {
     weighing3WeeksController.text = project.weighing3Weeks;
     weighing5WeeksController.text = project.weighing5Weeks;
     numberOfBirdsController.text = project.numberOfBirds;
+    dietController.text = project.diet;
+    replicationController.text = project.replication;
     selectedTrialHouse.value = project.trialHouse;
     selectedStrain.value = project.strain;
     selectedHatchery.value = project.hatchery;
     selectedDocInDate.value = project.docInDate;
+    dietCount.value = int.tryParse(project.diet);
     dietReplication.value = project.dietReplication;
   }
 
-  void saveProject() {
+  bool saveProject() {
     final projectName = projectNameController.text.trim();
+    final trialDate = trialDateController.text.trim();
+    final docWeight = docWeightController.text.trim();
+    final docInDate = docInDateController.text.trim();
+    final trialHouse = trialHouseController.text.trim();
+    final diet = dietController.text.trim();
+    final replication = replicationController.text.trim();
+
     if (projectName.isEmpty) {
-      Get.snackbar('Project Name', 'Project name belum diisi');
-      return;
+      Get.snackbar('Project Name / Chick Cycle', 'Field wajib diisi');
+      return false;
     }
+    if (trialDate.isEmpty) {
+      Get.snackbar('Date Trial', 'Field wajib diisi');
+      return false;
+    }
+    if (docWeight.isEmpty) {
+      Get.snackbar('DOC Weight (Kg)', 'Field wajib diisi');
+      return false;
+    }
+    if (docInDate.isEmpty) {
+      Get.snackbar('DOC In', 'Field wajib diisi');
+      return false;
+    }
+    if (trialHouse.isEmpty) {
+      Get.snackbar('Map of Trial House', 'Field wajib diisi');
+      return false;
+    }
+    if (diet.isEmpty) {
+      Get.snackbar('Diet', 'Field wajib diisi');
+      return false;
+    }
+    if (replication.isEmpty) {
+      Get.snackbar('Replication', 'Field wajib diisi');
+      return false;
+    }
+
+    final dietNumber = (int.tryParse(diet) ?? 1).clamp(1, 9999);
+    final replicationNumber = (int.tryParse(replication) ?? 1).clamp(1, 9999);
 
     final data = BroilerProjectData(
       projectName: projectName,
-      trialDate: trialDateController.text.trim(),
-      trialHouse: trialHouseController.text.trim(),
+      trialDate: trialDate,
+      trialHouse: trialHouse,
       strain: strainController.text.trim(),
       hatchery: hatcheryController.text.trim(),
       breedingFarm: breedingFarmController.text.trim(),
       boxBatchCode: boxBatchCodeController.text.trim(),
       selector: selectorController.text.trim(),
-      docInDate: docInDateController.text.trim(),
-      docWeight: docWeightController.text.trim(),
+      docInDate: docInDate,
+      docWeight: docWeight,
       weighing3Weeks: weighing3WeeksController.text.trim(),
       weighing5Weeks: weighing5WeeksController.text.trim(),
       numberOfBirds: numberOfBirdsController.text.trim(),
-      dietReplication: dietReplication.value,
+      diet: diet,
+      replication: replication,
+      dietReplication: replicationNumber,
     );
 
     final existingIndex = projects.indexWhere(
@@ -110,7 +160,15 @@ class BroilerController extends GetxController {
     }
 
     selectedProjectName.value = projectName;
+    dietCount.value = dietNumber;
+    dietReplication.value = replicationNumber;
+
+    // Keep pen selections valid when diet count changes.
+    dietPenSelections.removeWhere((key, value) => key > dietNumber);
+    dietPenSelections.refresh();
+
     Get.snackbar('Saved', 'Project tersimpan di dropdown');
+    return true;
   }
 
   @override
@@ -128,6 +186,11 @@ class BroilerController extends GetxController {
     weighing3WeeksController.dispose();
     weighing5WeeksController.dispose();
     numberOfBirdsController.dispose();
+    dietController.dispose();
+    replicationController.dispose();
+    boxHeaviestController.dispose();
+    boxAverageController.dispose();
+    boxLightestController.dispose();
     super.onClose();
   }
 }

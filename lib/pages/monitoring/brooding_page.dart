@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../controller/broiler_controller.dart';
+import '../../controller/broiler_controller.dart';
 
 class BroodingPage extends StatefulWidget {
   const BroodingPage({super.key, this.selectedFarmName});

@@ -82,15 +82,17 @@ class _BroilerPageState extends State<BroilerPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildCurrentStepContent(),
-                    const SizedBox(height: 18),
+                    SizedBox(height: _currentStep == 2 ? 0 : 24),
                     if (_currentStep == 0)
                       SizedBox(
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
                           onPressed: () {
-                            controller.saveProject();
-                            _goToStep(1);
+                            final isSaved = controller.saveProject();
+                            if (isSaved) {
+                              _goToStep(1);
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF22C55E),
@@ -146,6 +148,13 @@ class _BroilerPageState extends State<BroilerPage> {
                                 onPressed: () {
                                   if (_currentStep < 2) {
                                     _goToStep(_currentStep + 1);
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Data berhasil disimpan'),
+                                        backgroundColor: Color(0xFF22C55E),
+                                      ),
+                                    );
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
@@ -185,7 +194,21 @@ class _BroilerPageState extends State<BroilerPage> {
       case 1:
         return DietPenMappingSection(controller: controller);
       case 2:
-        return const SampleDocSection();
+        return SampleDocSection(
+          boxHeaviestController: controller.boxHeaviestController,
+          boxAverageController: controller.boxAverageController,
+          boxLightestController: controller.boxLightestController,
+          docWeights: controller.docWeights,
+          onDocWeightsChanged: (weights) {
+            controller.docWeights.assignAll(weights);
+          },
+          docDistributions: controller.docDistributions,
+          onDocDistributionsChanged: (distributions) {
+            controller.docDistributions.assignAll(distributions);
+          },
+          dietReplication: controller.dietReplication.value ?? 1,
+          totalPens: controller.totalPens.value,
+        );
       default:
         return BroilerProjectInformationSection(controller: controller);
     }

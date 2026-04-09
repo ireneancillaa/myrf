@@ -4,7 +4,11 @@ import 'package:get/get.dart';
 import '../controller/broiler_controller.dart';
 import '../controller/user_session_controller.dart';
 import '../models/home_models.dart';
-import 'brooding_page.dart';
+import 'monitoring/infeed_page.dart';
+import 'monitoring/depletion_page.dart';
+import 'monitoring/feses_score_page.dart';
+import 'monitoring/brooding_page.dart';
+import 'monitoring/weighing_doa_page.dart';
 import 'broiler_page.dart';
 import 'profile_page.dart';
 
@@ -428,39 +432,80 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildQuickActionItem(QuickActionItem action) {
+    VoidCallback? onTap;
+
+    switch (action.title) {
+      case 'Weighing DOA':
+        onTap = () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => WeighingDoaPage(selectedFarmName: _selectedFarm),
+            ),
+          );
+        };
+        break;
+      case 'Infeed':
+        onTap = () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const InfeedPage()));
+        };
+        break;
+      case 'Depletion':
+        onTap = () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const DepletionPage()));
+        };
+        break;
+      case 'Feses Score':
+        onTap = () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const FesesScorePage()));
+        };
+        break;
+      default:
+        onTap = null;
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: action.iconBgColor,
-              borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: action.iconBgColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(action.icon, color: action.iconColor, size: 28),
             ),
-            child: Icon(action.icon, color: action.iconColor, size: 28),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 32,
-            child: Center(
-              child: Text(
-                action.title,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  height: 1.2,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E1E1E),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 32,
+              child: Center(
+                child: Text(
+                  action.title,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.2,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1E1E1E),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
