@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controller/broiler_controller.dart';
-import '../controller/diet_mapping_controller.dart';
 import '../controller/user_session_controller.dart';
 import '../models/home_models.dart';
 import 'monitoring/infeed_page.dart';
@@ -24,7 +23,6 @@ class _HomePageState extends State<HomePage> {
   int _selectedBottomIndex = 0;
   String? _selectedFarm;
   late final BroilerController _broilerController;
-  late final DietMappingController _dietMappingController;
   late final UserSessionController _sessionController;
 
 
@@ -84,9 +82,6 @@ class _HomePageState extends State<HomePage> {
     _broilerController = Get.isRegistered<BroilerController>()
         ? Get.find<BroilerController>()
         : Get.put(BroilerController(), permanent: true);
-    _dietMappingController = Get.isRegistered<DietMappingController>()
-        ? Get.find<DietMappingController>()
-        : Get.put(DietMappingController(), permanent: true);
     _sessionController = Get.isRegistered<UserSessionController>()
         ? Get.find<UserSessionController>()
         : Get.put(UserSessionController(), permanent: true);
