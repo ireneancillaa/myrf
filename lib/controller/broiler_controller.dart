@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'diet_mapping_controller.dart';
 import '../models/broiler_project_data.dart';
+import '../services/broiler_firestore_service.dart';
 
 enum BroilerWorkflowStatus { drafted, inProgress }
 
@@ -38,9 +41,34 @@ class BroilerController extends GetxController {
   final projectDietInputValues = <String, Map<int, Map<String, String>>>{}.obs;
 
   VoidCallback? _onStatusChangeCallback;
+  late final BroilerFirestoreService _firestoreService;
+  StreamSubscription<Map<String, String>>? _statusSubscription;
+  StreamSubscription<List<BroilerProjectData>>? _projectsSubscription;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _firestoreService = Get.isRegistered<BroilerFirestoreService>()
+        ? Get.find<BroilerFirestoreService>()
+        : Get.put(BroilerFirestoreService(), permanent: true);
+
+    _bindFirestoreStreams();
+  }
 
   List<String> get projectNames =>
       projects.map((item) => item.projectName).toList();
+
+  List<String> get inProgressProjectNames {
+    final inProgressSet = projectStatuses.entries
+        .where((entry) => entry.value == BroilerWorkflowStatus.inProgress)
+        .map((entry) => entry.key)
+        .toSet();
+
+    return projects
+        .where((item) => inProgressSet.contains(item.projectName))
+        .map((item) => item.projectName)
+        .toList();
+  }
 
   void selectProject(String? projectName) {
     if (projectName == null) return;
@@ -99,26 +127,105 @@ class BroilerController extends GetxController {
     return statusFor(projectName) == BroilerWorkflowStatus.inProgress;
   }
 
-  void markDrafted(String projectName, {int step = 1}) {
-    if (statusFor(projectName) != BroilerWorkflowStatus.inProgress) {
-      projectStatuses[projectName] = BroilerWorkflowStatus.drafted;
-    }
-    updateLastOpenedStep(projectName, step);
+  BroilerWorkflowStatus _statusFromFirestore(String value) {
+    return value.trim().toLowerCase() == 'in_progress'
+        ? BroilerWorkflowStatus.inProgress
+        : BroilerWorkflowStatus.drafted;
   }
 
-  void markInProgress(String projectName) {
+  String _statusToFirestore(BroilerWorkflowStatus status) {
+    return status == BroilerWorkflowStatus.inProgress
+        ? 'in_progress'
+        : 'drafted';
+  }
+
+  void _bindFirestoreStreams() {
+    _statusSubscription?.cancel();
+    _projectsSubscription?.cancel();
+
+    _projectsSubscription = _firestoreService.watchProjects().listen((
+      remoteProjects,
+    ) {
+      projects.assignAll(remoteProjects);
+    });
+
+    _statusSubscription = _firestoreService.watchProjectStatuses().listen((
+      remoteStatuses,
+    ) {
+      final mapped = <String, BroilerWorkflowStatus>{
+        for (final entry in remoteStatuses.entries)
+          entry.key: _statusFromFirestore(entry.value),
+      };
+      projectStatuses.assignAll(mapped);
+    });
+  }
+
+  Future<bool> _syncProjectToFirestore(String projectName) async {
+    final data = projects.firstWhereOrNull(
+      (item) => item.projectName == projectName,
+    );
+    if (data == null) return false;
+
+    try {
+      await _firestoreService.upsertProjectRecord(
+        data: data,
+        status: _statusToFirestore(statusFor(projectName)),
+        sampleWeights: List<double>.from(
+          projectSampleWeights[projectName] ?? const <double>[],
+        ),
+        sampleGroups: List<List<double>>.generate(3, (index) {
+          final groups =
+              projectSampleGroups[projectName] ?? const <List<double>>[];
+          return index < groups.length
+              ? List<double>.from(groups[index])
+              : <double>[];
+        }),
+        boxHeaviest: (projectBoxValues[projectName]?['heaviest'] ?? ''),
+        boxAverage: (projectBoxValues[projectName]?['average'] ?? ''),
+        boxLightest: (projectBoxValues[projectName]?['lightest'] ?? ''),
+        dietPens: {
+          for (final entry
+              in (projectDietPenSelections[projectName] ??
+                      const <int, List<int>>{})
+                  .entries)
+            entry.key: List<int>.from(entry.value),
+        },
+        dietInputs: {
+          for (final entry
+              in (projectDietInputValues[projectName] ??
+                      const <int, Map<String, String>>{})
+                  .entries)
+            entry.key: Map<String, String>.from(entry.value),
+        },
+      );
+      return true;
+    } catch (error) {
+      debugPrint('Firestore sync failed for $projectName: $error');
+      return false;
+    }
+  }
+
+  Future<void> markDrafted(String projectName, {int step = 1}) async {
+    projectStatuses[projectName] = BroilerWorkflowStatus.drafted;
+    projectStatuses.refresh();
+    updateLastOpenedStep(projectName, step);
+    await _syncProjectToFirestore(projectName);
+  }
+
+  Future<void> markInProgress(String projectName) async {
     projectStatuses[projectName] = BroilerWorkflowStatus.inProgress;
     projectStatuses.refresh();
     projects.refresh(); // Notify observers that projects related data changed
     _notifyStatusChange();
     updateLastOpenedStep(projectName, 2);
+    await _syncProjectToFirestore(projectName);
   }
 
   void updateLastOpenedStep(String projectName, int step) {
     projectLastOpenedSteps[projectName] = step.clamp(0, 2);
   }
 
-  void saveStepperData({
+  Future<bool> saveStepperData({
     required String projectName,
     required List<double> sampleWeights,
     required List<List<double>> sampleGroups,
@@ -148,6 +255,8 @@ class BroilerController extends GetxController {
       for (final entry in dietInputs.entries)
         entry.key: Map<String, String>.from(entry.value),
     };
+
+    return _syncProjectToFirestore(projectName);
   }
 
   void clearForm() {
@@ -174,7 +283,7 @@ class BroilerController extends GetxController {
     selectedDocInDate.value = null;
   }
 
-  bool saveProject() {
+  Future<bool> saveProject() async {
     final projectName = projectNameController.text.trim();
     final trialDate = trialDateController.text.trim();
     final docWeight = docWeightController.text.trim();
@@ -249,12 +358,20 @@ class BroilerController extends GetxController {
         : Get.put(DietMappingController(), permanent: true);
     dietMappingController.syncFromValues(diet: diet, replication: replication);
 
-    Get.snackbar('Draft', 'Project saved to draft');
-    return true;
+    final saved = await _syncProjectToFirestore(projectName);
+    if (saved) {
+      Get.snackbar('Draft', 'Project saved to draft');
+      return true;
+    }
+
+    Get.snackbar('Save Failed', 'Project could not be saved to Firebase');
+    return false;
   }
 
   @override
   void onClose() {
+    _statusSubscription?.cancel();
+    _projectsSubscription?.cancel();
     projectNameController.dispose();
     trialDateController.dispose();
     trialHouseController.dispose();

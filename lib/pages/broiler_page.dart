@@ -50,7 +50,12 @@ class _BroilerPageState extends State<BroilerPage> {
       body: Stack(
         children: [
           Obx(() {
-            final projects = _controller.projects;
+            final projects = _controller.projects.toList()
+              ..sort((a, b) {
+                final aTime = a.updatedAt ?? DateTime(1970);
+                final bTime = b.updatedAt ?? DateTime(1970);
+                return bTime.compareTo(aTime);
+              });
             // Trigger rebuild when projectStatuses changes
             _controller.projectStatuses.toString();
 
@@ -73,15 +78,15 @@ class _BroilerPageState extends State<BroilerPage> {
                 final data = projects[index];
                 final status = _controller.statusFor(data.projectName);
 
-                return _BroilerProjectCard(
-                  project: _BroilerProjectItem(
+                return BroilerProjectCard(
+                  project: BroilerProjectItem(
                     title: data.projectName,
                     status: status == BroilerWorkflowStatus.inProgress
                         ? 'In Progress'
                         : 'Drafted',
                     statusType: status == BroilerWorkflowStatus.inProgress
-                        ? _BroilerProjectStatus.inProgress
-                        : _BroilerProjectStatus.drafted,
+                        ? BroilerProjectStatus.inProgress
+                        : BroilerProjectStatus.drafted,
                     trialDate: data.trialDate,
                     trialHouse: data.trialHouse,
                   ),
@@ -101,7 +106,7 @@ class _BroilerPageState extends State<BroilerPage> {
                   },
                 );
               },
-              separatorBuilder: (_, __) => const SizedBox(height: 14),
+              separatorBuilder: (_, _) => const SizedBox(height: 14),
               itemCount: projects.length,
             );
           }),
@@ -151,23 +156,23 @@ class _BroilerPageState extends State<BroilerPage> {
   }
 }
 
-class _BroilerProjectCard extends StatelessWidget {
-  const _BroilerProjectCard({required this.project, required this.onTap});
+class BroilerProjectCard extends StatelessWidget {
+  const BroilerProjectCard({required this.project, required this.onTap});
 
   static const double _statusBadgeWidth = 100;
 
-  final _BroilerProjectItem project;
+  final BroilerProjectItem project;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final statusStyle = switch (project.statusType) {
-      _BroilerProjectStatus.inProgress => const _ProjectStatusStyle(
+      BroilerProjectStatus.inProgress => const ProjectStatusStyle(
         textColor: Color(0xFFE2A800),
         borderColor: Color(0xFFF3CB54),
         backgroundColor: Color(0xFFFFFBEE),
       ),
-      _BroilerProjectStatus.drafted => const _ProjectStatusStyle(
+      BroilerProjectStatus.drafted => const ProjectStatusStyle(
         textColor: Color(0xFF2E82D0),
         borderColor: Color(0xFF8CBCEC),
         backgroundColor: Color(0xFFF4FAFF),
@@ -316,8 +321,8 @@ class _InfoItem extends StatelessWidget {
   }
 }
 
-class _BroilerProjectItem {
-  const _BroilerProjectItem({
+class BroilerProjectItem {
+  const BroilerProjectItem({
     required this.title,
     required this.status,
     required this.statusType,
@@ -327,15 +332,15 @@ class _BroilerProjectItem {
 
   final String title;
   final String status;
-  final _BroilerProjectStatus statusType;
+  final BroilerProjectStatus statusType;
   final String trialDate;
   final String trialHouse;
 }
 
-enum _BroilerProjectStatus { inProgress, drafted }
+enum BroilerProjectStatus { inProgress, drafted }
 
-class _ProjectStatusStyle {
-  const _ProjectStatusStyle({
+class ProjectStatusStyle {
+  const ProjectStatusStyle({
     required this.textColor,
     required this.borderColor,
     required this.backgroundColor,

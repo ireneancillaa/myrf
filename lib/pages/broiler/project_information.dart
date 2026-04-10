@@ -382,7 +382,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
       return SizedBox(
         height: _fieldHeight,
         child: DropdownButtonFormField<String>(
-          value: selectedValue,
+          initialValue: selectedValue,
           isExpanded: true,
           dropdownColor: Colors.white,
           // Keep selected item visually centered within field layout

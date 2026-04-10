@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -35,6 +37,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
   String? _projectName;
   int _currentStep = 0;
   static const _stepCount = 3;
+  Timer? _autoSaveTimer;
 
   @override
   void initState() {
@@ -111,10 +114,19 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
     if (mounted) {
       setState(() {});
     }
+    _scheduleAutoSave();
+  }
+
+  void _scheduleAutoSave() {
+    if (_projectName == null || _projectName!.isEmpty || _isReadOnly) return;
+    if (mounted) {
+      _persistCurrentProjectProgress();
+    }
   }
 
   @override
   void dispose() {
+    _autoSaveTimer?.cancel();
     // Remove all listeners
     controller.projectNameController.removeListener(_triggerRebuild);
     controller.trialDateController.removeListener(_triggerRebuild);
@@ -127,7 +139,6 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
     sampleDocController.boxAverageController.removeListener(_triggerRebuild);
     sampleDocController.boxLightestController.removeListener(_triggerRebuild);
 
-    _persistCurrentProjectProgress();
     if (Get.isRegistered<SampleDocController>()) {
       Get.delete<SampleDocController>();
     }
@@ -154,8 +165,20 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        
+        _autoSaveTimer?.cancel();
+        _persistCurrentProjectProgress();
+        
+        if (mounted) {
+          Navigator.of(context).pop(result);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: const Color(0xFF22C55E),
         elevation: 0,
@@ -203,7 +226,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildBottomActionBar() {
@@ -219,21 +242,26 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _isReadOnly
-                      ? null
-                      : () {
-                          final isSaved = controller.saveProject();
-                          if (isSaved) {
-                            _projectName = controller.projectNameController.text
-                                .trim();
-                            if (_projectName != null &&
-                                _projectName!.isNotEmpty) {
-                              controller.markDrafted(_projectName!, step: 1);
-                            }
-                            _persistCurrentProjectProgress();
-                            _goToStep(1);
-                          }
-                        },
+                  onPressed: () async {
+                    if (_isReadOnly) {
+                      _goToStep(1);
+                      return;
+                    }
+                    final isSaved = await controller.saveProject();
+                    if (isSaved) {
+                      _projectName = controller.projectNameController.text
+                          .trim();
+                      if (_projectName != null &&
+                          _projectName!.isNotEmpty) {
+                        await controller.markDrafted(
+                          _projectName!,
+                          step: 1,
+                        );
+                      }
+                      await _persistCurrentProjectProgress();
+                      _goToStep(1);
+                    }
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF22C55E),
                     disabledBackgroundColor: const Color(0xFFBDBDBD),
@@ -281,50 +309,50 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                     child: SizedBox(
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: () {
-                          if (_currentStep < 2) {
-                            if (_projectName != null &&
-                                _projectName!.isNotEmpty &&
-                                !_isReadOnly) {
-                              controller.markDrafted(
-                                _projectName!,
-                                step: _currentStep + 1,
-                              );
-                            }
-                            _persistCurrentProjectProgress();
-                            _goToStep(_currentStep + 1);
-                          } else {
-                            final finishDisabled =
-                                _isReadOnly || !_canFinishProject();
-                            if (finishDisabled) return;
-                            if (_projectName == null || _projectName!.isEmpty) {
-                              final isSaved = controller.saveProject();
-                              if (!isSaved) return;
-                              _projectName = controller
-                                  .projectNameController
-                                  .text
-                                  .trim();
-                            }
-                            _persistCurrentProjectProgress();
-                            controller.markInProgress(_projectName!);
-                            setState(() {
-                              _isReadOnly = true;
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Project finalized successfully'),
-                                backgroundColor: Color(0xFF22C55E),
-                              ),
-                            );
-                            Get.back();
-                          }
-                        },
+                        onPressed: (_currentStep == 2 && (_isReadOnly || !_canFinishProject()))
+                            ? null
+                            : () async {
+                                if (_currentStep < 2) {
+                                  if (_isReadOnly) {
+                                    _goToStep(_currentStep + 1);
+                                    return;
+                                  }
+                                  if (_projectName != null &&
+                                      _projectName!.isNotEmpty) {
+                                    await controller.markDrafted(
+                                      _projectName!,
+                                      step: _currentStep + 1,
+                                    );
+                                  }
+                                  await _persistCurrentProjectProgress();
+                                  _goToStep(_currentStep + 1);
+                                } else {
+                                  if (_projectName == null || _projectName!.isEmpty) {
+                                    final isSaved = await controller.saveProject();
+                                    if (!isSaved) return;
+                                    _projectName = controller
+                                        .projectNameController
+                                        .text
+                                        .trim();
+                                  }
+                                  await _persistCurrentProjectProgress();
+                                  await controller.markInProgress(_projectName!);
+                                  if (!mounted) return;
+                                  setState(() {
+                                    _isReadOnly = true;
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Project finalized successfully'),
+                                      backgroundColor: Color(0xFF22C55E),
+                                    ),
+                                  );
+                                  Get.back();
+                                }
+                              },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              _currentStep == 2 &&
-                                  (_isReadOnly || !_canFinishProject())
-                              ? const Color(0xFFBDBDBD)
-                              : const Color(0xFF22C55E),
+                          backgroundColor: const Color(0xFF22C55E),
+                          disabledBackgroundColor: const Color(0xFFBDBDBD),
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -417,11 +445,11 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
     return hasProjectData && hasDietMappings && hasDietInputs && hasSampleData;
   }
 
-  void _persistCurrentProjectProgress() {
+  Future<void> _persistCurrentProjectProgress() async {
     if (_projectName == null || _projectName!.isEmpty) return;
 
     controller.updateLastOpenedStep(_projectName!, _currentStep);
-    controller.saveStepperData(
+    await controller.saveStepperData(
       projectName: _projectName!,
       sampleWeights: sampleDocController.docWeights,
       sampleGroups: sampleDocController.sampleGroups,

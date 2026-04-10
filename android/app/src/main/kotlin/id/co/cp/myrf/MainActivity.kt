@@ -1,4 +1,4 @@
-package com.example.myrf
+package id.co.cp.myrf
 
 import io.flutter.embedding.android.FlutterActivity
 

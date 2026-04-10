@@ -456,7 +456,7 @@ class _InfeedPageState extends State<InfeedPage>
     return SizedBox(
       height: _fieldHeight,
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         isExpanded: true,
         dropdownColor: Colors.white,
         style: const TextStyle(

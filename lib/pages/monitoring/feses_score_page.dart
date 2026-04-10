@@ -368,7 +368,7 @@ class _FesesScorePageState extends State<FesesScorePage> {
     return SizedBox(
       height: _fieldHeight,
       child: DropdownButtonFormField<String>(
-        value: _selectedPen,
+        initialValue: _selectedPen,
         isExpanded: true,
         dropdownColor: Colors.white,
         style: const TextStyle(

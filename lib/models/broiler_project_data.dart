@@ -16,6 +16,7 @@ class BroilerProjectData {
     required this.diet,
     required this.replication,
     required this.dietReplication,
+    this.updatedAt,
   });
 
   final String projectName;
@@ -34,4 +35,5 @@ class BroilerProjectData {
   final String diet;
   final String replication;
   final int? dietReplication;
+  final DateTime? updatedAt;
 }
