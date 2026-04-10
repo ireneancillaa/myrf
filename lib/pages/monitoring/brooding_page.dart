@@ -112,7 +112,7 @@ class _BroodingPageState extends State<BroodingPage> {
                 children: [
                   Expanded(
                     child: _buildTemperatureCard(
-                      title: 'R. Depan',
+                      title: 'Front Area',
                       value: '32.5°C',
                       icon: Icons.thermostat,
                       color: Colors.orange,
@@ -121,7 +121,7 @@ class _BroodingPageState extends State<BroodingPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildTemperatureCard(
-                      title: 'R. Tengah',
+                      title: 'Middle Area',
                       value: '33.0°C',
                       icon: Icons.thermostat,
                       color: Colors.red,
@@ -130,7 +130,7 @@ class _BroodingPageState extends State<BroodingPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildTemperatureCard(
-                      title: 'R. Belakang',
+                      title: 'Rear Area',
                       value: '31.8°C',
                       icon: Icons.thermostat,
                       color: Colors.blue,

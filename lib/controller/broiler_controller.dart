@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'diet_mapping_controller.dart';
 import '../models/broiler_project_data.dart';
 
+enum BroilerWorkflowStatus { drafted, inProgress }
+
 class BroilerController extends GetxController {
   final projectNameController = TextEditingController();
   final trialDateController = TextEditingController();
@@ -27,6 +29,15 @@ class BroilerController extends GetxController {
   final selectedStrain = RxnString();
   final selectedHatchery = RxnString();
   final selectedDocInDate = RxnString();
+  final projectStatuses = <String, BroilerWorkflowStatus>{}.obs;
+  final projectLastOpenedSteps = <String, int>{}.obs;
+  final projectSampleWeights = <String, List<double>>{}.obs;
+  final projectSampleGroups = <String, List<List<double>>>{}.obs;
+  final projectBoxValues = <String, Map<String, String>>{}.obs;
+  final projectDietPenSelections = <String, Map<int, List<int>>>{}.obs;
+  final projectDietInputValues = <String, Map<int, Map<String, String>>>{}.obs;
+
+  VoidCallback? _onStatusChangeCallback;
 
   List<String> get projectNames =>
       projects.map((item) => item.projectName).toList();
@@ -68,6 +79,101 @@ class BroilerController extends GetxController {
     );
   }
 
+  BroilerWorkflowStatus statusFor(String projectName) {
+    return projectStatuses[projectName] ?? BroilerWorkflowStatus.drafted;
+  }
+
+  void addStatusChangeListener(VoidCallback callback) {
+    _onStatusChangeCallback = callback;
+  }
+
+  void _notifyStatusChange() {
+    _onStatusChangeCallback?.call();
+  }
+
+  int lastOpenedStepFor(String projectName) {
+    return projectLastOpenedSteps[projectName] ?? 0;
+  }
+
+  bool isReadOnly(String projectName) {
+    return statusFor(projectName) == BroilerWorkflowStatus.inProgress;
+  }
+
+  void markDrafted(String projectName, {int step = 1}) {
+    if (statusFor(projectName) != BroilerWorkflowStatus.inProgress) {
+      projectStatuses[projectName] = BroilerWorkflowStatus.drafted;
+    }
+    updateLastOpenedStep(projectName, step);
+  }
+
+  void markInProgress(String projectName) {
+    projectStatuses[projectName] = BroilerWorkflowStatus.inProgress;
+    projectStatuses.refresh();
+    projects.refresh(); // Notify observers that projects related data changed
+    _notifyStatusChange();
+    updateLastOpenedStep(projectName, 2);
+  }
+
+  void updateLastOpenedStep(String projectName, int step) {
+    projectLastOpenedSteps[projectName] = step.clamp(0, 2);
+  }
+
+  void saveStepperData({
+    required String projectName,
+    required List<double> sampleWeights,
+    required List<List<double>> sampleGroups,
+    required String boxHeaviest,
+    required String boxAverage,
+    required String boxLightest,
+    required Map<int, List<int>> dietPens,
+    required Map<int, Map<String, String>> dietInputs,
+  }) {
+    projectSampleWeights[projectName] = List<double>.from(sampleWeights);
+    projectSampleGroups[projectName] = List<List<double>>.generate(
+      3,
+      (index) => index < sampleGroups.length
+          ? List<double>.from(sampleGroups[index])
+          : <double>[],
+    );
+    projectBoxValues[projectName] = {
+      'heaviest': boxHeaviest,
+      'average': boxAverage,
+      'lightest': boxLightest,
+    };
+    projectDietPenSelections[projectName] = {
+      for (final entry in dietPens.entries)
+        entry.key: List<int>.from(entry.value),
+    };
+    projectDietInputValues[projectName] = {
+      for (final entry in dietInputs.entries)
+        entry.key: Map<String, String>.from(entry.value),
+    };
+  }
+
+  void clearForm() {
+    projectNameController.clear();
+    trialDateController.clear();
+    trialHouseController.clear();
+    strainController.clear();
+    hatcheryController.clear();
+    breedingFarmController.clear();
+    boxBatchCodeController.clear();
+    selectorController.clear();
+    docInDateController.clear();
+    docWeightController.clear();
+    weighing3WeeksController.clear();
+    weighing5WeeksController.clear();
+    numberOfBirdsController.clear();
+    dietController.clear();
+    replicationController.clear();
+
+    selectedProjectName.value = null;
+    selectedTrialHouse.value = null;
+    selectedStrain.value = null;
+    selectedHatchery.value = null;
+    selectedDocInDate.value = null;
+  }
+
   bool saveProject() {
     final projectName = projectNameController.text.trim();
     final trialDate = trialDateController.text.trim();
@@ -78,31 +184,31 @@ class BroilerController extends GetxController {
     final replication = replicationController.text.trim();
 
     if (projectName.isEmpty) {
-      Get.snackbar('Project Name / Chick Cycle', 'Field wajib diisi');
+      Get.snackbar('Project Name / Chick Cycle', 'This field is required');
       return false;
     }
     if (trialDate.isEmpty) {
-      Get.snackbar('Date Trial', 'Field wajib diisi');
+      Get.snackbar('Date Trial', 'This field is required');
       return false;
     }
     if (docWeight.isEmpty) {
-      Get.snackbar('DOC Weight (Kg)', 'Field wajib diisi');
+      Get.snackbar('DOC Weight (Kg)', 'This field is required');
       return false;
     }
     if (docInDate.isEmpty) {
-      Get.snackbar('DOC In', 'Field wajib diisi');
+      Get.snackbar('DOC In', 'This field is required');
       return false;
     }
     if (trialHouse.isEmpty) {
-      Get.snackbar('Map of Trial House', 'Field wajib diisi');
+      Get.snackbar('Map of Trial House', 'This field is required');
       return false;
     }
     if (diet.isEmpty) {
-      Get.snackbar('Diet', 'Field wajib diisi');
+      Get.snackbar('Diet', 'This field is required');
       return false;
     }
     if (replication.isEmpty) {
-      Get.snackbar('Replication', 'Field wajib diisi');
+      Get.snackbar('Replication', 'This field is required');
       return false;
     }
 
@@ -143,7 +249,7 @@ class BroilerController extends GetxController {
         : Get.put(DietMappingController(), permanent: true);
     dietMappingController.syncFromValues(diet: diet, replication: replication);
 
-    Get.snackbar('Saved', 'Project tersimpan di dropdown');
+    Get.snackbar('Draft', 'Project saved to draft');
     return true;
   }
 

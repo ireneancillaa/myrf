@@ -31,7 +31,7 @@ class DietPenMappingSection extends StatelessWidget {
               border: Border.all(color: const Color(0xFFE0E0E0)),
             ),
             child: const Text(
-              'Pilih Diet dan Replication pada Project Information terlebih dahulu.',
+              'Select Diet and Replication in Project Information first.',
               style: TextStyle(
                 fontSize: _fieldTextSize,
                 color: Color(0xFF666666),
@@ -107,6 +107,23 @@ class _DietCardState extends State<_DietCard> {
             final usedPens = widget.controller.usedPensExcept(
               widget.dietNumber,
             );
+            final availablePens = List<int>.generate(
+              42,
+              (index) => index + 1,
+            ).where((penNumber) => !usedPens.contains(penNumber)).toList();
+            final allAvailableSelected =
+                availablePens.isNotEmpty &&
+                availablePens.every(tempSelectedPens.contains);
+
+            void toggleSelectAll() {
+              setDialogState(() {
+                if (allAvailableSelected) {
+                  tempSelectedPens.removeAll(availablePens);
+                } else {
+                  tempSelectedPens.addAll(availablePens);
+                }
+              });
+            }
 
             return Dialog(
               insetPadding: const EdgeInsets.symmetric(horizontal: 20),
@@ -171,7 +188,7 @@ class _DietCardState extends State<_DietCard> {
                                     ),
                                     SizedBox(height: 4),
                                     Text(
-                                      'Pilih pen untuk diet ini dan simpan perubahan.',
+                                      'Select pens for this diet and save changes.',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Color(0xFF6B7280),
@@ -192,7 +209,7 @@ class _DietCardState extends State<_DietCard> {
                                   borderRadius: BorderRadius.circular(999),
                                 ),
                                 child: Text(
-                                  '${selectedPens.length}/42 selected',
+                                  '${tempSelectedPens.length}/42 selected',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -353,6 +370,39 @@ class _DietCardState extends State<_DietCard> {
                             children: [
                               Expanded(
                                 child: OutlinedButton(
+                                  onPressed: availablePens.isEmpty
+                                      ? null
+                                      : toggleSelectAll,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF1D8F47),
+                                    side: const BorderSide(
+                                      color: Color(0xFF1D8F47),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        _selectPensButtonRadius,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    allAvailableSelected
+                                        ? 'Clear All'
+                                        : 'Select All',
+                                    style: const TextStyle(
+                                      fontSize:
+                                          DietPenMappingSection._fieldTextSize,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: OutlinedButton(
                                   onPressed: () =>
                                       Navigator.of(dialogContext).pop(),
                                   style: OutlinedButton.styleFrom(
@@ -466,16 +516,60 @@ class _DietCardState extends State<_DietCard> {
             ],
           ),
           const SizedBox(height: 10),
-          const _DietInputField(label: 'Pre Starter (0-10 days)'),
+          _DietInputField(
+            label: 'Pre Starter (0-10 days)',
+            value: widget.controller.dietInputFor(
+              widget.dietNumber,
+              'preStarter',
+            ),
+            onChanged: (value) {
+              widget.controller.updateDietInput(
+                widget.dietNumber,
+                'preStarter',
+                value,
+              );
+            },
+          ),
           const SizedBox(height: 10),
-          const _DietInputField(label: 'Starter (11-21 days)'),
+          _DietInputField(
+            label: 'Starter (11-21 days)',
+            value: widget.controller.dietInputFor(widget.dietNumber, 'starter'),
+            onChanged: (value) {
+              widget.controller.updateDietInput(
+                widget.dietNumber,
+                'starter',
+                value,
+              );
+            },
+          ),
           const SizedBox(height: 10),
-          const _DietInputField(label: 'Finisher (22-45 days)'),
+          _DietInputField(
+            label: 'Finisher (22-45 days)',
+            value: widget.controller.dietInputFor(
+              widget.dietNumber,
+              'finisher',
+            ),
+            onChanged: (value) {
+              widget.controller.updateDietInput(
+                widget.dietNumber,
+                'finisher',
+                value,
+              );
+            },
+          ),
           const SizedBox(height: 10),
-          const _DietInputField(
-            label: 'Remarks',
+          _DietInputField(
+            label: 'Remarks (Optional)',
             icon: Icons.insert_drive_file,
             maxLines: 2,
+            value: widget.controller.dietInputFor(widget.dietNumber, 'remarks'),
+            onChanged: (value) {
+              widget.controller.updateDietInput(
+                widget.dietNumber,
+                'remarks',
+                value,
+              );
+            },
           ),
           const SizedBox(height: 14),
           const Divider(color: Color(0xFFE0E0E0), height: 1),
@@ -571,18 +665,25 @@ class _DietCardState extends State<_DietCard> {
 class _DietInputField extends StatelessWidget {
   const _DietInputField({
     required this.label,
+    required this.value,
+    required this.onChanged,
     this.icon = Icons.info,
     this.maxLines = 1,
   });
 
   final String label;
+  final String value;
+  final ValueChanged<String> onChanged;
   final IconData icon;
   final int maxLines;
 
   @override
   Widget build(BuildContext context) {
-    final field = TextField(
+    final field = TextFormField(
+      key: ValueKey('$label-$value'),
+      initialValue: value,
       maxLines: maxLines,
+      onChanged: onChanged,
       style: const TextStyle(fontSize: DietPenMappingSection._fieldTextSize),
       decoration: InputDecoration(
         labelText: label,

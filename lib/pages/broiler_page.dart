@@ -4,9 +4,7 @@ import 'package:get/get.dart';
 import '../controller/broiler_controller.dart';
 import '../controller/diet_mapping_controller.dart';
 import '../controller/sample_doc_controller.dart';
-import 'broiler/sample_doc.dart';
-import 'broiler/diet_pen_mapping.dart';
-import 'broiler/project_information.dart';
+import 'broiler/project_stepper_page.dart';
 
 class BroilerPage extends StatefulWidget {
   const BroilerPage({super.key});
@@ -16,46 +14,14 @@ class BroilerPage extends StatefulWidget {
 }
 
 class _BroilerPageState extends State<BroilerPage> {
-  late final BroilerController controller;
-  late final DietMappingController dietMappingController;
-  late final SampleDocController sampleDocController;
-  late final ScrollController _scrollController;
-  int _currentStep = 0;
-  static const _stepCount = 3;
+  late final BroilerController _controller;
 
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
-    controller = Get.isRegistered<BroilerController>()
+    _controller = Get.isRegistered<BroilerController>()
         ? Get.find<BroilerController>()
         : Get.put(BroilerController(), permanent: true);
-    dietMappingController = Get.isRegistered<DietMappingController>()
-        ? Get.find<DietMappingController>()
-        : Get.put(DietMappingController(), permanent: true);
-    sampleDocController = Get.isRegistered<SampleDocController>()
-        ? Get.find<SampleDocController>()
-        : Get.put(SampleDocController());
-  }
-
-  @override
-  void dispose() {
-    if (Get.isRegistered<SampleDocController>()) {
-      Get.delete<SampleDocController>();
-    }
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _goToStep(int step) {
-    setState(() {
-      _currentStep = step;
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      _scrollController.jumpTo(0);
-    });
   }
 
   @override
@@ -67,292 +33,315 @@ class _BroilerPageState extends State<BroilerPage> {
         elevation: 0,
         centerTitle: true,
         title: const Text(
-          'Broiler',
+          'Broiler Project List',
           style: TextStyle(
             color: Colors.white,
             fontSize: 22,
             fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.search, color: Colors.white),
+          ),
+        ],
       ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: BroilerStepperTabs(
-                currentStep: _currentStep,
-                totalSteps: _stepCount,
-              ),
-            ),
-            const SizedBox(height: 28),
-            Expanded(
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildCurrentStepContent(),
-                    SizedBox(height: _currentStep == 2 ? 0 : 24),
-                    if (_currentStep == 0)
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            final isSaved = controller.saveProject();
-                            if (isSaved) {
-                              _goToStep(1);
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF22C55E),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            'Next',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 48,
-                              child: OutlinedButton(
-                                onPressed: () {
-                                  _goToStep(_currentStep - 1);
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFF22C55E),
-                                  side: const BorderSide(
-                                    color: Color(0xFF22C55E),
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Back',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: SizedBox(
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  if (_currentStep < 2) {
-                                    _goToStep(_currentStep + 1);
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Data berhasil disimpan'),
-                                        backgroundColor: Color(0xFF22C55E),
-                                      ),
-                                    );
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF22C55E),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: Text(
-                                  _currentStep < 2 ? 'Next' : 'Finish',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+      body: Stack(
+        children: [
+          Obx(() {
+            final projects = _controller.projects;
+            // Trigger rebuild when projectStatuses changes
+            _controller.projectStatuses.toString();
+
+            if (projects.isEmpty) {
+              return const Center(
+                child: Text(
+                  'No projects yet. Click + Project to create one.',
+                  style: TextStyle(
+                    color: Color(0xFF6F6F6F),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              );
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+              itemBuilder: (context, index) {
+                final data = projects[index];
+                final status = _controller.statusFor(data.projectName);
+
+                return _BroilerProjectCard(
+                  project: _BroilerProjectItem(
+                    title: data.projectName,
+                    status: status == BroilerWorkflowStatus.inProgress
+                        ? 'In Progress'
+                        : 'Drafted',
+                    statusType: status == BroilerWorkflowStatus.inProgress
+                        ? _BroilerProjectStatus.inProgress
+                        : _BroilerProjectStatus.drafted,
+                    trialDate: data.trialDate,
+                    trialHouse: data.trialHouse,
+                  ),
+                  onTap: () {
+                    final initialStep =
+                        status == BroilerWorkflowStatus.inProgress
+                        ? 0
+                        : _controller.lastOpenedStepFor(data.projectName);
+
+                    Get.to(
+                      () => BroilerProjectStepperPage(
+                        projectName: data.projectName,
+                        initialStep: initialStep,
+                        readOnly: _controller.isReadOnly(data.projectName),
                       ),
-                  ],
+                    );
+                  },
+                );
+              },
+              separatorBuilder: (_, __) => const SizedBox(height: 14),
+              itemCount: projects.length,
+            );
+          }),
+          Positioned(
+            right: 16,
+            bottom: 20,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                _controller.clearForm();
+
+                final dietMappingController =
+                    Get.isRegistered<DietMappingController>()
+                    ? Get.find<DietMappingController>()
+                    : Get.put(DietMappingController(), permanent: true);
+                dietMappingController.clearRuntimeState();
+
+                final sampleDocController =
+                    Get.isRegistered<SampleDocController>()
+                    ? Get.find<SampleDocController>()
+                    : Get.put(SampleDocController());
+                sampleDocController.clearSampleData();
+
+                Get.to(() => const BroilerProjectStepperPage());
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF22C55E),
+                foregroundColor: Colors.white,
+                elevation: 2,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
+              icon: const Icon(Icons.add, size: 22),
+              label: const Text(
+                'Project',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BroilerProjectCard extends StatelessWidget {
+  const _BroilerProjectCard({required this.project, required this.onTap});
+
+  static const double _statusBadgeWidth = 100;
+
+  final _BroilerProjectItem project;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusStyle = switch (project.statusType) {
+      _BroilerProjectStatus.inProgress => const _ProjectStatusStyle(
+        textColor: Color(0xFFE2A800),
+        borderColor: Color(0xFFF3CB54),
+        backgroundColor: Color(0xFFFFFBEE),
+      ),
+      _BroilerProjectStatus.drafted => const _ProjectStatusStyle(
+        textColor: Color(0xFF2E82D0),
+        borderColor: Color(0xFF8CBCEC),
+        backgroundColor: Color(0xFFF4FAFF),
+      ),
+    };
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22000000),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      project.title,
+                      style: const TextStyle(
+                        color: Color(0xFF3A3A3A),
+                        fontSize: 15,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: _statusBadgeWidth,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    decoration: BoxDecoration(
+                      color: statusStyle.backgroundColor,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: statusStyle.borderColor),
+                    ),
+                    child: Text(
+                      project.status,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: statusStyle.textColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: Color(0xFFD8D8D8)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _InfoItem(
+                    icon: Icons.calendar_month_rounded,
+                    label: 'Trial Date',
+                    value: project.trialDate,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _InfoItem(
+                    icon: Icons.home_work_rounded,
+                    label: 'Trial House',
+                    value: project.trialHouse,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
   }
-
-  Widget _buildCurrentStepContent() {
-    switch (_currentStep) {
-      case 0:
-        return BroilerProjectInformationSection(controller: controller);
-      case 1:
-        return DietPenMappingSection(controller: dietMappingController);
-      case 2:
-        return SampleDocSection(
-          boxHeaviestController: sampleDocController.boxHeaviestController,
-          boxAverageController: sampleDocController.boxAverageController,
-          boxLightestController: sampleDocController.boxLightestController,
-          docWeights: sampleDocController.docWeights,
-          onDocWeightsChanged: (weights) {
-            sampleDocController.docWeights.assignAll(weights);
-          },
-          docDistributions: sampleDocController.docDistributions,
-          onDocDistributionsChanged: (distributions) {
-            sampleDocController.docDistributions.assignAll(distributions);
-          },
-          dietReplication: dietMappingController.dietReplication.value ?? 1,
-          totalPens: sampleDocController.totalPens.value,
-        );
-      default:
-        return BroilerProjectInformationSection(controller: controller);
-    }
-  }
 }
 
-class BroilerStepperTabs extends StatelessWidget {
-  const BroilerStepperTabs({
-    super.key,
-    required this.currentStep,
-    required this.totalSteps,
-  });
-
-  static const double _stepperHeight = 70;
-  static const double _lineTop = 21;
-  static const double _lineHeight = 2;
-
-  final int currentStep;
-  final int totalSteps;
-
-  @override
-  Widget build(BuildContext context) {
-    final safeStep = currentStep.clamp(0, totalSteps - 1);
-    final progress = totalSteps <= 1 ? 0.0 : safeStep / (totalSteps - 1);
-
-    return SizedBox(
-      height: _stepperHeight,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final progressWidth = constraints.maxWidth * progress;
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned(
-                top: _lineTop,
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: _lineHeight,
-                  color: const Color(0xFFE0E0E0),
-                ),
-              ),
-              Positioned(
-                top: _lineTop,
-                left: 0,
-                child: Container(
-                  width: progressWidth,
-                  height: _lineHeight,
-                  color: const Color(0xFF22C55E),
-                ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _BroilerStepTab(
-                    icon: Icons.assignment_rounded,
-                    label: 'Project Planning',
-                    active: safeStep >= 0,
-                  ),
-                  _BroilerStepTab(
-                    icon: Icons.restaurant_menu_rounded,
-                    label: 'Diet & Pen Mapping',
-                    active: safeStep >= 1,
-                  ),
-                  _BroilerStepTab(
-                    icon: Icons.science_rounded,
-                    label: 'Sample DOC',
-                    active: safeStep >= 2,
-                  ),
-                ],
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _BroilerStepTab extends StatelessWidget {
-  const _BroilerStepTab({
+class _InfoItem extends StatelessWidget {
+  const _InfoItem({
     required this.icon,
     required this.label,
-    required this.active,
+    required this.value,
   });
-
-  static const double _iconCardSize = 42;
-  static const double _iconSize = 24;
 
   final IconData icon;
   final String label;
-  final bool active;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? const Color(0xFF22C55E) : const Color(0xFFC9C9C9);
-    final backgroundColor = active
-        ? const Color(0xFFE2F2E7)
-        : const Color(0xFFF1F1F1);
-
-    return Column(
+    return Row(
       children: [
         Container(
-          width: _iconCardSize,
-          height: _iconCardSize,
-          decoration: BoxDecoration(
-            color: backgroundColor,
+          width: 46,
+          height: 46,
+          decoration: const BoxDecoration(
+            color: Color(0xFFE6F5EA),
             shape: BoxShape.circle,
-            boxShadow: active
-                ? const [
-                    BoxShadow(
-                      color: Color(0x22000000),
-                      blurRadius: 4,
-                      offset: Offset(0, 1),
-                    ),
-                  ]
-                : null,
           ),
-          child: Icon(icon, color: color, size: _iconSize),
+          child: Icon(icon, color: Color(0xFF22C55E), size: 26),
         ),
-        const SizedBox(height: 10),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFF8A8A8A),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Color(0xFF3E3E3E),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
+}
+
+class _BroilerProjectItem {
+  const _BroilerProjectItem({
+    required this.title,
+    required this.status,
+    required this.statusType,
+    required this.trialDate,
+    required this.trialHouse,
+  });
+
+  final String title;
+  final String status;
+  final _BroilerProjectStatus statusType;
+  final String trialDate;
+  final String trialHouse;
+}
+
+enum _BroilerProjectStatus { inProgress, drafted }
+
+class _ProjectStatusStyle {
+  const _ProjectStatusStyle({
+    required this.textColor,
+    required this.borderColor,
+    required this.backgroundColor,
+  });
+
+  final Color textColor;
+  final Color borderColor;
+  final Color backgroundColor;
 }

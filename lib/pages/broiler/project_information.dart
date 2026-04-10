@@ -214,8 +214,8 @@ class BroilerProjectInformationSection extends StatelessWidget {
               items: List.generate(
                 5,
                 (index) => DropdownMenuItem(
-                  value: 'House ${index + 1}',
-                  child: Text('House ${index + 1}'),
+                  value: '${index + 1}A',
+                  child: Text('${index + 1}A'),
                 ),
               ),
               onChanged: (value) {
@@ -331,7 +331,25 @@ class BroilerProjectInformationSection extends StatelessWidget {
     bool showMandatoryInHint = false,
   }) {
     return Obx(() {
-      final selectedValue = valueListenable.value;
+      final rawSelectedValue = valueListenable.value?.trim() ?? '';
+      final hasSelectedValue = rawSelectedValue.isNotEmpty;
+
+      final baseItems = List<DropdownMenuItem<String>>.from(items);
+      final hasMatchingItem = baseItems.any(
+        (item) => item.value == rawSelectedValue,
+      );
+
+      if (hasSelectedValue && !hasMatchingItem) {
+        baseItems.insert(
+          0,
+          DropdownMenuItem<String>(
+            value: rawSelectedValue,
+            child: Text(rawSelectedValue),
+          ),
+        );
+      }
+
+      final selectedValue = hasSelectedValue ? rawSelectedValue : null;
 
       Widget? mandatoryHintWidget;
       if (showMandatoryInHint && isMandatory && selectedValue == null) {
@@ -345,7 +363,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
                 fontSize: _fieldHintSize,
                 color: Color(0xFF6B7280),
                 height:
-                    1.0, // Paksa line-height ke 1.0 agar tidak makan space vertikal
+                    1.0, // Keep line-height at 1.0 to avoid extra vertical space
               ),
               children: const [
                 TextSpan(
@@ -367,7 +385,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
           value: selectedValue,
           isExpanded: true,
           dropdownColor: Colors.white,
-          // Gunakan ini untuk memastikan item yang terpilih juga di tengah
+          // Keep selected item visually centered within field layout
           alignment: Alignment.centerLeft,
           style: const TextStyle(
             fontSize: _fieldTextSize,
@@ -381,7 +399,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
             isMandatory: isMandatory,
             hintWidget: mandatoryHintWidget,
           ),
-          items: items,
+          items: baseItems,
           onChanged: onChanged,
         ),
       );

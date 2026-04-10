@@ -80,7 +80,7 @@ class LoginPage extends StatelessWidget {
                         ),
                         SizedBox(height: space5),
                         const Text(
-                          'Masuk ke Akun Anda',
+                          'Sign In to Your Account',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 22,
@@ -88,7 +88,7 @@ class LoginPage extends StatelessWidget {
                         ),
                         SizedBox(height: space2),
                         const Text(
-                          'Email atau ID Karyawan',
+                          'Email or Employee ID',
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
                             fontSize: 14,
@@ -98,7 +98,7 @@ class LoginPage extends StatelessWidget {
                         TextField(
                           controller: controller.emailController,
                           decoration: _inputDecoration(
-                            'Masukkan email atau ID karyawan',
+                            'Enter email or employee ID',
                           ),
                           style: const TextStyle(
                             fontWeight: FontWeight.w500,
@@ -118,7 +118,7 @@ class LoginPage extends StatelessWidget {
                           () => TextField(
                             controller: controller.passwordController,
                             obscureText: controller.obscurePassword.value,
-                            decoration: _inputDecoration('Masukkan password'),
+                            decoration: _inputDecoration('Enter password'),
                             style: const TextStyle(
                               fontWeight: FontWeight.w500,
                               fontSize: 14,
@@ -139,7 +139,7 @@ class LoginPage extends StatelessWidget {
                             ),
                             onPressed: controller.login,
                             child: const Text(
-                              'Masuk',
+                              'Sign In',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -152,7 +152,7 @@ class LoginPage extends StatelessWidget {
                           child: TextButton(
                             onPressed: controller.forgotPassword,
                             child: const Text(
-                              'Lupa password?',
+                              'Forgot password?',
                               style: TextStyle(
                                 color: Color(0xFF22C55E),
                                 fontWeight: FontWeight.w600,
@@ -169,7 +169,7 @@ class LoginPage extends StatelessWidget {
                           style: TextStyle(fontSize: 12, color: Colors.black),
                         ),
                         const Text(
-                          '© 2024 Charoen Pokphand Indonesia. All rights reserved.',
+                          '© 2026 Charoen Pokphand Indonesia. All rights reserved.',
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 11, color: Colors.grey),
                         ),
@@ -177,7 +177,7 @@ class LoginPage extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             _footerButton(
-                              'Syarat & Ketentuan',
+                              'Terms & Conditions',
                               controller.openTerms,
                             ),
                             const Text(
@@ -188,7 +188,7 @@ class LoginPage extends StatelessWidget {
                               ),
                             ),
                             _footerButton(
-                              'Kebijakan Privasi',
+                              'Privacy Policy',
                               controller.openPrivacy,
                             ),
                           ],

@@ -34,7 +34,7 @@ class _HomePageState extends State<HomePage> {
       hatchery: 'North Hatchery',
       breedingFarm: 'Farm B',
       docInDate: '08/04/2026',
-      numberOfBirds: '120 Ekor',
+      numberOfBirds: '120 Birds',
       dietReplication: '3',
     ),
     'Farm C': SampleFarmInfo(
@@ -42,7 +42,7 @@ class _HomePageState extends State<HomePage> {
       hatchery: 'South Hatchery',
       breedingFarm: 'Farm C',
       docInDate: '09/04/2026',
-      numberOfBirds: '150 Ekor',
+      numberOfBirds: '150 Birds',
       dietReplication: '4',
     ),
   };
@@ -67,34 +67,33 @@ class _HomePageState extends State<HomePage> {
       iconBgColor: Color(0xFFFBEDED),
     ),
     QuickActionItem(
-      title: 'Feses Score',
+      title: 'Feces Score',
       icon: Icons.science,
       iconColor: Color(0xFFE6A10B),
       iconBgColor: Color(0xFFFCF6E8),
     ),
   ];
-
   final List<BroodingCardItem> _broodingRows = const [
     BroodingCardItem(
       icon: Icons.thermostat,
-      iconColor: Color(0xFFE69C00),
-      value: '32.5°C',
-      valueColor: Color(0xFFE69C00),
-      label: 'R. Depan',
+      iconColor: Color(0xFF22C55E),
+      value: '32.4°C',
+      valueColor: Color(0xFF22C55E),
+      label: 'Front Area',
     ),
     BroodingCardItem(
       icon: Icons.thermostat,
       iconColor: Color(0xFFE94949),
       value: '33.0°C',
       valueColor: Color(0xFFE94949),
-      label: 'R. Tengah',
+      label: 'Middle Area',
     ),
     BroodingCardItem(
       icon: Icons.thermostat,
       iconColor: Color(0xFF2E9DEB),
       value: '31.8°C',
       valueColor: Color(0xFF2E9DEB),
-      label: 'R. Belakang',
+      label: 'Rear Area',
     ),
     BroodingCardItem(
       icon: Icons.arrow_downward_rounded,
@@ -134,8 +133,8 @@ class _HomePageState extends State<HomePage> {
   String _birdCountValue() {
     final raw = _displayValue(_broilerController.numberOfBirdsController.text);
     if (raw == '-') return raw;
-    if (raw.toLowerCase().contains('ekor')) return raw;
-    return '$raw Ekor';
+    if (raw.toLowerCase().contains('birds')) return raw;
+    return '$raw Birds';
   }
 
   List<String> _buildFarmOptions() {
@@ -197,14 +196,14 @@ class _HomePageState extends State<HomePage> {
         cardBgColor: const Color(0xFFF3FCF7),
       ),
       FarmInfoCardItem(
-        label: 'Jumlah Ayam',
+        label: 'Number of Birds',
         value: selectedSample?.numberOfBirds ?? _birdCountValue(),
         iconAsset: 'assets/number-of-birds.png',
         iconBgColor: const Color(0xFFDFF5E9),
         cardBgColor: const Color(0xFFF3FCF7),
       ),
       FarmInfoCardItem(
-        label: 'Diet/Replicasi',
+        label: 'Diet/Replication',
         value:
             selectedSample?.dietReplication ??
             (_dietMappingController.dietReplication.value?.toString() ?? '-'),
@@ -350,6 +349,9 @@ class _HomePageState extends State<HomePage> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Obx(() {
+              // Trigger rebuild when projectStatuses changes
+              _broilerController.projectStatuses.toString();
+
               final farmOptions = _buildFarmOptions();
               final selectedValue = farmOptions.contains(_selectedFarm)
                   ? _selectedFarm
@@ -463,7 +465,7 @@ class _HomePageState extends State<HomePage> {
           ).push(MaterialPageRoute(builder: (_) => const DepletionPage()));
         };
         break;
-      case 'Feses Score':
+      case 'Feces Score':
         onTap = () {
           Navigator.of(
             context,
@@ -710,7 +712,7 @@ class _PlaceholderTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        '$title page belum tersedia',
+        '$title page is not available yet',
         style: const TextStyle(
           fontSize: 16,
           color: Color(0xFF6D6D6D),

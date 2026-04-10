@@ -26,7 +26,7 @@ class LoginController extends GetxController {
     final password = passwordController.text;
 
     if (emailOrId.isEmpty || password.isEmpty) {
-      Get.snackbar('Login Gagal', 'Email/ID dan password wajib diisi');
+      Get.snackbar('Login Failed', 'Email/ID and password are required');
       return;
     }
 
@@ -35,24 +35,21 @@ class LoginController extends GetxController {
   }
 
   void forgotPassword() {
-    // TODO: Implementasi lupa password
+    // TODO: Implement forgot password
     Get.snackbar(
-      'Lupa Password',
-      'Fitur lupa password belum diimplementasikan',
+      'Forgot Password',
+      'Forgot password feature is not implemented yet',
     );
   }
 
   void openTerms() {
-    // TODO: Navigasi ke halaman Syarat & Ketentuan
-    Get.snackbar(
-      'Syarat & Ketentuan',
-      'Navigasi ke halaman Syarat & Ketentuan',
-    );
+    // TODO: Navigate to Terms & Conditions page
+    Get.snackbar('Terms & Conditions', 'Navigate to Terms & Conditions page');
   }
 
   void openPrivacy() {
-    // TODO: Navigasi ke halaman Kebijakan Privasi
-    Get.snackbar('Kebijakan Privasi', 'Navigasi ke halaman Kebijakan Privasi');
+    // TODO: Navigate to Privacy Policy page
+    Get.snackbar('Privacy Policy', 'Navigate to Privacy Policy page');
   }
 
   @override
