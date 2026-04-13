@@ -144,13 +144,18 @@ class _FesesScorePageState extends State<FesesScorePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: _primaryGreen,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        foregroundColor: const Color(0xFF111827),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Color(0xFF111827)),
+        shape: const Border(
+          bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+        ),
         title: const Text(
           'Feses Score',
           style: TextStyle(
-            color: Colors.white,
+            color: Color(0xFF111827),
             fontSize: 20,
             fontWeight: FontWeight.w700,
           ),

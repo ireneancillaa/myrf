@@ -33,6 +33,9 @@ class ProfilePage extends StatelessWidget {
         foregroundColor: const Color(0xFF111827),
         elevation: 0,
         scrolledUnderElevation: 0,
+        shape: const Border(
+          bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+        ),
         title: const Text('Profile'),
       ),
       body: SingleChildScrollView(

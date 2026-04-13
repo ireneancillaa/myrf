@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'doc_distribution_input_page.dart';
 import 'sample_doc_input_page.dart';
 
 class SampleDocSection extends StatefulWidget {
@@ -102,6 +103,59 @@ class _SampleDocSectionState extends State<SampleDocSection> {
     _updateAllDocWeights();
   }
 
+  Future<void> _openDocDistributionInputPage() async {
+    final initialValues = _distributionValuesFromState();
+    final result = await Navigator.of(context).push<List<double>>(
+      MaterialPageRoute(
+        builder: (_) => DocDistributionInputPage(
+          initialValues: initialValues,
+          totalPens: widget.totalPens,
+        ),
+      ),
+    );
+
+    if (result == null) return;
+
+    final now = DateTime.now().toIso8601String();
+    final next = <Map<String, dynamic>>[];
+    for (int index = 0; index < result.length; index++) {
+      final value = result[index];
+      if (value <= 0) continue;
+      next.add({'pen': index + 1, 'valueKg': value, 'updatedAt': now});
+    }
+
+    widget.onDocDistributionsChanged(next);
+    setState(() {});
+  }
+
+  List<double> _distributionValuesFromState() {
+    int maxPen = 0;
+    for (final item in widget.docDistributions) {
+      final penRaw = item['pen'];
+      final pen = penRaw is int ? penRaw : int.tryParse('$penRaw');
+      if (pen != null && pen > maxPen) {
+        maxPen = pen;
+      }
+    }
+
+    final length = maxPen > 0 ? maxPen : 0;
+    final values = List<double>.filled(length, 0);
+
+    for (final item in widget.docDistributions) {
+      final penRaw = item['pen'];
+      final valueRaw = item['valueKg'] ?? item['value'] ?? item['kg'];
+      final pen = penRaw is int ? penRaw : int.tryParse('$penRaw');
+      final value = valueRaw is num
+          ? valueRaw.toDouble()
+          : double.tryParse('$valueRaw');
+
+      if (pen == null || value == null || pen < 1 || pen > length) continue;
+      values[pen - 1] = value;
+    }
+
+    return values;
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -128,10 +182,165 @@ class _SampleDocSectionState extends State<SampleDocSection> {
             _buildBoxSummaryRow(),
             const SizedBox(height: 18),
             ...List.generate(3, (index) => _buildSampleStatusCard(index)),
+            const SizedBox(height: 28),
+            const Text(
+              'DOC Distribution',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF22C55E),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Distribute DOC to each pen per kg',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 10),
+            _buildDocDistributionStatusCard(),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildDocDistributionStatusCard() {
+    final hasData = widget.docDistributions.isNotEmpty;
+    final totalDistribution = widget.docDistributions.fold<double>(0, (
+      sum,
+      item,
+    ) {
+      final rawValue = item['valueKg'] ?? item['value'] ?? item['kg'];
+      final value = rawValue is num
+          ? rawValue.toDouble()
+          : double.tryParse('$rawValue') ?? 0;
+      return sum + value;
+    });
+    final titleColor = hasData
+        ? const Color(0xFF22C55E)
+        : const Color(0xFF6F6F6F);
+    final updatedAt = _resolveDistributionUpdatedAt();
+    final updatedAtText = updatedAt == null ? '-' : _formatDateTime(updatedAt);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: InkWell(
+        onTap: _openDocDistributionInputPage,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: _sampleCardMinHeight),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: hasData
+                  ? const Color(0xFF22C55E)
+                  : const Color(0xFFE0E0E0),
+              width: hasData ? 1.4 : 1,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x18000000),
+                blurRadius: 4,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: hasData
+                        ? const Color(0xFF22C55E)
+                        : const Color(0xFF8A8A8A),
+                  ),
+                  color: hasData ? const Color(0xFF22C55E) : Colors.transparent,
+                ),
+                child: hasData
+                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'DOC Distribution',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w500,
+                        color: titleColor,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.schedule,
+                          size: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          updatedAtText,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: _sampleCountCircleSize,
+                height: _sampleCountCircleSize,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFD6E3D8),
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  hasData ? _formatTotalWeight(totalDistribution) : '-',
+                  style: TextStyle(
+                    color: hasData
+                        ? const Color(0xFF22C55E)
+                        : const Color(0xFF6F6F6F),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  DateTime? _resolveDistributionUpdatedAt() {
+    if (widget.docDistributions.isEmpty) {
+      return null;
+    }
+
+    final first = widget.docDistributions.first;
+    final raw = first['updatedAt'] ?? first['updated_at'] ?? first['timestamp'];
+
+    if (raw is DateTime) {
+      return raw;
+    }
+    if (raw is String) {
+      return DateTime.tryParse(raw);
+    }
+
+    return DateTime.now();
   }
 
   Widget _buildSampleStatusCard(int index) {
@@ -142,7 +351,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
     );
     final isLastSample = index == _sampleDocWeights.length - 1;
     final titleColor = hasData
-        ? const Color(0xFF08A81B)
+        ? const Color(0xFF22C55E)
         : const Color(0xFF6F6F6F);
     final updatedAtText = _sampleUpdatedAt[index] == null
         ? '-'
@@ -161,7 +370,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: hasData
-                  ? const Color(0xFF08B32A)
+                  ? const Color(0xFF22C55E)
                   : const Color(0xFFE0E0E0),
               width: hasData ? 1.4 : 1,
             ),
@@ -182,10 +391,10 @@ class _SampleDocSectionState extends State<SampleDocSection> {
                   borderRadius: BorderRadius.circular(2),
                   border: Border.all(
                     color: hasData
-                        ? const Color(0xFF08B32A)
+                        ? const Color(0xFF22C55E)
                         : const Color(0xFF8A8A8A),
                   ),
-                  color: hasData ? const Color(0xFF08B32A) : Colors.transparent,
+                  color: hasData ? const Color(0xFF22C55E) : Colors.transparent,
                 ),
                 child: hasData
                     ? const Icon(Icons.check, size: 16, color: Colors.white)
@@ -237,7 +446,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
                   hasData ? _formatTotalWeight(totalWeight) : '-',
                   style: TextStyle(
                     color: hasData
-                        ? const Color(0xFF08A81B)
+                        ? const Color(0xFF22C55E)
                         : const Color(0xFF6F6F6F),
                     fontWeight: FontWeight.w700,
                     fontSize: 18,

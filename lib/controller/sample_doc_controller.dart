@@ -37,6 +37,7 @@ class SampleDocController extends GetxController {
     boxLightestController.clear();
     docWeights.clear();
     sampleGroups.assignAll([<double>[], <double>[], <double>[]]);
+    docDistributions.clear();
     _notifyChanges();
   }
 

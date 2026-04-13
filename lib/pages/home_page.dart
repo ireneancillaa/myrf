@@ -25,7 +25,6 @@ class _HomePageState extends State<HomePage> {
   late final BroilerController _broilerController;
   late final UserSessionController _sessionController;
 
-
   final List<QuickActionItem> _quickActions = const [
     QuickActionItem(
       title: 'Weigh',
@@ -189,8 +188,14 @@ class _HomePageState extends State<HomePage> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: const Color(0xFF22C55E),
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      foregroundColor: const Color(0xFF111827),
       elevation: 0,
+      iconTheme: const IconThemeData(color: Color(0xFF111827)),
+      shape: const Border(
+        bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+      ),
       toolbarHeight: 84,
       titleSpacing: 16,
       title: Obx(
@@ -201,7 +206,7 @@ class _HomePageState extends State<HomePage> {
             Text(
               'Welcome, ${_sessionController.displayName}',
               style: const TextStyle(
-                color: Colors.white,
+                color: Color(0xFF111827),
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
@@ -210,7 +215,7 @@ class _HomePageState extends State<HomePage> {
             Text(
               'My Research Farm',
               style: const TextStyle(
-                color: Colors.white,
+                color: Color(0xFF6B7280),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -225,7 +230,7 @@ class _HomePageState extends State<HomePage> {
               context,
             ).push(MaterialPageRoute(builder: (_) => const ProfilePage()));
           },
-          icon: const Icon(Icons.person, color: Colors.white),
+          icon: const Icon(Icons.person, color: Color(0xFF111827)),
         ),
       ],
     );
@@ -240,7 +245,9 @@ class _HomePageState extends State<HomePage> {
       _broilerController.selectedHatchery.value ??
           _broilerController.hatcheryController.text,
     );
-    final breedingFarm = _displayValue(_broilerController.breedingFarmController.text);
+    final breedingFarm = _displayValue(
+      _broilerController.breedingFarmController.text,
+    );
     final docInDate = _displayValue(
       _broilerController.selectedDocInDate.value ??
           _broilerController.docInDateController.text,
@@ -276,82 +283,103 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _selectedFarm ?? '-',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E1E1E),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      strain,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF737373),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Dropdown
-              Container(
-                height: 38,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: const Color(0xFFDADADA)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Obx(() {
-                  _broilerController.projectStatuses.toString();
-                  final farmOptions = _buildFarmOptions();
-                  final selectedValue = farmOptions.contains(_selectedFarm)
-                      ? _selectedFarm
-                      : farmOptions.first;
-                  return DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      dropdownColor: Colors.white,
-                      value: selectedValue,
-                      icon: const Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 20,
-                        color: Color(0xFF555555),
-                      ),
-                      style: const TextStyle(
-                        color: Color(0xFF222222),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                      items: farmOptions
-                          .map(
-                            (item) => DropdownMenuItem(
-                              value: item,
-                              child: Text(item),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() => _selectedFarm = value);
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 50),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Obx(() {
+                    _broilerController.projectStatuses.toString();
+                    final farmOptions = _buildFarmOptions();
+                    final selectedValue = farmOptions.contains(_selectedFarm)
+                        ? _selectedFarm
+                        : farmOptions.first;
 
+                    if (_selectedFarm != selectedValue) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted) return;
+                        setState(() => _selectedFarm = selectedValue);
                         if (_broilerController.inProgressProjectNames.contains(
-                          value,
+                          selectedValue,
                         )) {
-                          _broilerController.selectProject(value);
+                          _broilerController.selectProject(selectedValue);
                         }
-                      },
-                    ),
-                  );
-                }),
+                      });
+                    }
+
+                    return DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        itemHeight: null,
+                        dropdownColor: Colors.white,
+                        value: selectedValue,
+                        icon: const Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 20,
+                          color: Color(0xFF555555),
+                        ),
+                        style: const TextStyle(
+                          color: Color(0xFF222222),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                        selectedItemBuilder: (context) {
+                          return farmOptions
+                              .map(
+                                (item) => Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    item,
+                                    softWrap: true,
+                                    overflow: TextOverflow.visible,
+                                  ),
+                                ),
+                              )
+                              .toList();
+                        },
+                        items: farmOptions
+                            .map(
+                              (item) => DropdownMenuItem(
+                                value: item,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 6,
+                                  ),
+                                  child: Text(
+                                    item,
+                                    softWrap: true,
+                                    overflow: TextOverflow.visible,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() => _selectedFarm = value);
+
+                          if (_broilerController.inProgressProjectNames
+                              .contains(value)) {
+                            _broilerController.selectProject(value);
+                          }
+                        },
+                      ),
+                    );
+                  }),
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            strain,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF737373)),
           ),
           const SizedBox(height: 16),
           // Hatchery
@@ -730,173 +758,211 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFEBEBEB)),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFFF7E3),
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(12),
+          InkWell(
+            onTap: () {
+              setState(() {
+                _selectedBottomIndex = 1;
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFEBEBEB)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.warning_rounded,
-                        color: Color(0xFFF59E0B),
-                        size: 20,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFFF7E3),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(12),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '${draftedProjects.length} Project Incomplete',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF1E1E1E),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.warning_rounded,
+                          color: Color(0xFFF59E0B),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${draftedProjects.length} Project Incomplete',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1E1E1E),
+                            ),
                           ),
                         ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: Color(0xFF737373),
-                        size: 20,
-                      ),
-                    ],
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: Color(0xFF737373),
+                          size: 20,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const Divider(height: 1, color: Color(0xFFF1F1F1)),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                firstDraft.projectName,
-                                style: const TextStyle(
-                                  color: Color(0xFF3A3A3A),
-                                  fontSize: 15,
-                                  height: 1.2,
-                                  fontWeight: FontWeight.w700,
+                  const Divider(height: 1, color: Color(0xFFF1F1F1)),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  firstDraft.projectName,
+                                  style: const TextStyle(
+                                    color: Color(0xFF3A3A3A),
+                                    fontSize: 15,
+                                    height: 1.2,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: 100,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 9),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF4FAFF),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFF8CBCEC)),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 100,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 9,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF4FAFF),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFF8CBCEC),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Drafted',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(0xFF2E82D0),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ),
-                              child: const Text(
-                                'Drafted',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Color(0xFF2E82D0),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(height: 1, color: Color(0xFFD8D8D8)),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 46,
+                                    height: 46,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFE6F5EA),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.calendar_month_rounded,
+                                      color: Color(0xFF22C55E),
+                                      size: 26,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Trial Date',
+                                          style: TextStyle(
+                                            color: Color(0xFF8A8A8A),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          firstDraft.trialDate,
+                                          style: const TextStyle(
+                                            color: Color(0xFF3E3E3E),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Divider(height: 1, color: Color(0xFFD8D8D8)),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 46,
-                                  height: 46,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFE6F5EA),
-                                    shape: BoxShape.circle,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 46,
+                                    height: 46,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFE6F5EA),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.home_work_rounded,
+                                      color: Color(0xFF22C55E),
+                                      size: 26,
+                                    ),
                                   ),
-                                  child: const Icon(Icons.calendar_month_rounded, color: Color(0xFF22C55E), size: 26),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Trial Date',
-                                        style: TextStyle(color: Color(0xFF8A8A8A), fontSize: 13, fontWeight: FontWeight.w500),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        firstDraft.trialDate,
-                                        style: const TextStyle(color: Color(0xFF3E3E3E), fontSize: 16, fontWeight: FontWeight.w700),
-                                      ),
-                                    ],
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Trial House',
+                                          style: TextStyle(
+                                            color: Color(0xFF8A8A8A),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          firstDraft.trialHouse,
+                                          style: const TextStyle(
+                                            color: Color(0xFF3E3E3E),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 46,
-                                  height: 46,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFE6F5EA),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.home_work_rounded, color: Color(0xFF22C55E), size: 26),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Trial House',
-                                        style: TextStyle(color: Color(0xFF8A8A8A), fontSize: 13, fontWeight: FontWeight.w500),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        firstDraft.trialHouse,
-                                        style: const TextStyle(color: Color(0xFF3E3E3E), fontSize: 16, fontWeight: FontWeight.w700),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],

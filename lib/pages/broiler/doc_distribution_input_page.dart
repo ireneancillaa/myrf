@@ -1,44 +1,44 @@
 import 'package:flutter/material.dart';
 
-class SampleDocInputPage extends StatefulWidget {
-  const SampleDocInputPage({
+class DocDistributionInputPage extends StatefulWidget {
+  const DocDistributionInputPage({
     super.key,
-    required this.sampleNumber,
-    required this.initialWeights,
+    required this.initialValues,
+    required this.totalPens,
   });
 
-  final int sampleNumber;
-  final List<double> initialWeights;
+  final List<double> initialValues;
+  final int totalPens;
 
   @override
-  State<SampleDocInputPage> createState() => _SampleDocInputPageState();
+  State<DocDistributionInputPage> createState() =>
+      _DocDistributionInputPageState();
 }
 
-class _SampleDocInputPageState extends State<SampleDocInputPage> {
+class _DocDistributionInputPageState extends State<DocDistributionInputPage> {
   static const double _calculatorButtonHeight = 72;
-  static const double _docFieldHeight = 50;
-  final List<TextEditingController> _controllers = [];
+  static const double _distributionFieldHeight = 50;
+
   final ScrollController _listScrollController = ScrollController();
+  final List<TextEditingController> _controllers = [];
   int _activeIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialWeights.isEmpty) {
+    if (widget.initialValues.isEmpty) {
       _controllers.add(TextEditingController());
       _activeIndex = 0;
-    } else {
-      for (final value in widget.initialWeights) {
-        final isWhole = value % 1 == 0;
-        _controllers.add(
-          TextEditingController(
-            text: isWhole ? value.toInt().toString() : value.toString(),
-          ),
-        );
-      }
-      _activeIndex = _controllers.length - 1;
-      _scrollToBottom();
+      return;
     }
+
+    for (final value in widget.initialValues) {
+      _controllers.add(
+        TextEditingController(text: value > 0 ? _formatValue(value) : ''),
+      );
+    }
+    _activeIndex = _controllers.length - 1;
+    _scrollToBottom();
   }
 
   @override
@@ -86,15 +86,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
     setState(() {
       _activeIndex += 1;
     });
-  }
-
-  bool _canGoNextField() {
-    return _controllers[_activeIndex].text.trim().isNotEmpty;
-  }
-
-  void _clearActiveField() {
-    _controllers[_activeIndex].clear();
-    setState(() {});
+    _scrollToActive();
   }
 
   void _deleteActiveField() {
@@ -110,9 +102,29 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
       _activeIndex = _controllers.length - 1;
     }
     setState(() {});
-    if (removedIndex >= _controllers.length) {
-      _scrollToBottom();
-    }
+    _scrollToActive();
+  }
+
+  bool _canGoNextField() {
+    return _controllers[_activeIndex].text.trim().isNotEmpty;
+  }
+
+  void _clearActiveField() {
+    _controllers[_activeIndex].clear();
+    setState(() {});
+  }
+
+  void _scrollToActive() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_listScrollController.hasClients) return;
+      const itemExtent = _distributionFieldHeight + 10;
+      final offset = _activeIndex * itemExtent;
+      _listScrollController.animateTo(
+        offset,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   void _scrollToBottom() {
@@ -126,17 +138,18 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
     });
   }
 
-  void _saveSample() {
-    final values = <double>[];
-    for (final controller in _controllers) {
-      final text = controller.text.trim();
-      if (text.isEmpty) continue;
-      final parsed = double.tryParse(text);
-      if (parsed != null && parsed > 0) {
-        values.add(parsed);
-      }
-    }
+  void _saveDistribution() {
+    final values = _controllers
+        .map((controller) => double.tryParse(controller.text.trim()) ?? 0)
+        .toList();
     Navigator.of(context).pop(values);
+  }
+
+  String _formatValue(double value) {
+    if (value % 1 == 0) {
+      return value.toInt().toString();
+    }
+    return value.toStringAsFixed(2);
   }
 
   @override
@@ -152,10 +165,9 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
         shape: const Border(
           bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
         ),
-        title: Text(
-          'Sample ${widget.sampleNumber}',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
+        title: const Text(
+          'DOC Distribution',
+          style: TextStyle(
             color: Color(0xFF111827),
             fontSize: 22,
             fontWeight: FontWeight.w700,
@@ -167,7 +179,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
           padding: const EdgeInsets.all(10),
           child: Column(
             children: [
-              Expanded(child: _buildDocListPanel()),
+              Expanded(child: _buildDistributionListPanel()),
               const SizedBox(height: 10),
               _buildKeypad(),
               const SizedBox(height: 10),
@@ -175,7 +187,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
                 width: double.infinity,
                 height: 58,
                 child: ElevatedButton(
-                  onPressed: _saveSample,
+                  onPressed: _saveDistribution,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF22C55E),
                     foregroundColor: Colors.white,
@@ -184,9 +196,9 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: Text(
-                    'Save Sample ${widget.sampleNumber}',
-                    style: const TextStyle(
+                  child: const Text(
+                    'Save DOC Distribution',
+                    style: TextStyle(
                       fontSize: 20 / 1.1,
                       fontWeight: FontWeight.w700,
                     ),
@@ -200,7 +212,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
     );
   }
 
-  Widget _buildDocListPanel() {
+  Widget _buildDistributionListPanel() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
@@ -226,7 +238,9 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
                 margin: EdgeInsets.only(
                   bottom: index == _controllers.length - 1 ? 0 : 10,
                 ),
-                constraints: const BoxConstraints(minHeight: _docFieldHeight),
+                constraints: const BoxConstraints(
+                  minHeight: _distributionFieldHeight,
+                ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 10,
@@ -245,7 +259,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
                 child: Row(
                   children: [
                     Text(
-                      'DOC ${index + 1} (g):',
+                      'Pen ${index + 1} (kg):',
                       style: TextStyle(
                         color: isActive
                             ? const Color(0xFF0A992E)

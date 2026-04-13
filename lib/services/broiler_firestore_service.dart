@@ -44,10 +44,9 @@ class BroilerFirestoreService {
   }
 
   Stream<List<BroilerProjectData>> watchProjects() {
-    return _collection
-        .orderBy('updated_at', descending: true)
-        .snapshots()
-        .map((snapshot) {
+    return _collection.orderBy('updated_at', descending: true).snapshots().map((
+      snapshot,
+    ) {
       return snapshot.docs
           .map((doc) => _toProjectData(doc.data()))
           .whereType<BroilerProjectData>()
@@ -93,6 +92,7 @@ class BroilerFirestoreService {
     required String status,
     required List<double> sampleWeights,
     required List<List<double>> sampleGroups,
+    required List<Map<String, dynamic>> docDistributions,
     required String boxHeaviest,
     required String boxAverage,
     required String boxLightest,
@@ -141,6 +141,15 @@ class BroilerFirestoreService {
               ? List<double>.from(sampleGroups[i])
               : <double>[],
       },
+      'doc_distributions': docDistributions
+          .map(
+            (item) => {
+              'pen': item['pen'],
+              'valueKg': item['valueKg'],
+              'updatedAt': item['updatedAt'],
+            },
+          )
+          .toList(),
       'status': status,
       'status_updated_at': FieldValue.serverTimestamp(),
       'updated_at': FieldValue.serverTimestamp(),

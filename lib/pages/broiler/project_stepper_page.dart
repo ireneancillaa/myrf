@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -31,13 +29,14 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
   late final BroilerController controller;
   late final DietMappingController dietMappingController;
   late final SampleDocController sampleDocController;
+  final GlobalKey<FormState> _projectInfoFormKey = GlobalKey<FormState>();
   late final ScrollController _scrollController;
   late bool _isReadOnly;
   late bool _openedFromDraft;
+  bool _showProjectInfoValidation = false;
   String? _projectName;
   int _currentStep = 0;
   static const _stepCount = 3;
-  Timer? _autoSaveTimer;
 
   @override
   void initState() {
@@ -79,6 +78,11 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
       if (savedGroups != null) {
         sampleDocController.setSampleGroups(savedGroups);
       }
+      final savedDistributions =
+          controller.projectDocDistributions[_projectName!];
+      if (savedDistributions != null) {
+        sampleDocController.docDistributions.assignAll(savedDistributions);
+      }
       final savedPens = controller.projectDietPenSelections[_projectName!];
       if (savedPens != null) {
         dietMappingController.dietPenSelections.assignAll(savedPens);
@@ -114,19 +118,10 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
     if (mounted) {
       setState(() {});
     }
-    _scheduleAutoSave();
-  }
-
-  void _scheduleAutoSave() {
-    if (_projectName == null || _projectName!.isEmpty || _isReadOnly) return;
-    if (mounted) {
-      _persistCurrentProjectProgress();
-    }
   }
 
   @override
   void dispose() {
-    _autoSaveTimer?.cancel();
     // Remove all listeners
     controller.projectNameController.removeListener(_triggerRebuild);
     controller.trialDateController.removeListener(_triggerRebuild);
@@ -169,68 +164,73 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        
-        _autoSaveTimer?.cancel();
         _persistCurrentProjectProgress();
-        
+
         if (mounted) {
           Navigator.of(context).pop(result);
         }
       },
       child: Scaffold(
         backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF22C55E),
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(
-          (_projectName != null && _projectName!.trim().isNotEmpty)
-              ? _projectName!
-              : 'Project',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          foregroundColor: const Color(0xFF111827),
+          elevation: 0,
+          centerTitle: true,
+          iconTheme: const IconThemeData(color: Color(0xFF111827)),
+          shape: const Border(
+            bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+          ),
+          title: Text(
+            (_projectName != null && _projectName!.trim().isNotEmpty)
+                ? _projectName!
+                : 'Project',
+            style: const TextStyle(
+              color: Color(0xFF111827),
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        bottomNavigationBar: _buildBottomActionBar(),
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: BroilerStepperTabs(
+                  currentStep: _currentStep,
+                  totalSteps: _stepCount,
+                ),
+              ),
+              const SizedBox(height: 28),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AbsorbPointer(
+                        absorbing: _isReadOnly,
+                        child: _buildCurrentStepContent(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomActionBar(),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: BroilerStepperTabs(
-                currentStep: _currentStep,
-                totalSteps: _stepCount,
-              ),
-            ),
-            const SizedBox(height: 28),
-            Expanded(
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AbsorbPointer(
-                      absorbing: _isReadOnly,
-                      child: _buildCurrentStepContent(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ));
+    );
   }
 
   Widget _buildBottomActionBar() {
     final finalButtonLabel = _openedFromDraft ? 'Update Project' : 'Finish';
+    final isStepTwoLocked = _currentStep == 1 && !_canProceedFromDietMapping();
 
     return SafeArea(
       top: false,
@@ -247,16 +247,22 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                       _goToStep(1);
                       return;
                     }
+
+                    setState(() {
+                      _showProjectInfoValidation = true;
+                    });
+                    final isFormValid =
+                        _projectInfoFormKey.currentState?.validate() ?? false;
+                    if (!isFormValid) {
+                      return;
+                    }
+
                     final isSaved = await controller.saveProject();
                     if (isSaved) {
                       _projectName = controller.projectNameController.text
                           .trim();
-                      if (_projectName != null &&
-                          _projectName!.isNotEmpty) {
-                        await controller.markDrafted(
-                          _projectName!,
-                          step: 1,
-                        );
+                      if (_projectName != null && _projectName!.isNotEmpty) {
+                        await controller.markDrafted(_projectName!, step: 1);
                       }
                       await _persistCurrentProjectProgress();
                       _goToStep(1);
@@ -283,7 +289,10 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                     child: SizedBox(
                       height: 50,
                       child: OutlinedButton(
-                        onPressed: () {
+                        onPressed: () async {
+                          if (!_isReadOnly) {
+                            await _persistCurrentProjectProgress();
+                          }
                           _goToStep(_currentStep - 1);
                         },
                         style: OutlinedButton.styleFrom(
@@ -309,7 +318,10 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                     child: SizedBox(
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: (_currentStep == 2 && (_isReadOnly || !_canFinishProject()))
+                        onPressed: isStepTwoLocked
+                            ? null
+                            : (_currentStep == 2 &&
+                                  (_isReadOnly || !_canFinishProject()))
                             ? null
                             : () async {
                                 if (_currentStep < 2) {
@@ -327,8 +339,10 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                                   await _persistCurrentProjectProgress();
                                   _goToStep(_currentStep + 1);
                                 } else {
-                                  if (_projectName == null || _projectName!.isEmpty) {
-                                    final isSaved = await controller.saveProject();
+                                  if (_projectName == null ||
+                                      _projectName!.isEmpty) {
+                                    final isSaved = await controller
+                                        .saveProject();
                                     if (!isSaved) return;
                                     _projectName = controller
                                         .projectNameController
@@ -336,14 +350,18 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                                         .trim();
                                   }
                                   await _persistCurrentProjectProgress();
-                                  await controller.markInProgress(_projectName!);
+                                  await controller.markInProgress(
+                                    _projectName!,
+                                  );
                                   if (!mounted) return;
                                   setState(() {
                                     _isReadOnly = true;
                                   });
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Project finalized successfully'),
+                                      content: Text(
+                                        'Project finalized successfully',
+                                      ),
                                       backgroundColor: Color(0xFF22C55E),
                                     ),
                                   );
@@ -378,7 +396,11 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
   Widget _buildCurrentStepContent() {
     switch (_currentStep) {
       case 0:
-        return BroilerProjectInformationSection(controller: controller);
+        return BroilerProjectInformationSection(
+          controller: controller,
+          formKey: _projectInfoFormKey,
+          showValidation: _showProjectInfoValidation,
+        );
       case 1:
         return DietPenMappingSection(controller: dietMappingController);
       case 2:
@@ -402,11 +424,17 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
           totalPens: sampleDocController.totalPens.value,
         );
       default:
-        return BroilerProjectInformationSection(controller: controller);
+        return BroilerProjectInformationSection(
+          controller: controller,
+          formKey: _projectInfoFormKey,
+          showValidation: _showProjectInfoValidation,
+        );
     }
   }
 
   bool _canFinishProject() {
+    const requiredDocInputCount = 42;
+
     final hasProjectData =
         controller.projectNameController.text.trim().isNotEmpty &&
         controller.trialDateController.text.trim().isNotEmpty &&
@@ -435,14 +463,54 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
               (values['finisher'] ?? '').trim().isNotEmpty;
         });
 
+    final totalDocInputCount = sampleDocController.sampleGroups.fold<int>(
+      0,
+      (sum, group) => sum + group.length,
+    );
+
     final hasSampleData =
         sampleDocController.boxHeaviestController.text.trim().isNotEmpty &&
         sampleDocController.boxAverageController.text.trim().isNotEmpty &&
         sampleDocController.boxLightestController.text.trim().isNotEmpty &&
         sampleDocController.sampleGroups.length >= 3 &&
-        sampleDocController.sampleGroups.every((group) => group.isNotEmpty);
+        sampleDocController.sampleGroups.every((group) => group.isNotEmpty) &&
+        totalDocInputCount == requiredDocInputCount;
 
     return hasProjectData && hasDietMappings && hasDietInputs && hasSampleData;
+  }
+
+  bool _canProceedFromDietMapping() {
+    final expectedDietCount = int.tryParse(controller.dietController.text) ?? 0;
+    if (expectedDietCount <= 0) return false;
+
+    final scopedEntries = dietMappingController.dietPenSelections.entries
+        .where((entry) => entry.key <= expectedDietCount)
+        .toList();
+
+    final allDietHasPens =
+        scopedEntries.length >= expectedDietCount &&
+        scopedEntries.every((entry) => entry.value.isNotEmpty);
+
+    if (!allDietHasPens) return false;
+
+    final hasDietInputs = List.generate(expectedDietCount, (index) => index + 1)
+        .every((diet) {
+          final values =
+              dietMappingController.dietInputValues[diet] ??
+              const <String, String>{};
+          return (values['preStarter'] ?? '').trim().isNotEmpty &&
+              (values['starter'] ?? '').trim().isNotEmpty &&
+              (values['finisher'] ?? '').trim().isNotEmpty;
+        });
+
+    if (!hasDietInputs) return false;
+
+    final uniquePens = <int>{};
+    for (final entry in scopedEntries) {
+      uniquePens.addAll(entry.value.where((pen) => pen >= 1 && pen <= 42));
+    }
+
+    return uniquePens.length == 42;
   }
 
   Future<void> _persistCurrentProjectProgress() async {
@@ -453,6 +521,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
       projectName: _projectName!,
       sampleWeights: sampleDocController.docWeights,
       sampleGroups: sampleDocController.sampleGroups,
+      docDistributions: sampleDocController.docDistributions,
       boxHeaviest: sampleDocController.boxHeaviestController.text,
       boxAverage: sampleDocController.boxAverageController.text,
       boxLightest: sampleDocController.boxLightestController.text,

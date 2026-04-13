@@ -4,13 +4,20 @@ import 'package:get/get.dart';
 import '../../controller/broiler_controller.dart';
 
 class BroilerProjectInformationSection extends StatelessWidget {
-  const BroilerProjectInformationSection({super.key, required this.controller});
+  const BroilerProjectInformationSection({
+    super.key,
+    required this.controller,
+    required this.formKey,
+    this.showValidation = false,
+  });
 
   static const double _fieldTextSize = 14;
   static const double _fieldHintSize = 14;
   static const double _fieldHeight = 50;
 
   final BroilerController controller;
+  final GlobalKey<FormState> formKey;
+  final bool showValidation;
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +25,10 @@ class BroilerProjectInformationSection extends StatelessWidget {
       behavior: HitTestBehavior.translucent,
       onTap: () => FocusScope.of(context).unfocus(),
       child: Form(
+        key: formKey,
+        autovalidateMode: showValidation
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -38,6 +49,8 @@ class BroilerProjectInformationSection extends StatelessWidget {
               hint: 'Project Name / Chick Cycle',
               icon: Icons.autorenew_rounded,
               isMandatory: true,
+              minLines: 1,
+              maxLines: 2,
             ),
             const SizedBox(height: 16),
 
@@ -137,23 +150,30 @@ class BroilerProjectInformationSection extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // 8. Weighing 3 Weeks (integer)
-            _buildTextField(
-              controller: controller.weighing3WeeksController,
-              label: 'Weighing 3 Weeks',
-              hint: 'Weighing 3 Weeks',
-              icon: Icons.looks_3,
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-
-            // 9. Weighing 5 Weeks (integer)
-            _buildTextField(
-              controller: controller.weighing5WeeksController,
-              label: 'Weighing 5 Weeks',
-              hint: 'Weighing 5 Weeks',
-              icon: Icons.looks_5,
-              keyboardType: TextInputType.number,
+            // 8 & 9. Weighing 3 Weeks + Weighing 5 Weeks (single line)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    controller: controller.weighing3WeeksController,
+                    label: 'Weighing 3 Weeks',
+                    hint: 'Weighing 3 Weeks',
+                    icon: Icons.looks_3,
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildTextField(
+                    controller: controller.weighing5WeeksController,
+                    label: 'Weighing 5 Weeks',
+                    hint: 'Weighing 5 Weeks',
+                    icon: Icons.looks_5,
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -207,10 +227,10 @@ class BroilerProjectInformationSection extends StatelessWidget {
             _buildStringDropdownField(
               valueListenable: controller.selectedTrialHouse,
               label: 'Map of Trial House',
-              hint: 'Select Trial House',
+              hint: 'Map of Trial House',
               icon: Icons.map_outlined,
               isMandatory: true,
-              showMandatoryInHint: true,
+              showMandatoryInHint: false,
               items: List.generate(
                 5,
                 (index) => DropdownMenuItem(
@@ -225,25 +245,32 @@ class BroilerProjectInformationSection extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // 14. Diet (integer, mandatory)
-            _buildTextField(
-              controller: controller.dietController,
-              label: 'Diet',
-              hint: 'Diet',
-              icon: Icons.local_dining,
-              keyboardType: TextInputType.number,
-              isMandatory: true,
-            ),
-            const SizedBox(height: 16),
-
-            // 15. Replication (integer, mandatory)
-            _buildTextField(
-              controller: controller.replicationController,
-              label: 'Replication',
-              hint: 'Replication',
-              icon: Icons.repeat,
-              keyboardType: TextInputType.number,
-              isMandatory: true,
+            // 14 & 15. Diet + Replication (single line)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    controller: controller.dietController,
+                    label: 'Diet',
+                    hint: 'Diet',
+                    icon: Icons.local_dining,
+                    keyboardType: TextInputType.number,
+                    isMandatory: true,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildTextField(
+                    controller: controller.replicationController,
+                    label: 'Replication',
+                    hint: 'Replication',
+                    icon: Icons.repeat,
+                    keyboardType: TextInputType.number,
+                    isMandatory: true,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -252,47 +279,53 @@ class BroilerProjectInformationSection extends StatelessWidget {
   }
 
   InputDecoration _fieldDecoration({
-    String? label,
     required String hint,
     required IconData icon,
     bool isMandatory = false,
     Widget? hintWidget,
   }) {
     return InputDecoration(
-      label: label == null
-          ? null
-          : RichText(
-              text: TextSpan(
-                text: label,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                children: isMandatory
-                    ? const [
-                        TextSpan(
-                          text: ' *',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ]
-                    : const [],
-              ),
-            ),
+      isDense: true,
       hint: hintWidget,
       hintText: hintWidget == null ? hint : null,
       hintStyle: const TextStyle(
         fontSize: _fieldHintSize,
         color: Color(0xFF9CA3AF),
+        height: 1.0,
       ),
-      prefixIcon: Icon(icon),
-      filled: true,
-      fillColor: Colors.white,
-      border: const OutlineInputBorder(),
-      enabledBorder: const OutlineInputBorder(
+      prefixIcon: Padding(
+        padding: const EdgeInsets.only(left: 0, right: 8),
+        child: Icon(icon),
+      ),
+      prefixIconConstraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      filled: false,
+      border: const UnderlineInputBorder(
         borderSide: BorderSide(color: Color(0xFFE0E0E0)),
       ),
-      focusedBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFF22C55E)),
+      enabledBorder: const UnderlineInputBorder(
+        borderSide: BorderSide(color: Color(0xFFE0E0E0)),
       ),
-      floatingLabelBehavior: FloatingLabelBehavior.auto,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      focusedBorder: const UnderlineInputBorder(
+        borderSide: BorderSide(color: Color(0xFF22C55E), width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    );
+  }
+
+  Widget _buildFieldLabel(String label, {bool isMandatory = false}) {
+    return RichText(
+      text: TextSpan(
+        text: label,
+        style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+        children: isMandatory
+            ? const [
+                TextSpan(
+                  text: ' *',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ]
+            : const [],
+      ),
     );
   }
 
@@ -303,20 +336,38 @@ class BroilerProjectInformationSection extends StatelessWidget {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     bool isMandatory = false,
+    int minLines = 1,
+    int maxLines = 1,
   }) {
-    return SizedBox(
-      height: _fieldHeight,
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        style: const TextStyle(fontSize: _fieldTextSize),
-        decoration: _fieldDecoration(
-          label: label,
-          hint: hint,
-          icon: icon,
-          isMandatory: isMandatory,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFieldLabel(label, isMandatory: isMandatory),
+        const SizedBox(height: 6),
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: _fieldHeight),
+          child: TextFormField(
+            controller: controller,
+            keyboardType: keyboardType,
+            minLines: minLines,
+            maxLines: maxLines,
+            style: const TextStyle(fontSize: _fieldTextSize),
+            validator: isMandatory
+                ? (value) {
+                    if ((value ?? '').trim().isEmpty) {
+                      return '$label is required';
+                    }
+                    return null;
+                  }
+                : null,
+            decoration: _fieldDecoration(
+              hint: hint,
+              icon: icon,
+              isMandatory: isMandatory,
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -379,29 +430,55 @@ class BroilerProjectInformationSection extends StatelessWidget {
         );
       }
 
-      return SizedBox(
-        height: _fieldHeight,
-        child: DropdownButtonFormField<String>(
-          initialValue: selectedValue,
-          isExpanded: true,
-          dropdownColor: Colors.white,
-          // Keep selected item visually centered within field layout
-          alignment: Alignment.centerLeft,
-          style: const TextStyle(
-            fontSize: _fieldTextSize,
-            color: Color(0xFF111827),
-            height: 1.0,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildFieldLabel(label, isMandatory: isMandatory),
+          const SizedBox(height: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: _fieldHeight),
+            child: DropdownButtonFormField<String>(
+              initialValue: selectedValue,
+              isExpanded: true,
+              isDense: true,
+              dropdownColor: Colors.white,
+              hint: Text(
+                hint,
+                style: const TextStyle(
+                  fontSize: _fieldHintSize,
+                  color: Color(0xFF9CA3AF),
+                ),
+              ),
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 22,
+                color: Color(0xFF6B7280),
+              ),
+              alignment: Alignment.centerLeft,
+              style: const TextStyle(
+                fontSize: _fieldTextSize,
+                color: Color(0xFF111827),
+                height: 1.0,
+              ),
+              decoration: _fieldDecoration(
+                hint: hint,
+                icon: icon,
+                isMandatory: isMandatory,
+                hintWidget: mandatoryHintWidget,
+              ),
+              validator: isMandatory
+                  ? (value) {
+                      if ((value ?? '').trim().isEmpty) {
+                        return '$label is required';
+                      }
+                      return null;
+                    }
+                  : null,
+              items: baseItems,
+              onChanged: onChanged,
+            ),
           ),
-          decoration: _fieldDecoration(
-            label: selectedValue == null ? null : label,
-            hint: hint,
-            icon: icon,
-            isMandatory: isMandatory,
-            hintWidget: mandatoryHintWidget,
-          ),
-          items: baseItems,
-          onChanged: onChanged,
-        ),
+        ],
       );
     });
   }
@@ -414,20 +491,50 @@ class BroilerProjectInformationSection extends StatelessWidget {
     required VoidCallback onTap,
     bool isMandatory = false,
   }) {
-    return SizedBox(
-      height: _fieldHeight,
-      child: TextFormField(
-        readOnly: true,
-        controller: controller,
-        style: const TextStyle(fontSize: _fieldTextSize),
-        decoration: _fieldDecoration(
-          label: label,
-          hint: label,
-          icon: icon,
-          isMandatory: isMandatory,
-        ).copyWith(suffixIcon: const Icon(Icons.arrow_drop_down)),
-        onTap: onTap,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFieldLabel(label, isMandatory: isMandatory),
+        const SizedBox(height: 6),
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: _fieldHeight),
+          child: TextFormField(
+            readOnly: true,
+            controller: controller,
+            textAlignVertical: TextAlignVertical.center,
+            style: const TextStyle(
+              fontSize: _fieldTextSize,
+              color: Color(0xFF111827),
+              height: 1.0,
+            ),
+            decoration:
+                _fieldDecoration(
+                  hint: label,
+                  icon: icon,
+                  isMandatory: isMandatory,
+                ).copyWith(
+                  suffixIcon: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 22,
+                    color: Color(0xFF6B7280),
+                  ),
+                  suffixIconConstraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                ),
+            validator: isMandatory
+                ? (value) {
+                    if ((value ?? '').trim().isEmpty) {
+                      return '$label is required';
+                    }
+                    return null;
+                  }
+                : null,
+            onTap: onTap,
+          ),
+        ),
+      ],
     );
   }
 

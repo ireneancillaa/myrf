@@ -140,23 +140,28 @@ class _InfeedPageState extends State<InfeedPage>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: _primaryGreen,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        foregroundColor: const Color(0xFF111827),
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Color(0xFF111827)),
+        shape: const Border(
+          bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+        ),
         title: const Text(
           'Infeed',
           style: TextStyle(
-            color: Colors.white,
+            color: Color(0xFF111827),
             fontSize: 22,
             fontWeight: FontWeight.w700,
           ),
         ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white.withOpacity(0.75),
-          indicatorColor: Colors.white,
+          labelColor: Color(0xFF16A000),
+          unselectedLabelColor: Color(0xFF6B7280),
+          indicatorColor: Color(0xFF16A000),
           indicatorWeight: 3,
           tabs: const [
             Tab(text: 'Pre Starter'),

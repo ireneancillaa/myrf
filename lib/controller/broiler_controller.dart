@@ -36,6 +36,7 @@ class BroilerController extends GetxController {
   final projectLastOpenedSteps = <String, int>{}.obs;
   final projectSampleWeights = <String, List<double>>{}.obs;
   final projectSampleGroups = <String, List<List<double>>>{}.obs;
+  final projectDocDistributions = <String, List<Map<String, dynamic>>>{}.obs;
   final projectBoxValues = <String, Map<String, String>>{}.obs;
   final projectDietPenSelections = <String, Map<int, List<int>>>{}.obs;
   final projectDietInputValues = <String, Map<int, Map<String, String>>>{}.obs;
@@ -180,6 +181,10 @@ class BroilerController extends GetxController {
               ? List<double>.from(groups[index])
               : <double>[];
         }),
+        docDistributions: List<Map<String, dynamic>>.from(
+          projectDocDistributions[projectName] ??
+              const <Map<String, dynamic>>[],
+        ),
         boxHeaviest: (projectBoxValues[projectName]?['heaviest'] ?? ''),
         boxAverage: (projectBoxValues[projectName]?['average'] ?? ''),
         boxLightest: (projectBoxValues[projectName]?['lightest'] ?? ''),
@@ -229,6 +234,7 @@ class BroilerController extends GetxController {
     required String projectName,
     required List<double> sampleWeights,
     required List<List<double>> sampleGroups,
+    required List<Map<String, dynamic>> docDistributions,
     required String boxHeaviest,
     required String boxAverage,
     required String boxLightest,
@@ -241,6 +247,9 @@ class BroilerController extends GetxController {
       (index) => index < sampleGroups.length
           ? List<double>.from(sampleGroups[index])
           : <double>[],
+    );
+    projectDocDistributions[projectName] = List<Map<String, dynamic>>.from(
+      docDistributions,
     );
     projectBoxValues[projectName] = {
       'heaviest': boxHeaviest,

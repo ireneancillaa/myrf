@@ -34,6 +34,9 @@ class _BroodingPageState extends State<BroodingPage> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         elevation: 0,
+        shape: const Border(
+          bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+        ),
         title: const Text(
           'Brooding',
           style: TextStyle(
