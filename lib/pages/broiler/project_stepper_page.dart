@@ -81,7 +81,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
       final savedDistributions =
           controller.projectDocDistributions[_projectName!];
       if (savedDistributions != null) {
-        sampleDocController.docDistributions.assignAll(savedDistributions);
+        sampleDocController.setDocDistributions(savedDistributions);
       }
       final savedPens = controller.projectDietPenSelections[_projectName!];
       if (savedPens != null) {
@@ -415,10 +415,16 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
           sampleGroups: sampleDocController.sampleGroups,
           onSampleGroupsChanged: (groups) {
             sampleDocController.setSampleGroups(groups);
+            if (mounted) {
+              setState(() {});
+            }
           },
           docDistributions: sampleDocController.docDistributions,
           onDocDistributionsChanged: (distributions) {
-            sampleDocController.docDistributions.assignAll(distributions);
+            sampleDocController.setDocDistributions(distributions);
+            if (mounted) {
+              setState(() {});
+            }
           },
           dietReplication: dietMappingController.dietReplication.value ?? 1,
           totalPens: sampleDocController.totalPens.value,
@@ -433,40 +439,22 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
   }
 
   bool _canFinishProject() {
-    const requiredDocInputCount = 42;
+    final validDistributionPens = <int>{};
+    for (final item in sampleDocController.docDistributions) {
+      final rawPen = item['pen'];
+      final rawValue = item['valueKg'] ?? item['value'] ?? item['kg'];
 
-    final hasProjectData =
-        controller.projectNameController.text.trim().isNotEmpty &&
-        controller.trialDateController.text.trim().isNotEmpty &&
-        controller.docWeightController.text.trim().isNotEmpty &&
-        controller.docInDateController.text.trim().isNotEmpty &&
-        controller.trialHouseController.text.trim().isNotEmpty &&
-        controller.dietController.text.trim().isNotEmpty &&
-        controller.replicationController.text.trim().isNotEmpty;
+      final pen = rawPen is int ? rawPen : int.tryParse('$rawPen');
+      final value = rawValue is num
+          ? rawValue.toDouble()
+          : double.tryParse('$rawValue') ?? 0;
 
-    final expectedDietCount = int.tryParse(controller.dietController.text) ?? 0;
-    final hasDietMappings =
-        expectedDietCount > 0 &&
-        dietMappingController.dietPenSelections.length >= expectedDietCount &&
-        dietMappingController.dietPenSelections.entries
-            .where((entry) => entry.key <= expectedDietCount)
-            .every((entry) => entry.value.isNotEmpty);
+      if (pen != null && pen >= 1 && pen <= 42 && value > 0) {
+        validDistributionPens.add(pen);
+      }
+    }
 
-    final hasDietInputs =
-        expectedDietCount > 0 &&
-        List.generate(expectedDietCount, (index) => index + 1).every((diet) {
-          final values =
-              dietMappingController.dietInputValues[diet] ??
-              const <String, String>{};
-          return (values['preStarter'] ?? '').trim().isNotEmpty &&
-              (values['starter'] ?? '').trim().isNotEmpty &&
-              (values['finisher'] ?? '').trim().isNotEmpty;
-        });
-
-    final totalDocInputCount = sampleDocController.sampleGroups.fold<int>(
-      0,
-      (sum, group) => sum + group.length,
-    );
+    final hasDocDistributionData = validDistributionPens.length == 42;
 
     final hasSampleData =
         sampleDocController.boxHeaviestController.text.trim().isNotEmpty &&
@@ -474,9 +462,9 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
         sampleDocController.boxLightestController.text.trim().isNotEmpty &&
         sampleDocController.sampleGroups.length >= 3 &&
         sampleDocController.sampleGroups.every((group) => group.isNotEmpty) &&
-        totalDocInputCount == requiredDocInputCount;
+        hasDocDistributionData;
 
-    return hasProjectData && hasDietMappings && hasDietInputs && hasSampleData;
+    return hasSampleData;
   }
 
   bool _canProceedFromDietMapping() {

@@ -31,6 +31,11 @@ class SampleDocController extends GetxController {
     _notifyChanges();
   }
 
+  void setDocDistributions(List<Map<String, dynamic>> distributions) {
+    docDistributions.assignAll(distributions);
+    _notifyChanges();
+  }
+
   void clearSampleData() {
     boxHeaviestController.clear();
     boxAverageController.clear();

@@ -38,7 +38,10 @@ class SampleDocSection extends StatefulWidget {
 
 class _SampleDocSectionState extends State<SampleDocSection> {
   static const double _sampleCardMinHeight = 70;
-  static const double _sampleCountCircleSize = 50;
+  static const Color _badgeTextColor = Color(0xFF22C55E);
+  static const Color _badgeBorderColor = Color(0xFF86EFAC);
+  static const Color _badgeBackgroundColor = Color(0xFFECFDF3);
+  static const Color _badgeEmptyTextColor = Color(0xFF6F6F6F);
 
   final List<List<double>> _sampleDocWeights = [[], [], []];
   final List<DateTime?> _sampleUpdatedAt = [null, null, null];
@@ -299,24 +302,10 @@ class _SampleDocSectionState extends State<SampleDocSection> {
                   ],
                 ),
               ),
-              Container(
-                width: _sampleCountCircleSize,
-                height: _sampleCountCircleSize,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFD6E3D8),
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  hasData ? _formatTotalWeight(totalDistribution) : '-',
-                  style: TextStyle(
-                    color: hasData
-                        ? const Color(0xFF22C55E)
-                        : const Color(0xFF6F6F6F),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                  ),
-                ),
+              _buildWeightBadge(
+                totalDistribution,
+                hasData: hasData,
+                unit: 'kg',
               ),
             ],
           ),
@@ -434,27 +423,35 @@ class _SampleDocSectionState extends State<SampleDocSection> {
                   ],
                 ),
               ),
-              Container(
-                width: _sampleCountCircleSize,
-                height: _sampleCountCircleSize,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFD6E3D8),
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  hasData ? _formatTotalWeight(totalWeight) : '-',
-                  style: TextStyle(
-                    color: hasData
-                        ? const Color(0xFF22C55E)
-                        : const Color(0xFF6F6F6F),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                  ),
-                ),
-              ),
+              _buildWeightBadge(totalWeight, hasData: hasData, unit: 'g'),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeightBadge(
+    double value, {
+    required bool hasData,
+    required String unit,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 72, minHeight: 34),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _badgeBackgroundColor,
+        border: Border.all(color: _badgeBorderColor),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        _formatWeightValue(value, hasData: hasData, unit: unit),
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: hasData ? _badgeTextColor : _badgeEmptyTextColor,
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
         ),
       ),
     );
@@ -521,6 +518,15 @@ class _SampleDocSectionState extends State<SampleDocSection> {
       return value.toInt().toString();
     }
     return value.toStringAsFixed(2);
+  }
+
+  String _formatWeightValue(
+    double value, {
+    required bool hasData,
+    required String unit,
+  }) {
+    if (!hasData) return '-';
+    return '${_formatTotalWeight(value)}$unit';
   }
 
   Widget _buildBoxInputCard({

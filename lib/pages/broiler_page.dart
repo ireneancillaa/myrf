@@ -319,18 +319,28 @@ class _BroilerPageState extends State<BroilerPage> {
             final now = DateTime.now();
             final today = DateTime(now.year, now.month, now.day);
 
+            DateTime startForPreset(_DateFilterOption option) {
+              if (option == _DateFilterOption.last7Days) {
+                return today.subtract(const Duration(days: 6));
+              }
+              if (option == _DateFilterOption.last30Days) {
+                return today.subtract(const Duration(days: 29));
+              }
+              return today.subtract(const Duration(days: 89));
+            }
+
             void selectPreset(_DateFilterOption option) {
               setSheetState(() {
                 selectedOption = option;
                 if (option == _DateFilterOption.last7Days) {
                   tempTo = today;
-                  tempFrom = today.subtract(const Duration(days: 6));
+                  tempFrom = startForPreset(option);
                 } else if (option == _DateFilterOption.last30Days) {
                   tempTo = today;
-                  tempFrom = today.subtract(const Duration(days: 29));
+                  tempFrom = startForPreset(option);
                 } else if (option == _DateFilterOption.last90Days) {
                   tempTo = today;
-                  tempFrom = today.subtract(const Duration(days: 89));
+                  tempFrom = startForPreset(option);
                 }
               });
             }
@@ -394,6 +404,8 @@ class _BroilerPageState extends State<BroilerPage> {
                           selectedOption != _DateFilterOption.none ||
                           tempFrom != null ||
                           tempTo != null;
+                      final isCustomSelected =
+                          selectedOption == _DateFilterOption.custom;
 
                       return Column(
                         mainAxisSize: MainAxisSize.min,
@@ -422,7 +434,7 @@ class _BroilerPageState extends State<BroilerPage> {
                                   ),
                                 ),
                               ),
-                              OutlinedButton(
+                              ElevatedButton(
                                 onPressed: hasSelectedFilter
                                     ? () {
                                         setSheetState(() {
@@ -433,15 +445,15 @@ class _BroilerPageState extends State<BroilerPage> {
                                         });
                                       }
                                     : null,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: hasSelectedFilter
-                                      ? const Color(0xFFE94949)
-                                      : const Color(0xFF8A8A8A),
-                                  side: BorderSide(
-                                    color: hasSelectedFilter
-                                        ? const Color(0xFFE94949)
-                                        : const Color(0xFFBDBDBD),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: hasSelectedFilter
+                                      ? Colors.red
+                                      : const Color(0xFFBDBDBD),
+                                  foregroundColor: Colors.white,
+                                  disabledBackgroundColor: const Color(
+                                    0xFFBDBDBD,
                                   ),
+                                  disabledForegroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(999),
                                   ),
@@ -449,15 +461,13 @@ class _BroilerPageState extends State<BroilerPage> {
                                     horizontal: 18,
                                     vertical: 12,
                                   ),
+                                  elevation: 0,
                                 ),
-                                child: Text(
+                                child: const Text(
                                   'Clear',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
-                                    color: hasSelectedFilter
-                                        ? const Color(0xFFE94949)
-                                        : const Color(0xFF8A8A8A),
                                   ),
                                 ),
                               ),
@@ -466,9 +476,8 @@ class _BroilerPageState extends State<BroilerPage> {
                           const SizedBox(height: 18),
                           _buildFilterOptionTile(
                             title: 'Last 7 days',
-                            subtitle: tempFrom == null || tempTo == null
-                                ? ''
-                                : '${_formatDate(tempFrom!)} - ${_formatDate(tempTo!)}',
+                            subtitle:
+                                '${_formatDate(startForPreset(_DateFilterOption.last7Days))} - ${_formatDate(today)}',
                             selected:
                                 selectedOption == _DateFilterOption.last7Days,
                             onTap: () =>
@@ -479,9 +488,8 @@ class _BroilerPageState extends State<BroilerPage> {
                           const SizedBox(height: 14),
                           _buildFilterOptionTile(
                             title: 'Last 30 days',
-                            subtitle: tempFrom == null || tempTo == null
-                                ? ''
-                                : '${_formatDate(tempFrom!)} - ${_formatDate(tempTo!)}',
+                            subtitle:
+                                '${_formatDate(startForPreset(_DateFilterOption.last30Days))} - ${_formatDate(today)}',
                             selected:
                                 selectedOption == _DateFilterOption.last30Days,
                             onTap: () =>
@@ -492,9 +500,8 @@ class _BroilerPageState extends State<BroilerPage> {
                           const SizedBox(height: 14),
                           _buildFilterOptionTile(
                             title: 'Last 90 days',
-                            subtitle: tempFrom == null || tempTo == null
-                                ? ''
-                                : '${_formatDate(tempFrom!)} - ${_formatDate(tempTo!)}',
+                            subtitle:
+                                '${_formatDate(startForPreset(_DateFilterOption.last90Days))} - ${_formatDate(today)}',
                             selected:
                                 selectedOption == _DateFilterOption.last90Days,
                             onTap: () =>
@@ -503,14 +510,29 @@ class _BroilerPageState extends State<BroilerPage> {
                           const SizedBox(height: 14),
                           const Divider(height: 1, color: Color(0xFFE5E7EB)),
                           const SizedBox(height: 14),
+                          _buildFilterOptionTile(
+                            title: 'Custom',
+                            subtitle: '',
+                            selected:
+                                selectedOption == _DateFilterOption.custom,
+                            onTap: () {
+                              setSheetState(() {
+                                selectedOption = _DateFilterOption.custom;
+                                tempFrom ??= today;
+                                tempTo ??= today;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 14),
                           Row(
                             children: [
                               Expanded(
                                 child: _buildCustomDateCard(
                                   label: 'From',
-                                  value: tempFrom == null
+                                  value: !isCustomSelected || tempFrom == null
                                       ? 'Select date'
                                       : _formatDate(tempFrom!),
+                                  selected: isCustomSelected,
                                   onTap: pickFromDate,
                                 ),
                               ),
@@ -518,9 +540,10 @@ class _BroilerPageState extends State<BroilerPage> {
                               Expanded(
                                 child: _buildCustomDateCard(
                                   label: 'To',
-                                  value: tempTo == null
+                                  value: !isCustomSelected || tempTo == null
                                       ? 'Select date'
                                       : _formatDate(tempTo!),
+                                  selected: isCustomSelected,
                                   onTap: pickToDate,
                                 ),
                               ),
@@ -558,7 +581,7 @@ class _BroilerPageState extends State<BroilerPage> {
                                 Navigator.of(sheetContext).pop();
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF16A000),
+                                backgroundColor: const Color(0xFF22C55E),
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(999),
@@ -626,13 +649,13 @@ class _BroilerPageState extends State<BroilerPage> {
           ),
           const SizedBox(width: 12),
           Container(
-            width: 36,
-            height: 36,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
                 color: selected
-                    ? const Color(0xFF16A000)
+                    ? const Color(0xFF22C55E)
                     : const Color(0xFF8A8A8A),
                 width: 2,
               ),
@@ -641,8 +664,8 @@ class _BroilerPageState extends State<BroilerPage> {
                 ? const Center(
                     child: Icon(
                       Icons.circle,
-                      size: 18,
-                      color: Color(0xFF16A000),
+                      size: 15,
+                      color: Color(0xFF22C55E),
                     ),
                   )
                 : null,
@@ -655,6 +678,7 @@ class _BroilerPageState extends State<BroilerPage> {
   Widget _buildCustomDateCard({
     required String label,
     required String value,
+    required bool selected,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -663,9 +687,11 @@ class _BroilerPageState extends State<BroilerPage> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
         decoration: BoxDecoration(
-          color: const Color(0xFFF7F7F7),
+          color: selected ? const Color(0xFFEFF9EF) : const Color(0xFFF7F7F7),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE3E3E3)),
+          border: Border.all(
+            color: selected ? const Color(0xFF22C55E) : const Color(0xFFE3E3E3),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
