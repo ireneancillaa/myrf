@@ -435,25 +435,24 @@ class _BroilerPageState extends State<BroilerPage> {
                                 ),
                               ),
                               ElevatedButton(
-                                onPressed: hasSelectedFilter
-                                    ? () {
-                                        setSheetState(() {
-                                          selectedOption =
-                                              _DateFilterOption.none;
-                                          tempFrom = null;
-                                          tempTo = null;
-                                        });
-                                      }
-                                    : null,
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedFilterOption =
+                                        _DateFilterOption.none;
+                                    _filterFromDate = null;
+                                    _filterToDate = null;
+                                  });
+
+                                  final modalNavigator = Navigator.of(context);
+                                  if (modalNavigator.canPop()) {
+                                    modalNavigator.pop();
+                                  }
+                                },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: hasSelectedFilter
                                       ? Colors.red
                                       : const Color(0xFFBDBDBD),
                                   foregroundColor: Colors.white,
-                                  disabledBackgroundColor: const Color(
-                                    0xFFBDBDBD,
-                                  ),
-                                  disabledForegroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(999),
                                   ),

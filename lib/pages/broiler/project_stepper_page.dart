@@ -61,39 +61,59 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
       _openedFromDraft =
           controller.statusFor(_projectName!) == BroilerWorkflowStatus.drafted;
       controller.selectProject(_projectName);
-      final savedBoxes = controller.projectBoxValues[_projectName!];
-      if (savedBoxes != null) {
-        sampleDocController.boxHeaviestController.text =
-            savedBoxes['heaviest'] ?? '';
-        sampleDocController.boxAverageController.text =
-            savedBoxes['average'] ?? '';
-        sampleDocController.boxLightestController.text =
-            savedBoxes['lightest'] ?? '';
-      }
-      final savedWeights = controller.projectSampleWeights[_projectName!];
-      if (savedWeights != null) {
-        sampleDocController.docWeights.assignAll(savedWeights);
-      }
-      final savedGroups = controller.projectSampleGroups[_projectName!];
-      if (savedGroups != null) {
-        sampleDocController.setSampleGroups(savedGroups);
-      }
-      final savedDistributions =
-          controller.projectDocDistributions[_projectName!];
-      if (savedDistributions != null) {
-        sampleDocController.setDocDistributions(savedDistributions);
-      }
-      final savedPens = controller.projectDietPenSelections[_projectName!];
-      if (savedPens != null) {
-        dietMappingController.dietPenSelections.assignAll(savedPens);
-      }
-      final savedDietInputs = controller.projectDietInputValues[_projectName!];
-      if (savedDietInputs != null) {
-        dietMappingController.loadDietInputValues(savedDietInputs);
-      }
+      _applySavedStepperState();
+      _hydrateRemoteStepperState();
     }
 
     _setupFormListeners();
+  }
+
+  void _applySavedStepperState() {
+    if (_projectName == null || _projectName!.isEmpty) return;
+
+    final savedBoxes = controller.projectBoxValues[_projectName!];
+    if (savedBoxes != null) {
+      sampleDocController.boxHeaviestController.text =
+          savedBoxes['heaviest'] ?? '';
+      sampleDocController.boxAverageController.text =
+          savedBoxes['average'] ?? '';
+      sampleDocController.boxLightestController.text =
+          savedBoxes['lightest'] ?? '';
+    }
+
+    final savedWeights = controller.projectSampleWeights[_projectName!];
+    if (savedWeights != null) {
+      sampleDocController.docWeights.assignAll(savedWeights);
+    }
+
+    final savedGroups = controller.projectSampleGroups[_projectName!];
+    if (savedGroups != null) {
+      sampleDocController.setSampleGroups(savedGroups);
+    }
+
+    final savedDistributions =
+        controller.projectDocDistributions[_projectName!];
+    if (savedDistributions != null) {
+      sampleDocController.setDocDistributions(savedDistributions);
+    }
+
+    final savedPens = controller.projectDietPenSelections[_projectName!];
+    if (savedPens != null) {
+      dietMappingController.dietPenSelections.assignAll(savedPens);
+    }
+
+    final savedDietInputs = controller.projectDietInputValues[_projectName!];
+    if (savedDietInputs != null) {
+      dietMappingController.loadDietInputValues(savedDietInputs);
+    }
+  }
+
+  Future<void> _hydrateRemoteStepperState() async {
+    if (_projectName == null || _projectName!.isEmpty) return;
+    await controller.hydrateStepperDataFromFirestore(_projectName!);
+    if (!mounted) return;
+    _applySavedStepperState();
+    setState(() {});
   }
 
   void _setupFormListeners() {
@@ -214,7 +234,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       AbsorbPointer(
-                        absorbing: _isReadOnly,
+                        absorbing: _isReadOnly && _currentStep != 2,
                         child: _buildCurrentStepContent(),
                       ),
                     ],
@@ -405,6 +425,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
         return DietPenMappingSection(controller: dietMappingController);
       case 2:
         return SampleDocSection(
+          readOnly: _isReadOnly,
           boxHeaviestController: sampleDocController.boxHeaviestController,
           boxAverageController: sampleDocController.boxAverageController,
           boxLightestController: sampleDocController.boxLightestController,

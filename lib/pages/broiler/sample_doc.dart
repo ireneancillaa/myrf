@@ -5,6 +5,7 @@ import 'doc_distribution_input_page.dart';
 import 'sample_doc_input_page.dart';
 
 class SampleDocSection extends StatefulWidget {
+  final bool readOnly;
   final TextEditingController boxHeaviestController;
   final TextEditingController boxAverageController;
   final TextEditingController boxLightestController;
@@ -19,6 +20,7 @@ class SampleDocSection extends StatefulWidget {
 
   const SampleDocSection({
     super.key,
+    this.readOnly = false,
     required this.boxHeaviestController,
     required this.boxAverageController,
     required this.boxLightestController,
@@ -89,6 +91,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
     final result = await Navigator.of(context).push<List<double>>(
       MaterialPageRoute(
         builder: (_) => SampleDocInputPage(
+          readOnly: widget.readOnly,
           sampleNumber: sampleIndex + 1,
           initialWeights: List<double>.from(_sampleDocWeights[sampleIndex]),
         ),
@@ -111,6 +114,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
     final result = await Navigator.of(context).push<List<double>>(
       MaterialPageRoute(
         builder: (_) => DocDistributionInputPage(
+          readOnly: widget.readOnly,
           initialValues: initialValues,
           totalPens: widget.totalPens,
         ),

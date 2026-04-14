@@ -210,6 +210,118 @@ class BroilerController extends GetxController {
     }
   }
 
+  Map<int, List<int>> _parseDietPens(dynamic raw) {
+    if (raw is! Map) return <int, List<int>>{};
+    final parsed = <int, List<int>>{};
+    for (final entry in raw.entries) {
+      final key = int.tryParse('${entry.key}');
+      if (key == null) continue;
+      final value = entry.value;
+      if (value is! List) continue;
+      parsed[key] =
+          value
+              .map((item) => item is int ? item : int.tryParse('$item'))
+              .whereType<int>()
+              .toList()
+            ..sort();
+    }
+    return parsed;
+  }
+
+  Map<int, Map<String, String>> _parseDietInputs(dynamic raw) {
+    if (raw is! Map) return <int, Map<String, String>>{};
+    final parsed = <int, Map<String, String>>{};
+    for (final entry in raw.entries) {
+      final key = int.tryParse('${entry.key}');
+      if (key == null || entry.value is! Map) continue;
+      final item = Map<String, dynamic>.from(entry.value as Map);
+      parsed[key] = {
+        'preStarter': (item['preStarter'] ?? '').toString(),
+        'starter': (item['starter'] ?? '').toString(),
+        'finisher': (item['finisher'] ?? '').toString(),
+        'remarks': (item['remarks'] ?? '').toString(),
+      };
+    }
+    return parsed;
+  }
+
+  List<double> _parseSampleWeights(dynamic raw) {
+    if (raw is! List) return const <double>[];
+    return raw
+        .map((item) => item is num ? item.toDouble() : double.tryParse('$item'))
+        .whereType<double>()
+        .toList();
+  }
+
+  List<List<double>> _parseSampleGroups(dynamic raw) {
+    if (raw is! Map)
+      return const <List<double>>[<double>[], <double>[], <double>[]];
+    return List<List<double>>.generate(3, (index) {
+      final listRaw = raw['$index'];
+      if (listRaw is! List) return <double>[];
+      return listRaw
+          .map(
+            (item) => item is num ? item.toDouble() : double.tryParse('$item'),
+          )
+          .whereType<double>()
+          .toList();
+    });
+  }
+
+  List<Map<String, dynamic>> _parseDocDistributions(dynamic raw) {
+    if (raw is! List) return const <Map<String, dynamic>>[];
+    return raw
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  Future<void> hydrateStepperDataFromFirestore(String projectName) async {
+    try {
+      final record = await _firestoreService.getProjectRecord(
+        projectName: projectName,
+      );
+      if (record == null) return;
+
+      final sampleWeights = _parseSampleWeights(record['sample_weights']);
+      final sampleGroups = _parseSampleGroups(record['sample_groups']);
+      final docDistributions = _parseDocDistributions(
+        record['doc_distributions'],
+      );
+      final dietPens = _parseDietPens(record['diet_pen_selections']);
+      final dietInputs = _parseDietInputs(record['diet_input_values']);
+
+      projectSampleWeights[projectName] = sampleWeights;
+      projectSampleGroups[projectName] = sampleGroups;
+      projectDocDistributions[projectName] = docDistributions;
+      projectBoxValues[projectName] = {
+        'heaviest': (record['box_heaviest'] ?? '').toString(),
+        'average': (record['box_average'] ?? '').toString(),
+        'lightest': (record['box_lightest'] ?? '').toString(),
+      };
+      projectDietPenSelections[projectName] = dietPens;
+      projectDietInputValues[projectName] = dietInputs;
+
+      final dietMappingController = Get.isRegistered<DietMappingController>()
+          ? Get.find<DietMappingController>()
+          : Get.put(DietMappingController(), permanent: true);
+
+      if (selectedProjectName.value == projectName) {
+        dietMappingController.dietPenSelections.assignAll(dietPens);
+        dietMappingController.loadDietInputValues(dietInputs);
+        if ((dietController.text.trim().isNotEmpty) &&
+            (replicationController.text.trim().isNotEmpty)) {
+          dietMappingController.syncFromValues(
+            diet: dietController.text,
+            replication: replicationController.text,
+          );
+        }
+      }
+    } catch (error) {
+      debugPrint('Failed to hydrate stepper data for $projectName: $error');
+    }
+  }
+
   Future<void> markDrafted(String projectName, {int step = 1}) async {
     projectStatuses[projectName] = BroilerWorkflowStatus.drafted;
     projectStatuses.refresh();

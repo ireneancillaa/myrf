@@ -28,6 +28,15 @@ class BroilerFirestoreService {
     return projectKey;
   }
 
+  Future<Map<String, dynamic>?> getProjectRecord({
+    required String projectName,
+  }) async {
+    final docRef = _collection.doc(documentId(projectName: projectName));
+    final snapshot = await docRef.get();
+    if (!snapshot.exists) return null;
+    return snapshot.data();
+  }
+
   Stream<Map<String, String>> watchProjectStatuses() {
     return _collection.snapshots().map((snapshot) {
       final statuses = <String, String>{};

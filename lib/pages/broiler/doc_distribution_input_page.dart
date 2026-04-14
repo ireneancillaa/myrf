@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 class DocDistributionInputPage extends StatefulWidget {
   const DocDistributionInputPage({
     super.key,
+    this.readOnly = false,
     required this.initialValues,
     required this.totalPens,
   });
 
+  final bool readOnly;
   final List<double> initialValues;
   final int totalPens;
 
@@ -187,7 +189,9 @@ class _DocDistributionInputPageState extends State<DocDistributionInputPage> {
                 width: double.infinity,
                 height: 58,
                 child: ElevatedButton(
-                  onPressed: _saveDistribution,
+                  onPressed: widget.readOnly
+                      ? () => Navigator.of(context).pop()
+                      : _saveDistribution,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF22C55E),
                     foregroundColor: Colors.white,
@@ -196,8 +200,10 @@ class _DocDistributionInputPageState extends State<DocDistributionInputPage> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text(
-                    'Save DOC Distribution',
+                  child: Text(
+                    widget.readOnly
+                        ? 'Close DOC Distribution'
+                        : 'Save DOC Distribution',
                     style: TextStyle(
                       fontSize: 20 / 1.1,
                       fontWeight: FontWeight.w700,
@@ -233,7 +239,9 @@ class _DocDistributionInputPageState extends State<DocDistributionInputPage> {
           children: List.generate(_controllers.length, (index) {
             final isActive = index == _activeIndex;
             return GestureDetector(
-              onTap: () => setState(() => _activeIndex = index),
+              onTap: widget.readOnly
+                  ? null
+                  : () => setState(() => _activeIndex = index),
               child: Container(
                 margin: EdgeInsets.only(
                   bottom: index == _controllers.length - 1 ? 0 : 10,
@@ -296,37 +304,78 @@ class _DocDistributionInputPageState extends State<DocDistributionInputPage> {
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildKeypadRow([
-          _PadButtonSpec.text('7', onTap: () => _appendToActive('7')),
-          _PadButtonSpec.text('8', onTap: () => _appendToActive('8')),
-          _PadButtonSpec.text('9', onTap: () => _appendToActive('9')),
-          _PadButtonSpec.icon(Icons.backspace_outlined, onTap: _removeLastChar),
-        ]),
-        const SizedBox(height: 10),
-        _buildKeypadRow([
-          _PadButtonSpec.text('4', onTap: () => _appendToActive('4')),
-          _PadButtonSpec.text('5', onTap: () => _appendToActive('5')),
-          _PadButtonSpec.text('6', onTap: () => _appendToActive('6')),
+          _PadButtonSpec.text(
+            '7',
+            onTap: widget.readOnly ? null : () => _appendToActive('7'),
+          ),
+          _PadButtonSpec.text(
+            '8',
+            onTap: widget.readOnly ? null : () => _appendToActive('8'),
+          ),
+          _PadButtonSpec.text(
+            '9',
+            onTap: widget.readOnly ? null : () => _appendToActive('9'),
+          ),
           _PadButtonSpec.icon(
-            Icons.skip_previous_rounded,
-            onTap: _deleteActiveField,
+            Icons.backspace_outlined,
+            onTap: widget.readOnly ? null : _removeLastChar,
           ),
         ]),
         const SizedBox(height: 10),
         _buildKeypadRow([
-          _PadButtonSpec.text('1', onTap: () => _appendToActive('1')),
-          _PadButtonSpec.text('2', onTap: () => _appendToActive('2')),
-          _PadButtonSpec.text('3', onTap: () => _appendToActive('3')),
+          _PadButtonSpec.text(
+            '4',
+            onTap: widget.readOnly ? null : () => _appendToActive('4'),
+          ),
+          _PadButtonSpec.text(
+            '5',
+            onTap: widget.readOnly ? null : () => _appendToActive('5'),
+          ),
+          _PadButtonSpec.text(
+            '6',
+            onTap: widget.readOnly ? null : () => _appendToActive('6'),
+          ),
+          _PadButtonSpec.icon(
+            Icons.skip_previous_rounded,
+            onTap: widget.readOnly ? null : _deleteActiveField,
+          ),
+        ]),
+        const SizedBox(height: 10),
+        _buildKeypadRow([
+          _PadButtonSpec.text(
+            '1',
+            onTap: widget.readOnly ? null : () => _appendToActive('1'),
+          ),
+          _PadButtonSpec.text(
+            '2',
+            onTap: widget.readOnly ? null : () => _appendToActive('2'),
+          ),
+          _PadButtonSpec.text(
+            '3',
+            onTap: widget.readOnly ? null : () => _appendToActive('3'),
+          ),
           _PadButtonSpec.icon(
             Icons.skip_next_rounded,
-            onTap: _canGoNextField() ? _goNextField : null,
+            onTap: widget.readOnly
+                ? null
+                : (_canGoNextField() ? _goNextField : null),
           ),
         ]),
         const SizedBox(height: 10),
         _buildKeypadRow([
           const _PadButtonSpec._(label: ''),
-          _PadButtonSpec.text('0', onTap: () => _appendToActive('0')),
-          _PadButtonSpec.text('.', onTap: () => _appendToActive('.')),
-          _PadButtonSpec.icon(Icons.refresh_rounded, onTap: _clearActiveField),
+          _PadButtonSpec.text(
+            '0',
+            onTap: widget.readOnly ? null : () => _appendToActive('0'),
+          ),
+          _PadButtonSpec.text(
+            '.',
+            onTap: widget.readOnly ? null : () => _appendToActive('.'),
+          ),
+          _PadButtonSpec.icon(
+            Icons.refresh_rounded,
+            onTap: widget.readOnly ? null : _clearActiveField,
+          ),
         ]),
       ],
     );

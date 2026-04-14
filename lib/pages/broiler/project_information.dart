@@ -56,6 +56,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
 
             // 2. Strain (string, dropdown)
             _buildStringDropdownField(
+              context: context,
               valueListenable: controller.selectedStrain,
               label: 'Strain',
               hint: 'Select Strain',
@@ -75,6 +76,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
 
             // 3. Hatchery (string, dropdown)
             _buildStringDropdownField(
+              context: context,
               valueListenable: controller.selectedHatchery,
               label: 'Hatchery',
               hint: 'Select Hatchery',
@@ -225,6 +227,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
 
             // 13. Map of Trial House (dropdown, mandatory)
             _buildStringDropdownField(
+              context: context,
               valueListenable: controller.selectedTrialHouse,
               label: 'Map of Trial House',
               hint: 'Map of Trial House',
@@ -372,6 +375,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
   }
 
   Widget _buildStringDropdownField({
+    required BuildContext context,
     required RxnString valueListenable,
     required String label,
     required String hint,
@@ -385,20 +389,10 @@ class BroilerProjectInformationSection extends StatelessWidget {
       final rawSelectedValue = valueListenable.value?.trim() ?? '';
       final hasSelectedValue = rawSelectedValue.isNotEmpty;
 
-      final baseItems = List<DropdownMenuItem<String>>.from(items);
-      final hasMatchingItem = baseItems.any(
-        (item) => item.value == rawSelectedValue,
-      );
-
-      if (hasSelectedValue && !hasMatchingItem) {
-        baseItems.insert(
-          0,
-          DropdownMenuItem<String>(
-            value: rawSelectedValue,
-            child: Text(rawSelectedValue),
-          ),
-        );
-      }
+      final optionValues = items
+          .map((item) => item.value?.trim() ?? '')
+          .where((value) => value.isNotEmpty)
+          .toList();
 
       final selectedValue = hasSelectedValue ? rawSelectedValue : null;
 
@@ -437,35 +431,8 @@ class BroilerProjectInformationSection extends StatelessWidget {
           const SizedBox(height: 6),
           ConstrainedBox(
             constraints: const BoxConstraints(minHeight: _fieldHeight),
-            child: DropdownButtonFormField<String>(
+            child: FormField<String>(
               initialValue: selectedValue,
-              isExpanded: true,
-              isDense: true,
-              dropdownColor: Colors.white,
-              hint: Text(
-                hint,
-                style: const TextStyle(
-                  fontSize: _fieldHintSize,
-                  color: Color(0xFF9CA3AF),
-                ),
-              ),
-              icon: const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 22,
-                color: Color(0xFF6B7280),
-              ),
-              alignment: Alignment.centerLeft,
-              style: const TextStyle(
-                fontSize: _fieldTextSize,
-                color: Color(0xFF111827),
-                height: 1.0,
-              ),
-              decoration: _fieldDecoration(
-                hint: hint,
-                icon: icon,
-                isMandatory: isMandatory,
-                hintWidget: mandatoryHintWidget,
-              ),
               validator: isMandatory
                   ? (value) {
                       if ((value ?? '').trim().isEmpty) {
@@ -474,13 +441,206 @@ class BroilerProjectInformationSection extends StatelessWidget {
                       return null;
                     }
                   : null,
-              items: baseItems,
-              onChanged: onChanged,
+              builder: (fieldState) {
+                return InkWell(
+                  onTap: () async {
+                    final picked = await _showDropdownBottomSheet(
+                      context: context,
+                      title: label,
+                      hint: hint,
+                      options: optionValues,
+                      selectedValue: selectedValue,
+                    );
+
+                    if (picked == null) return;
+
+                    fieldState.didChange(picked);
+                    onChanged(picked);
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  hoverColor: Colors.transparent,
+                  focusColor: Colors.transparent,
+                  overlayColor: WidgetStatePropertyAll(Colors.transparent),
+                  child: InputDecorator(
+                    isEmpty: selectedValue == null,
+                    decoration:
+                        _fieldDecoration(
+                          hint: hint,
+                          icon: icon,
+                          isMandatory: isMandatory,
+                          hintWidget: mandatoryHintWidget,
+                        ).copyWith(
+                          errorText: fieldState.errorText,
+                          suffixIcon: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 22,
+                            color: Color(0xFF6B7280),
+                          ),
+                          suffixIconConstraints: const BoxConstraints(
+                            minWidth: 28,
+                            minHeight: 28,
+                          ),
+                        ),
+                    child: Text(
+                      selectedValue ?? '',
+                      style: TextStyle(
+                        fontSize: _fieldTextSize,
+                        color: selectedValue == null
+                            ? const Color(0xFF9CA3AF)
+                            : const Color(0xFF111827),
+                        height: 1.0,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
       );
     });
+  }
+
+  Future<String?> _showDropdownBottomSheet({
+    required BuildContext context,
+    required String title,
+    required String hint,
+    required List<String> options,
+    required String? selectedValue,
+  }) async {
+    const modalTopRadius = 20.0;
+    const optionRadius = 10.0;
+
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(modalTopRadius),
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(modalTopRadius),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE5E7EB),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      selectedValue == null || selectedValue.isEmpty
+                          ? 'Current: $hint'
+                          : 'Current: $selectedValue',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 280),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: options.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final option = options[index];
+                          final isSelected = option == selectedValue;
+                          return InkWell(
+                            onTap: () => Navigator.of(sheetContext).pop(option),
+                            borderRadius: BorderRadius.circular(optionRadius),
+                            splashColor: Colors.transparent,
+                            highlightColor: Colors.transparent,
+                            hoverColor: Colors.transparent,
+                            focusColor: Colors.transparent,
+                            overlayColor: WidgetStatePropertyAll(
+                              Colors.transparent,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(0xFFEAF8EE)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(
+                                  optionRadius,
+                                ),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? const Color(0xFF22C55E)
+                                      : const Color(0xFFE5E7EB),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      option,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: isSelected
+                                            ? const Color(0xFF15803D)
+                                            : const Color(0xFF1F2937),
+                                      ),
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: Color(0xFF22C55E),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildDateField(
