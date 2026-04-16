@@ -88,7 +88,7 @@ class LoginPage extends StatelessWidget {
                         ),
                         SizedBox(height: space2),
                         const Text(
-                          'Email or Employee ID',
+                          'Email',
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
                             fontSize: 14,
@@ -97,9 +97,7 @@ class LoginPage extends StatelessWidget {
                         SizedBox(height: space3),
                         TextField(
                           controller: controller.emailController,
-                          decoration: _inputDecoration(
-                            'Enter email or employee ID',
-                          ),
+                          decoration: _inputDecoration('Enter email'),
                           style: const TextStyle(
                             fontWeight: FontWeight.w500,
                             fontSize: 14,
@@ -143,19 +141,6 @@ class LoginPage extends StatelessWidget {
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: space1),
-                        Center(
-                          child: TextButton(
-                            onPressed: controller.forgotPassword,
-                            child: const Text(
-                              'Forgot password?',
-                              style: TextStyle(
-                                color: Color(0xFF22C55E),
-                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),

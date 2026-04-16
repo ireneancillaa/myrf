@@ -13,8 +13,14 @@ class SampleDocSection extends StatefulWidget {
   final Function(List<double>) onDocWeightsChanged;
   final List<List<double>> sampleGroups;
   final Function(List<List<double>>) onSampleGroupsChanged;
+  final List<List<bool>> sampleBluetoothFlags;
+  final Function(List<List<bool>>) onSampleBluetoothFlagsChanged;
   final List<Map<String, dynamic>> docDistributions;
   final Function(List<Map<String, dynamic>>) onDocDistributionsChanged;
+  final bool sampleInputBluetooth;
+  final Function(bool) onSampleInputBluetoothChanged;
+  final bool distributionBluetooth;
+  final Function(bool) onDistributionBluetoothChanged;
   final int dietReplication;
   final int totalPens;
 
@@ -28,8 +34,14 @@ class SampleDocSection extends StatefulWidget {
     required this.onDocWeightsChanged,
     required this.sampleGroups,
     required this.onSampleGroupsChanged,
+    required this.sampleBluetoothFlags,
+    required this.onSampleBluetoothFlagsChanged,
     required this.docDistributions,
     required this.onDocDistributionsChanged,
+    required this.sampleInputBluetooth,
+    required this.onSampleInputBluetoothChanged,
+    required this.distributionBluetooth,
+    required this.onDistributionBluetoothChanged,
     required this.dietReplication,
     required this.totalPens,
   });
@@ -46,11 +58,16 @@ class _SampleDocSectionState extends State<SampleDocSection> {
   static const Color _badgeEmptyTextColor = Color(0xFF6F6F6F);
 
   final List<List<double>> _sampleDocWeights = [[], [], []];
+  final List<List<bool>> _sampleDocBluetoothFlags = [[], [], []];
   final List<DateTime?> _sampleUpdatedAt = [null, null, null];
+  late bool _sampleInputBluetooth;
+  late bool _distributionBluetooth;
 
   @override
   void initState() {
     super.initState();
+    _sampleInputBluetooth = widget.sampleInputBluetooth;
+    _distributionBluetooth = widget.distributionBluetooth;
     final hasGroupedData = widget.sampleGroups.any((item) => item.isNotEmpty);
     if (hasGroupedData) {
       for (int i = 0; i < _sampleDocWeights.length; i++) {
@@ -59,6 +76,17 @@ class _SampleDocSectionState extends State<SampleDocSection> {
               ? List<double>.from(widget.sampleGroups[i])
               : <double>[],
         );
+        _sampleDocBluetoothFlags[i] = i < widget.sampleBluetoothFlags.length
+            ? List<bool>.from(widget.sampleBluetoothFlags[i])
+            : List<bool>.filled(_sampleDocWeights[i].length, false);
+        if (_sampleDocBluetoothFlags[i].length < _sampleDocWeights[i].length) {
+          _sampleDocBluetoothFlags[i].addAll(
+            List<bool>.filled(
+              _sampleDocWeights[i].length - _sampleDocBluetoothFlags[i].length,
+              false,
+            ),
+          );
+        }
         if (_sampleDocWeights[i].isNotEmpty) {
           _sampleUpdatedAt[i] = DateTime.now();
         }
@@ -69,6 +97,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
     if (widget.docWeights.isNotEmpty) {
       for (int i = 0; i < widget.docWeights.length && i < 3; i++) {
         _sampleDocWeights[i].add(widget.docWeights[i]);
+        _sampleDocBluetoothFlags[i].add(false);
         if (widget.docWeights[i] > 0) {
           _sampleUpdatedAt[i] = DateTime.now();
         }
@@ -85,37 +114,77 @@ class _SampleDocSectionState extends State<SampleDocSection> {
     widget.onSampleGroupsChanged(
       _sampleDocWeights.map((item) => List<double>.from(item)).toList(),
     );
+    widget.onSampleBluetoothFlagsChanged(
+      _sampleDocBluetoothFlags.map((item) => List<bool>.from(item)).toList(),
+    );
   }
 
   Future<void> _openSampleInputPage(int sampleIndex) async {
-    final result = await Navigator.of(context).push<List<double>>(
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
         builder: (_) => SampleDocInputPage(
           readOnly: widget.readOnly,
           sampleNumber: sampleIndex + 1,
           initialWeights: List<double>.from(_sampleDocWeights[sampleIndex]),
+          initialBluetoothFlags: List<bool>.from(
+            _sampleDocBluetoothFlags[sampleIndex],
+          ),
         ),
       ),
     );
 
     if (result == null) return;
 
+    final valuesRaw = result['values'];
+    final values = valuesRaw is List
+        ? valuesRaw
+              .map(
+                (item) =>
+                    item is num ? item.toDouble() : double.tryParse('$item'),
+              )
+              .whereType<double>()
+              .toList()
+        : <double>[];
+    final flagsRaw = result['bluetoothFlags'];
+    final bluetoothFlags = flagsRaw is List
+        ? flagsRaw.map((item) => item == true).toList()
+        : <bool>[];
+
     setState(() {
       _sampleDocWeights[sampleIndex]
         ..clear()
-        ..addAll(result);
-      _sampleUpdatedAt[sampleIndex] = result.isEmpty ? null : DateTime.now();
+        ..addAll(values);
+      _sampleDocBluetoothFlags[sampleIndex]
+        ..clear()
+        ..addAll(bluetoothFlags);
+      if (_sampleDocBluetoothFlags[sampleIndex].length <
+          _sampleDocWeights[sampleIndex].length) {
+        _sampleDocBluetoothFlags[sampleIndex].addAll(
+          List<bool>.filled(
+            _sampleDocWeights[sampleIndex].length -
+                _sampleDocBluetoothFlags[sampleIndex].length,
+            false,
+          ),
+        );
+      }
+      _sampleUpdatedAt[sampleIndex] = values.isEmpty ? null : DateTime.now();
+      _sampleInputBluetooth = _sampleDocBluetoothFlags.any(
+        (group) => group.any((item) => item),
+      );
     });
+    widget.onSampleInputBluetoothChanged(_sampleInputBluetooth);
     _updateAllDocWeights();
   }
 
   Future<void> _openDocDistributionInputPage() async {
     final initialValues = _distributionValuesFromState();
-    final result = await Navigator.of(context).push<List<double>>(
+    final initialBluetoothFlags = _distributionBluetoothFlagsFromState();
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
         builder: (_) => DocDistributionInputPage(
           readOnly: widget.readOnly,
           initialValues: initialValues,
+          initialBluetoothFlags: initialBluetoothFlags,
           totalPens: widget.totalPens,
         ),
       ),
@@ -123,16 +192,64 @@ class _SampleDocSectionState extends State<SampleDocSection> {
 
     if (result == null) return;
 
+    final valuesRaw = result['values'];
+    final values = valuesRaw is List
+        ? valuesRaw
+              .map(
+                (item) =>
+                    item is num ? item.toDouble() : double.tryParse('$item'),
+              )
+              .whereType<double>()
+              .toList()
+        : <double>[];
+    final flagsRaw = result['bluetoothFlags'];
+    final bluetoothFlags = flagsRaw is List
+        ? flagsRaw.map((item) => item == true).toList()
+        : <bool>[];
+
     final now = DateTime.now().toIso8601String();
     final next = <Map<String, dynamic>>[];
-    for (int index = 0; index < result.length; index++) {
-      final value = result[index];
+    for (int index = 0; index < values.length; index++) {
+      final value = values[index];
       if (value <= 0) continue;
-      next.add({'pen': index + 1, 'valueKg': value, 'updatedAt': now});
+      next.add({
+        'pen': index + 1,
+        'valueKg': value,
+        'updatedAt': now,
+        'isBluetooth': (index < bluetoothFlags.length && bluetoothFlags[index])
+            ? 'yes'
+            : 'no',
+      });
     }
 
+    _distributionBluetooth = next.any(
+      (item) => (item['isBluetooth'] ?? '').toString().toLowerCase() == 'yes',
+    );
+    widget.onDistributionBluetoothChanged(_distributionBluetooth);
     widget.onDocDistributionsChanged(next);
     setState(() {});
+  }
+
+  List<bool> _distributionBluetoothFlagsFromState() {
+    int maxPen = 0;
+    for (final item in widget.docDistributions) {
+      final penRaw = item['pen'];
+      final pen = penRaw is int ? penRaw : int.tryParse('$penRaw');
+      if (pen != null && pen > maxPen) {
+        maxPen = pen;
+      }
+    }
+
+    if (maxPen <= 0) return <bool>[];
+    final flags = List<bool>.filled(maxPen, false);
+    for (final item in widget.docDistributions) {
+      final penRaw = item['pen'];
+      final pen = penRaw is int ? penRaw : int.tryParse('$penRaw');
+      if (pen == null || pen < 1 || pen > maxPen) continue;
+      final raw = (item['isBluetooth'] ?? '').toString().toLowerCase();
+      flags[pen - 1] = raw == 'yes' || raw == 'true';
+    }
+    return flags;
   }
 
   List<double> _distributionValuesFromState() {

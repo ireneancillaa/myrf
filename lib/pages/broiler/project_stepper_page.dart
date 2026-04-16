@@ -11,11 +11,13 @@ import 'project_information.dart';
 class BroilerProjectStepperPage extends StatefulWidget {
   const BroilerProjectStepperPage({
     super.key,
+    this.projectId,
     this.projectName,
     this.initialStep = 0,
     this.readOnly = false,
   });
 
+  final String? projectId;
   final String? projectName;
   final int initialStep;
   final bool readOnly;
@@ -34,6 +36,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
   late bool _isReadOnly;
   late bool _openedFromDraft;
   bool _showProjectInfoValidation = false;
+  String? _projectId;
   String? _projectName;
   int _currentStep = 0;
   static const _stepCount = 3;
@@ -54,13 +57,15 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
 
     _isReadOnly = widget.readOnly;
     _openedFromDraft = false;
+    _projectId = widget.projectId;
     _projectName = widget.projectName;
     _currentStep = widget.initialStep.clamp(0, _stepCount - 1);
 
-    if (_projectName != null && _projectName!.isNotEmpty) {
+    if (_projectId != null && _projectId!.isNotEmpty) {
       _openedFromDraft =
-          controller.statusFor(_projectName!) == BroilerWorkflowStatus.drafted;
-      controller.selectProject(_projectName);
+          controller.statusFor(_projectId!) == BroilerWorkflowStatus.drafted;
+      controller.selectProject(_projectId);
+      _projectName = controller.selectedProjectName.value ?? _projectName;
       _applySavedStepperState();
       _hydrateRemoteStepperState();
     }
@@ -69,9 +74,9 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
   }
 
   void _applySavedStepperState() {
-    if (_projectName == null || _projectName!.isEmpty) return;
+    if (_projectId == null || _projectId!.isEmpty) return;
 
-    final savedBoxes = controller.projectBoxValues[_projectName!];
+    final savedBoxes = controller.projectBoxValues[_projectId!];
     if (savedBoxes != null) {
       sampleDocController.boxHeaviestController.text =
           savedBoxes['heaviest'] ?? '';
@@ -81,36 +86,61 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
           savedBoxes['lightest'] ?? '';
     }
 
-    final savedWeights = controller.projectSampleWeights[_projectName!];
+    final savedWeights = controller.projectSampleWeights[_projectId!];
     if (savedWeights != null) {
       sampleDocController.docWeights.assignAll(savedWeights);
     }
 
-    final savedGroups = controller.projectSampleGroups[_projectName!];
+    final savedGroups = controller.projectSampleGroups[_projectId!];
     if (savedGroups != null) {
       sampleDocController.setSampleGroups(savedGroups);
     }
 
-    final savedDistributions =
-        controller.projectDocDistributions[_projectName!];
+    final savedSampleGroupBluetoothFlags =
+        controller.projectSampleGroupBluetoothFlags[_projectId!];
+    if (savedSampleGroupBluetoothFlags != null) {
+      sampleDocController.setSampleGroupBluetoothFlags(
+        savedSampleGroupBluetoothFlags,
+      );
+    }
+
+    final savedDistributions = controller.projectDocDistributions[_projectId!];
     if (savedDistributions != null) {
       sampleDocController.setDocDistributions(savedDistributions);
     }
 
-    final savedPens = controller.projectDietPenSelections[_projectName!];
+    final savedBluetoothInput = controller.projectBluetoothInputs[_projectId!];
+    if (savedBluetoothInput != null) {
+      sampleDocController.setSampleInputBluetooth(savedBluetoothInput);
+      sampleDocController.setDistributionBluetooth(savedBluetoothInput);
+    }
+
+    final savedSampleBluetooth =
+        controller.projectSampleBluetoothInputs[_projectId!];
+    if (savedSampleBluetooth != null) {
+      sampleDocController.setSampleInputBluetooth(savedSampleBluetooth);
+    }
+
+    final savedDistributionBluetooth =
+        controller.projectDistributionBluetoothInputs[_projectId!];
+    if (savedDistributionBluetooth != null) {
+      sampleDocController.setDistributionBluetooth(savedDistributionBluetooth);
+    }
+
+    final savedPens = controller.projectDietPenSelections[_projectId!];
     if (savedPens != null) {
       dietMappingController.dietPenSelections.assignAll(savedPens);
     }
 
-    final savedDietInputs = controller.projectDietInputValues[_projectName!];
+    final savedDietInputs = controller.projectDietInputValues[_projectId!];
     if (savedDietInputs != null) {
       dietMappingController.loadDietInputValues(savedDietInputs);
     }
   }
 
   Future<void> _hydrateRemoteStepperState() async {
-    if (_projectName == null || _projectName!.isEmpty) return;
-    await controller.hydrateStepperDataFromFirestore(_projectName!);
+    if (_projectId == null || _projectId!.isEmpty) return;
+    await controller.hydrateStepperDataFromFirestore(_projectId!);
     if (!mounted) return;
     _applySavedStepperState();
     setState(() {});
@@ -168,8 +198,8 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
     setState(() {
       _currentStep = step;
     });
-    if (_projectName != null && _projectName!.isNotEmpty) {
-      controller.updateLastOpenedStep(_projectName!, _currentStep);
+    if (_projectId != null && _projectId!.isNotEmpty) {
+      controller.updateLastOpenedStep(_projectId!, _currentStep);
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -279,10 +309,11 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
 
                     final isSaved = await controller.saveProject();
                     if (isSaved) {
+                      _projectId = controller.selectedProjectId.value;
                       _projectName = controller.projectNameController.text
                           .trim();
-                      if (_projectName != null && _projectName!.isNotEmpty) {
-                        await controller.markDrafted(_projectName!, step: 1);
+                      if (_projectId != null && _projectId!.isNotEmpty) {
+                        await controller.markDrafted(_projectId!, step: 1);
                       }
                       await _persistCurrentProjectProgress();
                       _goToStep(1);
@@ -349,30 +380,30 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                                     _goToStep(_currentStep + 1);
                                     return;
                                   }
-                                  if (_projectName != null &&
-                                      _projectName!.isNotEmpty) {
+                                  if (_projectId != null &&
+                                      _projectId!.isNotEmpty) {
                                     await controller.markDrafted(
-                                      _projectName!,
+                                      _projectId!,
                                       step: _currentStep + 1,
                                     );
                                   }
                                   await _persistCurrentProjectProgress();
                                   _goToStep(_currentStep + 1);
                                 } else {
-                                  if (_projectName == null ||
-                                      _projectName!.isEmpty) {
+                                  if (_projectId == null ||
+                                      _projectId!.isEmpty) {
                                     final isSaved = await controller
                                         .saveProject();
                                     if (!isSaved) return;
+                                    _projectId =
+                                        controller.selectedProjectId.value;
                                     _projectName = controller
                                         .projectNameController
                                         .text
                                         .trim();
                                   }
                                   await _persistCurrentProjectProgress();
-                                  await controller.markInProgress(
-                                    _projectName!,
-                                  );
+                                  await controller.markInProgress(_projectId!);
                                   if (!mounted) return;
                                   setState(() {
                                     _isReadOnly = true;
@@ -440,9 +471,31 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
               setState(() {});
             }
           },
+          sampleBluetoothFlags: sampleDocController.sampleGroupBluetoothFlags,
+          onSampleBluetoothFlagsChanged: (flags) {
+            sampleDocController.setSampleGroupBluetoothFlags(flags);
+            if (mounted) {
+              setState(() {});
+            }
+          },
           docDistributions: sampleDocController.docDistributions,
           onDocDistributionsChanged: (distributions) {
             sampleDocController.setDocDistributions(distributions);
+            if (mounted) {
+              setState(() {});
+            }
+          },
+          sampleInputBluetooth: sampleDocController.sampleInputBluetooth.value,
+          onSampleInputBluetoothChanged: (value) {
+            sampleDocController.setSampleInputBluetooth(value);
+            if (mounted) {
+              setState(() {});
+            }
+          },
+          distributionBluetooth:
+              sampleDocController.distributionBluetooth.value,
+          onDistributionBluetoothChanged: (value) {
+            sampleDocController.setDistributionBluetooth(value);
             if (mounted) {
               setState(() {});
             }
@@ -475,7 +528,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
       }
     }
 
-    final hasDocDistributionData = validDistributionPens.length == 42;
+    final hasDocDistributionData = validDistributionPens.isNotEmpty;
 
     final hasSampleData =
         sampleDocController.boxHeaviestController.text.trim().isNotEmpty &&
@@ -523,14 +576,17 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
   }
 
   Future<void> _persistCurrentProjectProgress() async {
-    if (_projectName == null || _projectName!.isEmpty) return;
+    if (_projectId == null || _projectId!.isEmpty) return;
 
-    controller.updateLastOpenedStep(_projectName!, _currentStep);
+    controller.updateLastOpenedStep(_projectId!, _currentStep);
     await controller.saveStepperData(
-      projectName: _projectName!,
+      projectId: _projectId!,
       sampleWeights: sampleDocController.docWeights,
       sampleGroups: sampleDocController.sampleGroups,
+      sampleBluetoothFlags: sampleDocController.sampleGroupBluetoothFlags,
       docDistributions: sampleDocController.docDistributions,
+      sampleInputBluetooth: sampleDocController.sampleInputBluetooth.value,
+      distributionBluetooth: sampleDocController.distributionBluetooth.value,
       boxHeaviest: sampleDocController.boxHeaviestController.text,
       boxAverage: sampleDocController.boxAverageController.text,
       boxLightest: sampleDocController.boxLightestController.text,

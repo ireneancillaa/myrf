@@ -6,6 +6,7 @@ class DietMappingController extends GetxController {
   final dietReplication = RxnInt();
   final dietPenSelections = <int, List<int>>{}.obs;
   final dietInputValues = <int, Map<String, String>>{}.obs;
+  final copiedDietInputs = Rxn<Map<String, String>>();
 
   VoidCallback? _onChangeCallback;
 
@@ -59,9 +60,39 @@ class DietMappingController extends GetxController {
     _notifyChanges();
   }
 
+  bool get hasCopiedDietInputs => copiedDietInputs.value != null;
+
+  void copyDietInputsFrom(int dietNumber) {
+    final source = Map<String, String>.from(
+      dietInputValues[dietNumber] ?? const <String, String>{},
+    );
+    copiedDietInputs.value = {
+      'preStarter': (source['preStarter'] ?? ''),
+      'starter': (source['starter'] ?? ''),
+      'finisher': (source['finisher'] ?? ''),
+      'remarks': (source['remarks'] ?? ''),
+    };
+  }
+
+  bool pasteDietInputsTo(int dietNumber) {
+    final source = copiedDietInputs.value;
+    if (source == null) return false;
+
+    dietInputValues[dietNumber] = {
+      'preStarter': (source['preStarter'] ?? ''),
+      'starter': (source['starter'] ?? ''),
+      'finisher': (source['finisher'] ?? ''),
+      'remarks': (source['remarks'] ?? ''),
+    };
+    dietInputValues.refresh();
+    _notifyChanges();
+    return true;
+  }
+
   void clearRuntimeState() {
     dietPenSelections.clear();
     dietInputValues.clear();
+    copiedDietInputs.value = null;
     dietCount.value = null;
     dietReplication.value = null;
   }

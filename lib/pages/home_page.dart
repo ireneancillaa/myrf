@@ -27,8 +27,8 @@ class _HomePageState extends State<HomePage> {
 
   final List<QuickActionItem> _quickActions = const [
     QuickActionItem(
-      title: 'Weigh',
-      icon: Icons.hourglass_empty_rounded,
+      title: 'Weighing DOA',
+      icon: Icons.scale_outlined,
       iconColor: Color(0xFF22C55E),
       iconBgColor: Color(0xFFE8F5EE),
     ),
@@ -57,21 +57,21 @@ class _HomePageState extends State<HomePage> {
       iconColor: Color(0xFFE6A10B),
       value: '32.5°C',
       valueColor: Color(0xFFE6A10B),
-      label: 'R. Depan',
+      label: 'Front Area',
     ),
     BroodingCardItem(
       icon: Icons.thermostat,
       iconColor: Color(0xFFE94949),
       value: '33.0°C',
       valueColor: Color(0xFFE94949),
-      label: 'R. Tengah',
+      label: 'Middle Area',
     ),
     BroodingCardItem(
       icon: Icons.thermostat,
       iconColor: Color(0xFF2E9DEB),
       value: '31.8°C',
       valueColor: Color(0xFF2E9DEB),
-      label: 'R. Belakang',
+      label: 'Rear Area',
     ),
   ];
 
@@ -104,6 +104,145 @@ class _HomePageState extends State<HomePage> {
       return cloudProjects;
     }
     return ['No Active Projects'];
+  }
+
+  Future<String?> _showFarmSelectionModal({
+    required BuildContext context,
+    required List<String> options,
+    required String? selectedValue,
+  }) async {
+    const modalTopRadius = 20.0;
+    const optionRadius = 10.0;
+
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(modalTopRadius),
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(modalTopRadius),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE5E7EB),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Choose Farm',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      selectedValue == null || selectedValue.isEmpty
+                          ? 'Current: Select Farm'
+                          : 'Current: $selectedValue',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 280),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: options.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final option = options[index];
+                          final isSelected = option == selectedValue;
+
+                          return InkWell(
+                            onTap: () => Navigator.of(sheetContext).pop(option),
+                            borderRadius: BorderRadius.circular(optionRadius),
+                            splashColor: Colors.transparent,
+                            highlightColor: Colors.transparent,
+                            hoverColor: Colors.transparent,
+                            focusColor: Colors.transparent,
+                            overlayColor: const WidgetStatePropertyAll(
+                              Colors.transparent,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(0xFFEAF8EE)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(
+                                  optionRadius,
+                                ),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? const Color(0xFF22C55E)
+                                      : const Color(0xFFE5E7EB),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      option,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: isSelected
+                                            ? const Color(0xFF15803D)
+                                            : const Color(0xFF1F2937),
+                                      ),
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: Color(0xFF22C55E),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -308,67 +447,64 @@ class _HomePageState extends State<HomePage> {
                         if (_broilerController.inProgressProjectNames.contains(
                           selectedValue,
                         )) {
-                          _broilerController.selectProject(selectedValue);
+                          _broilerController.selectProjectByName(selectedValue);
                         }
                       });
                     }
 
-                    return DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        itemHeight: null,
-                        dropdownColor: Colors.white,
-                        value: selectedValue,
-                        icon: const Icon(
-                          Icons.keyboard_arrow_down,
-                          size: 20,
-                          color: Color(0xFF555555),
+                    return InkWell(
+                      onTap: () async {
+                        final picked = await _showFarmSelectionModal(
+                          context: context,
+                          options: farmOptions,
+                          selectedValue: selectedValue,
+                        );
+
+                        if (picked == null) return;
+
+                        setState(() => _selectedFarm = picked);
+
+                        if (_broilerController.inProgressProjectNames.contains(
+                          picked,
+                        )) {
+                          _broilerController.selectProjectByName(picked);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
                         ),
-                        style: const TextStyle(
-                          color: Color(0xFF222222),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        selectedItemBuilder: (context) {
-                          return farmOptions
-                              .map(
-                                (item) => Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    item,
-                                    softWrap: true,
-                                    overflow: TextOverflow.visible,
-                                  ),
-                                ),
-                              )
-                              .toList();
-                        },
-                        items: farmOptions
-                            .map(
-                              (item) => DropdownMenuItem(
-                                value: item,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 6,
-                                  ),
-                                  child: Text(
-                                    item,
-                                    softWrap: true,
-                                    overflow: TextOverflow.visible,
-                                  ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                selectedValue ?? 'Select Farm',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: selectedValue == null
+                                      ? const Color(0xFF9CA3AF)
+                                      : const Color(0xFF222222),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
                                 ),
                               ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setState(() => _selectedFarm = value);
-
-                          if (_broilerController.inProgressProjectNames
-                              .contains(value)) {
-                            _broilerController.selectProject(value);
-                          }
-                        },
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 20,
+                              color: Color(0xFF555555),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }),
@@ -632,7 +768,7 @@ class _HomePageState extends State<HomePage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         const Text(
-          'Brooding Temperature',
+          'Temperature Record',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -687,11 +823,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildBroodingCard(BroodingCardItem item) {
+    final temperature = _temperatureFromValue(item.value);
+    final indicatorColor = _temperatureColor(temperature);
+
     return Container(
       height: 80,
       decoration: BoxDecoration(
-        color: item.iconColor.withValues(alpha: 0.05),
-        border: Border.all(color: item.iconColor.withValues(alpha: 0.2)),
+        color: indicatorColor.withValues(alpha: 0.05),
+        border: Border.all(color: indicatorColor.withValues(alpha: 0.2)),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -700,14 +839,14 @@ class _HomePageState extends State<HomePage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(item.icon, color: item.iconColor, size: 18),
+              Icon(item.icon, color: indicatorColor, size: 18),
               const SizedBox(width: 4),
               Text(
                 item.value,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: item.valueColor,
+                  color: indicatorColor,
                 ),
               ),
             ],
@@ -726,12 +865,24 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  double? _temperatureFromValue(String value) {
+    final normalized = value.replaceAll('°C', '').trim();
+    return double.tryParse(normalized);
+  }
+
+  Color _temperatureColor(double? temperature) {
+    if (temperature == null) return const Color(0xFF6B7280);
+    if (temperature <= 27) return const Color(0xFF2E9DEB);
+    if (temperature <= 31) return const Color(0xFFE6A10B);
+    return const Color(0xFFE94949);
+  }
+
   Widget _buildProjectIncompleteSection() {
     return Obx(() {
       final draftedProjects = _broilerController.projects
           .where(
             (p) =>
-                _broilerController.statusFor(p.projectName) ==
+                _broilerController.statusFor(p.projectId) ==
                 BroilerWorkflowStatus.drafted,
           )
           .toList();

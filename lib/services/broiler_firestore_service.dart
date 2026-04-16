@@ -13,25 +13,10 @@ class BroilerFirestoreService {
   CollectionReference<Map<String, dynamic>> get _collection =>
       _firestore.collection(collectionName);
 
-  String _normalizeKey(String value) {
-    final normalized = value.trim().toLowerCase().replaceAll(
-      RegExp(r'[^a-z0-9]+'),
-      '_',
-    );
-    return normalized.replaceAll(RegExp(r'^_+|_+$'), '');
-  }
-
-  String documentId({required String projectName}) {
-    final projectKey = _normalizeKey(projectName).isEmpty
-        ? 'unknown_project'
-        : _normalizeKey(projectName);
-    return projectKey;
-  }
-
   Future<Map<String, dynamic>?> getProjectRecord({
-    required String projectName,
+    required String projectId,
   }) async {
-    final docRef = _collection.doc(documentId(projectName: projectName));
+    final docRef = _collection.doc(projectId);
     final snapshot = await docRef.get();
     if (!snapshot.exists) return null;
     return snapshot.data();
@@ -42,11 +27,12 @@ class BroilerFirestoreService {
       final statuses = <String, String>{};
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        final projectName = (data['project_name'] as String?)?.trim() ?? '';
+        final projectId =
+            (data['project_id'] as String?)?.trim().isNotEmpty == true
+            ? (data['project_id'] as String).trim()
+            : doc.id;
         final status = (data['status'] as String?)?.trim() ?? 'drafted';
-        if (projectName.isNotEmpty) {
-          statuses[projectName] = status;
-        }
+        statuses[projectId] = status;
       }
       return statuses;
     });
@@ -57,13 +43,13 @@ class BroilerFirestoreService {
       snapshot,
     ) {
       return snapshot.docs
-          .map((doc) => _toProjectData(doc.data()))
+          .map((doc) => _toProjectData(doc.id, doc.data()))
           .whereType<BroilerProjectData>()
           .toList();
     });
   }
 
-  BroilerProjectData? _toProjectData(Map<String, dynamic> data) {
+  BroilerProjectData? _toProjectData(String docId, Map<String, dynamic> data) {
     final projectName = (data['project_name'] as String?)?.trim() ?? '';
     if (projectName.isEmpty) return null;
 
@@ -75,7 +61,10 @@ class BroilerFirestoreService {
       dietReplication = int.tryParse(dietReplicationValue);
     }
 
+    final rawProjectId = (data['project_id'] as String?)?.trim() ?? '';
+
     return BroilerProjectData(
+      projectId: rawProjectId.isNotEmpty ? rawProjectId : docId,
       projectName: projectName,
       trialDate: (data['trial_date'] as String?) ?? '',
       trialHouse: (data['trial_house'] as String?) ?? '',
@@ -96,23 +85,31 @@ class BroilerFirestoreService {
     );
   }
 
-  Future<void> upsertProjectRecord({
+  Future<String> upsertProjectRecord({
+    String? projectId,
     required BroilerProjectData data,
     required String status,
     required List<double> sampleWeights,
     required List<List<double>> sampleGroups,
+    required List<List<bool>> sampleGroupBluetoothFlags,
     required List<Map<String, dynamic>> docDistributions,
+    required bool sampleInputBluetooth,
+    required bool distributionBluetooth,
     required String boxHeaviest,
     required String boxAverage,
     required String boxLightest,
     required Map<int, List<int>> dietPens,
     required Map<int, Map<String, String>> dietInputs,
   }) async {
-    final docRef = _collection.doc(documentId(projectName: data.projectName));
+    final hasProjectId = projectId != null && projectId.trim().isNotEmpty;
+    final docRef = hasProjectId
+        ? _collection.doc(projectId.trim())
+        : _collection.doc();
 
     final snapshot = await docRef.get();
 
     final payload = <String, dynamic>{
+      'project_id': docRef.id,
       'project_name': data.projectName,
       'trial_date': data.trialDate,
       'trial_house': data.trialHouse,
@@ -150,12 +147,28 @@ class BroilerFirestoreService {
               ? List<double>.from(sampleGroups[i])
               : <double>[],
       },
+      'sample_groups_bluetooth': {
+        for (var i = 0; i < 3; i++)
+          '$i': i < sampleGroupBluetoothFlags.length
+              ? sampleGroupBluetoothFlags[i]
+                    .map((flag) => flag ? 'yes' : 'no')
+                    .toList()
+              : <String>[],
+      },
+      'sample_is_bluetooth': sampleInputBluetooth ? 'yes' : 'no',
+      'distribution_is_bluetooth': distributionBluetooth ? 'yes' : 'no',
+      'is_bluetooth': (sampleInputBluetooth || distributionBluetooth)
+          ? 'yes'
+          : 'no',
       'doc_distributions': docDistributions
           .map(
             (item) => {
               'pen': item['pen'],
               'valueKg': item['valueKg'],
               'updatedAt': item['updatedAt'],
+              'isBluetooth':
+                  (item['isBluetooth'] ??
+                  (distributionBluetooth ? 'yes' : 'no')),
             },
           )
           .toList(),
@@ -169,5 +182,11 @@ class BroilerFirestoreService {
     }
 
     await docRef.set(payload, SetOptions(merge: true));
+    return docRef.id;
+  }
+
+  Future<void> deleteProjectRecord({required String projectId}) async {
+    final docRef = _collection.doc(projectId);
+    await docRef.delete();
   }
 }

@@ -505,6 +505,51 @@ class _DietCardState extends State<_DietCard> {
                 ),
               ),
               const Spacer(),
+              Obx(() {
+                final canPaste = widget.controller.hasCopiedDietInputs;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        widget.controller.copyDietInputsFrom(widget.dietNumber);
+                        Get.snackbar(
+                          'Copied',
+                          'Diet ${widget.dietNumber} values copied',
+                          snackPosition: SnackPosition.BOTTOM,
+                          duration: const Duration(seconds: 2),
+                        );
+                      },
+                      icon: const Icon(Icons.copy_rounded),
+                      tooltip: 'Copy values',
+                      color: const Color(0xFF22C55E),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    IconButton(
+                      onPressed: canPaste
+                          ? () {
+                              final pasted = widget.controller
+                                  .pasteDietInputsTo(widget.dietNumber);
+                              if (pasted) {
+                                Get.snackbar(
+                                  'Pasted',
+                                  'Values pasted to Diet ${widget.dietNumber}',
+                                  snackPosition: SnackPosition.BOTTOM,
+                                  duration: const Duration(seconds: 2),
+                                );
+                              }
+                            }
+                          : null,
+                      icon: const Icon(Icons.content_paste_rounded),
+                      tooltip: 'Paste values',
+                      color: canPaste
+                          ? const Color(0xFF22C55E)
+                          : const Color(0xFFB8B8B8),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                );
+              }),
               Text(
                 'Replication : ${widget.replication}',
                 style: const TextStyle(
@@ -680,7 +725,7 @@ class _DietInputField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final field = TextFormField(
-      key: ValueKey(label),
+      key: ValueKey('$label|$value|$maxLines'),
       initialValue: value,
       maxLines: maxLines,
       textInputAction: maxLines == 1

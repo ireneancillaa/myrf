@@ -118,7 +118,6 @@ class _BroodingPageState extends State<BroodingPage> {
                       title: 'Front Area',
                       value: '32.5°C',
                       icon: Icons.thermostat,
-                      color: Colors.orange,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -127,7 +126,6 @@ class _BroodingPageState extends State<BroodingPage> {
                       title: 'Middle Area',
                       value: '33.0°C',
                       icon: Icons.thermostat,
-                      color: Colors.red,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -136,7 +134,6 @@ class _BroodingPageState extends State<BroodingPage> {
                       title: 'Rear Area',
                       value: '31.8°C',
                       icon: Icons.thermostat,
-                      color: Colors.blue,
                     ),
                   ),
                 ],
@@ -158,7 +155,6 @@ class _BroodingPageState extends State<BroodingPage> {
                       title: 'Minimum Temperature',
                       value: 28.5,
                       icon: Icons.arrow_downward,
-                      color: Colors.blue,
                       isLarge: true,
                     ),
                   ),
@@ -168,7 +164,6 @@ class _BroodingPageState extends State<BroodingPage> {
                       title: 'Maximum Temperature',
                       value: 35.2,
                       icon: Icons.arrow_upward,
-                      color: Colors.red,
                       isLarge: true,
                     ),
                   ),
@@ -203,9 +198,10 @@ class _BroodingPageState extends State<BroodingPage> {
     required String title,
     required String value,
     required IconData icon,
-    required Color color,
     bool isSmall = false,
   }) {
+    final color = _temperatureColor(_temperatureFromValue(value));
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -242,9 +238,10 @@ class _BroodingPageState extends State<BroodingPage> {
     required String title,
     required double value,
     required IconData icon,
-    required Color color,
     bool isLarge = false,
   }) {
+    final color = _temperatureColor(value);
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -328,12 +325,13 @@ class _BroodingPageState extends State<BroodingPage> {
         children: hourlyData.map((data) {
           final temp = data['temp'] as num;
           final heightPercent = (temp - 28) / 8;
+          final barColor = _temperatureColor(temp.toDouble());
           return Column(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text(
                 '${temp.toStringAsFixed(1)}°',
-                style: const TextStyle(fontSize: 10, color: _primaryGreen),
+                style: TextStyle(fontSize: 10, color: barColor),
               ),
               const SizedBox(height: 4),
               Container(
@@ -343,7 +341,7 @@ class _BroodingPageState extends State<BroodingPage> {
                   gradient: LinearGradient(
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
-                    colors: [_primaryGreen.withOpacity(0.3), _primaryGreen],
+                    colors: [barColor.withOpacity(0.3), barColor],
                   ),
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -361,6 +359,18 @@ class _BroodingPageState extends State<BroodingPage> {
         }).toList(),
       ),
     );
+  }
+
+  double? _temperatureFromValue(String value) {
+    final normalized = value.replaceAll('°C', '').trim();
+    return double.tryParse(normalized);
+  }
+
+  Color _temperatureColor(double? temperature) {
+    if (temperature == null) return const Color(0xFF6B7280);
+    if (temperature <= 27) return const Color(0xFF2E9DEB);
+    if (temperature <= 31) return const Color(0xFFE6A10B);
+    return const Color(0xFFE94949);
   }
 
   String _formatDateTime(DateTime dateTime) {

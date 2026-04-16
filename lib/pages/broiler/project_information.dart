@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../controller/broiler_controller.dart';
 
+// TODO: kalau ada nama yg sama dgn status drafted maka akan muncul pop up, kalau statusnya in progress maka bisa sama projectnya
 class BroilerProjectInformationSection extends StatelessWidget {
   const BroilerProjectInformationSection({
     super.key,
@@ -159,7 +161,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
                 Expanded(
                   child: _buildTextField(
                     controller: controller.weighing3WeeksController,
-                    label: 'Weighing 3 Weeks',
+                    label: 'Weighing 3 Weeks (kg)',
                     hint: 'Weighing 3 Weeks',
                     icon: Icons.looks_3,
                     keyboardType: TextInputType.number,
@@ -169,7 +171,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
                 Expanded(
                   child: _buildTextField(
                     controller: controller.weighing5WeeksController,
-                    label: 'Weighing 5 Weeks',
+                    label: 'Weighing 5 Weeks (kg)',
                     hint: 'Weighing 5 Weeks',
                     icon: Icons.looks_5,
                     keyboardType: TextInputType.number,
@@ -193,7 +195,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
             _buildTextField(
               controller: controller.docWeightController,
               label: 'DOC Weight (Kg)',
-              hint: 'DOC Weight (Kg)',
+              hint: 'DOC Weight',
               icon: Icons.monitor_weight_outlined,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
@@ -342,6 +344,14 @@ class BroilerProjectInformationSection extends StatelessWidget {
     int minLines = 1,
     int maxLines = 1,
   }) {
+    final isNumericKeyboard =
+        keyboardType == TextInputType.number ||
+        keyboardType == const TextInputType.numberWithOptions() ||
+        keyboardType == const TextInputType.numberWithOptions(decimal: true) ||
+        keyboardType == const TextInputType.numberWithOptions(signed: true) ||
+        keyboardType ==
+            const TextInputType.numberWithOptions(decimal: true, signed: true);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -352,6 +362,9 @@ class BroilerProjectInformationSection extends StatelessWidget {
           child: TextFormField(
             controller: controller,
             keyboardType: keyboardType,
+            inputFormatters: isNumericKeyboard
+                ? [FilteringTextInputFormatter.deny(RegExp(r'-'))]
+                : null,
             minLines: minLines,
             maxLines: maxLines,
             style: const TextStyle(fontSize: _fieldTextSize),

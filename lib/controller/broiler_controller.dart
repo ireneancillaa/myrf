@@ -27,6 +27,7 @@ class BroilerController extends GetxController {
   final replicationController = TextEditingController();
 
   final projects = <BroilerProjectData>[].obs;
+  final selectedProjectId = RxnString();
   final selectedProjectName = RxnString();
   final selectedTrialHouse = RxnString();
   final selectedStrain = RxnString();
@@ -36,7 +37,11 @@ class BroilerController extends GetxController {
   final projectLastOpenedSteps = <String, int>{}.obs;
   final projectSampleWeights = <String, List<double>>{}.obs;
   final projectSampleGroups = <String, List<List<double>>>{}.obs;
+  final projectSampleGroupBluetoothFlags = <String, List<List<bool>>>{}.obs;
   final projectDocDistributions = <String, List<Map<String, dynamic>>>{}.obs;
+  final projectBluetoothInputs = <String, bool>{}.obs;
+  final projectSampleBluetoothInputs = <String, bool>{}.obs;
+  final projectDistributionBluetoothInputs = <String, bool>{}.obs;
   final projectBoxValues = <String, Map<String, String>>{}.obs;
   final projectDietPenSelections = <String, Map<int, List<int>>>{}.obs;
   final projectDietInputValues = <String, Map<int, Map<String, String>>>{}.obs;
@@ -60,24 +65,23 @@ class BroilerController extends GetxController {
       projects.map((item) => item.projectName).toList();
 
   List<String> get inProgressProjectNames {
-    final inProgressSet = projectStatuses.entries
-        .where((entry) => entry.value == BroilerWorkflowStatus.inProgress)
-        .map((entry) => entry.key)
-        .toSet();
-
     return projects
-        .where((item) => inProgressSet.contains(item.projectName))
+        .where(
+          (item) =>
+              statusFor(item.projectId) == BroilerWorkflowStatus.inProgress,
+        )
         .map((item) => item.projectName)
         .toList();
   }
 
-  void selectProject(String? projectName) {
-    if (projectName == null) return;
+  void selectProject(String? projectId) {
+    if (projectId == null) return;
     final project = projects.firstWhereOrNull(
-      (item) => item.projectName == projectName,
+      (item) => item.projectId == projectId,
     );
     if (project == null) return;
 
+    selectedProjectId.value = project.projectId;
     selectedProjectName.value = project.projectName;
     projectNameController.text = project.projectName;
     trialDateController.text = project.trialDate;
@@ -108,8 +112,17 @@ class BroilerController extends GetxController {
     );
   }
 
-  BroilerWorkflowStatus statusFor(String projectName) {
-    return projectStatuses[projectName] ?? BroilerWorkflowStatus.drafted;
+  void selectProjectByName(String? projectName) {
+    if (projectName == null) return;
+    final project = projects.firstWhereOrNull(
+      (item) => item.projectName == projectName,
+    );
+    if (project == null) return;
+    selectProject(project.projectId);
+  }
+
+  BroilerWorkflowStatus statusFor(String projectId) {
+    return projectStatuses[projectId] ?? BroilerWorkflowStatus.drafted;
   }
 
   void addStatusChangeListener(VoidCallback callback) {
@@ -120,12 +133,12 @@ class BroilerController extends GetxController {
     _onStatusChangeCallback?.call();
   }
 
-  int lastOpenedStepFor(String projectName) {
-    return projectLastOpenedSteps[projectName] ?? 0;
+  int lastOpenedStepFor(String projectId) {
+    return projectLastOpenedSteps[projectId] ?? 0;
   }
 
-  bool isReadOnly(String projectName) {
-    return statusFor(projectName) == BroilerWorkflowStatus.inProgress;
+  bool isReadOnly(String projectId) {
+    return statusFor(projectId) == BroilerWorkflowStatus.inProgress;
   }
 
   BroilerWorkflowStatus _statusFromFirestore(String value) {
@@ -161,51 +174,115 @@ class BroilerController extends GetxController {
     });
   }
 
-  Future<bool> _syncProjectToFirestore(String projectName) async {
+  Future<bool> _syncProjectToFirestore(String projectId) async {
     final data = projects.firstWhereOrNull(
-      (item) => item.projectName == projectName,
+      (item) => item.projectId == projectId,
     );
     if (data == null) return false;
 
     try {
-      await _firestoreService.upsertProjectRecord(
+      final savedProjectId = await _firestoreService.upsertProjectRecord(
+        projectId: data.projectId,
         data: data,
-        status: _statusToFirestore(statusFor(projectName)),
+        status: _statusToFirestore(statusFor(data.projectId)),
         sampleWeights: List<double>.from(
-          projectSampleWeights[projectName] ?? const <double>[],
+          projectSampleWeights[data.projectId] ?? const <double>[],
         ),
         sampleGroups: List<List<double>>.generate(3, (index) {
           final groups =
-              projectSampleGroups[projectName] ?? const <List<double>>[];
+              projectSampleGroups[data.projectId] ?? const <List<double>>[];
           return index < groups.length
               ? List<double>.from(groups[index])
               : <double>[];
         }),
+        sampleGroupBluetoothFlags: List<List<bool>>.generate(3, (index) {
+          final flags =
+              projectSampleGroupBluetoothFlags[data.projectId] ??
+              const <List<bool>>[];
+          return index < flags.length
+              ? List<bool>.from(flags[index])
+              : <bool>[];
+        }),
         docDistributions: List<Map<String, dynamic>>.from(
-          projectDocDistributions[projectName] ??
+          projectDocDistributions[data.projectId] ??
               const <Map<String, dynamic>>[],
         ),
-        boxHeaviest: (projectBoxValues[projectName]?['heaviest'] ?? ''),
-        boxAverage: (projectBoxValues[projectName]?['average'] ?? ''),
-        boxLightest: (projectBoxValues[projectName]?['lightest'] ?? ''),
+        sampleInputBluetooth:
+            projectSampleBluetoothInputs[data.projectId] ?? false,
+        distributionBluetooth:
+            projectDistributionBluetoothInputs[data.projectId] ?? false,
+        boxHeaviest: (projectBoxValues[data.projectId]?['heaviest'] ?? ''),
+        boxAverage: (projectBoxValues[data.projectId]?['average'] ?? ''),
+        boxLightest: (projectBoxValues[data.projectId]?['lightest'] ?? ''),
         dietPens: {
           for (final entry
-              in (projectDietPenSelections[projectName] ??
+              in (projectDietPenSelections[data.projectId] ??
                       const <int, List<int>>{})
                   .entries)
             entry.key: List<int>.from(entry.value),
         },
         dietInputs: {
           for (final entry
-              in (projectDietInputValues[projectName] ??
+              in (projectDietInputValues[data.projectId] ??
                       const <int, Map<String, String>>{})
                   .entries)
             entry.key: Map<String, String>.from(entry.value),
         },
       );
+
+      if (savedProjectId != data.projectId) {
+        final index = projects.indexWhere(
+          (item) => item.projectId == projectId,
+        );
+        if (index >= 0) {
+          projects[index] = data.copyWith(projectId: savedProjectId);
+          projects.refresh();
+        }
+
+        projectStatuses[savedProjectId] =
+            projectStatuses.remove(projectId) ?? BroilerWorkflowStatus.drafted;
+        projectLastOpenedSteps[savedProjectId] =
+            projectLastOpenedSteps.remove(projectId) ?? 0;
+        projectSampleWeights[savedProjectId] =
+            projectSampleWeights.remove(projectId) ?? const <double>[];
+        projectSampleGroups[savedProjectId] =
+            projectSampleGroups.remove(projectId) ??
+            const <List<double>>[<double>[], <double>[], <double>[]];
+        projectSampleGroupBluetoothFlags[savedProjectId] =
+            projectSampleGroupBluetoothFlags.remove(projectId) ??
+            const <List<bool>>[<bool>[], <bool>[], <bool>[]];
+        projectDocDistributions[savedProjectId] =
+            projectDocDistributions.remove(projectId) ??
+            const <Map<String, dynamic>>[];
+        projectBoxValues[savedProjectId] =
+            projectBoxValues.remove(projectId) ??
+            const <String, String>{
+              'heaviest': '',
+              'average': '',
+              'lightest': '',
+            };
+        projectBluetoothInputs[savedProjectId] =
+            projectBluetoothInputs.remove(projectId) ?? false;
+        projectSampleBluetoothInputs[savedProjectId] =
+            projectSampleBluetoothInputs.remove(projectId) ?? false;
+        projectDistributionBluetoothInputs[savedProjectId] =
+            projectDistributionBluetoothInputs.remove(projectId) ?? false;
+        projectDietPenSelections[savedProjectId] =
+            projectDietPenSelections.remove(projectId) ??
+            const <int, List<int>>{};
+        projectDietInputValues[savedProjectId] =
+            projectDietInputValues.remove(projectId) ??
+            const <int, Map<String, String>>{};
+
+        if (selectedProjectId.value == projectId ||
+            (selectedProjectId.value == null && projectId.isEmpty)) {
+          selectedProjectId.value = savedProjectId;
+        }
+      }
+
       return true;
     } catch (error) {
-      debugPrint('Firestore sync failed for $projectName: $error');
+      debugPrint('Firestore sync failed for $projectId: $error');
       return false;
     }
   }
@@ -254,8 +331,9 @@ class BroilerController extends GetxController {
   }
 
   List<List<double>> _parseSampleGroups(dynamic raw) {
-    if (raw is! Map)
+    if (raw is! Map) {
       return const <List<double>>[<double>[], <double>[], <double>[]];
+    }
     return List<List<double>>.generate(3, (index) {
       final listRaw = raw['$index'];
       if (listRaw is! List) return <double>[];
@@ -268,6 +346,44 @@ class BroilerController extends GetxController {
     });
   }
 
+  List<List<bool>> _parseSampleGroupBluetoothFlags(
+    dynamic raw,
+    List<List<double>> sampleGroups,
+  ) {
+    if (raw is! Map) {
+      return List<List<bool>>.generate(
+        3,
+        (index) => List<bool>.filled(
+          index < sampleGroups.length ? sampleGroups[index].length : 0,
+          false,
+        ),
+      );
+    }
+
+    return List<List<bool>>.generate(3, (index) {
+      final listRaw = raw['$index'];
+      final valuesLength = index < sampleGroups.length
+          ? sampleGroups[index].length
+          : 0;
+      if (listRaw is! List) {
+        return List<bool>.filled(valuesLength, false);
+      }
+
+      final parsed = listRaw.map((item) {
+        if (item is bool) return item;
+        final text = '$item'.trim().toLowerCase();
+        return text == 'yes' || text == 'true';
+      }).toList();
+
+      if (parsed.length < valuesLength) {
+        parsed.addAll(List<bool>.filled(valuesLength - parsed.length, false));
+      } else if (parsed.length > valuesLength) {
+        parsed.removeRange(valuesLength, parsed.length);
+      }
+      return parsed;
+    });
+  }
+
   List<Map<String, dynamic>> _parseDocDistributions(dynamic raw) {
     if (raw is! List) return const <Map<String, dynamic>>[];
     return raw
@@ -276,37 +392,55 @@ class BroilerController extends GetxController {
         .toList();
   }
 
-  Future<void> hydrateStepperDataFromFirestore(String projectName) async {
+  Future<void> hydrateStepperDataFromFirestore(String projectId) async {
     try {
       final record = await _firestoreService.getProjectRecord(
-        projectName: projectName,
+        projectId: projectId,
       );
       if (record == null) return;
 
       final sampleWeights = _parseSampleWeights(record['sample_weights']);
       final sampleGroups = _parseSampleGroups(record['sample_groups']);
+      final sampleGroupBluetoothFlags = _parseSampleGroupBluetoothFlags(
+        record['sample_groups_bluetooth'],
+        sampleGroups,
+      );
       final docDistributions = _parseDocDistributions(
         record['doc_distributions'],
       );
       final dietPens = _parseDietPens(record['diet_pen_selections']);
       final dietInputs = _parseDietInputs(record['diet_input_values']);
 
-      projectSampleWeights[projectName] = sampleWeights;
-      projectSampleGroups[projectName] = sampleGroups;
-      projectDocDistributions[projectName] = docDistributions;
-      projectBoxValues[projectName] = {
+      projectSampleWeights[projectId] = sampleWeights;
+      projectSampleGroups[projectId] = sampleGroups;
+      projectSampleGroupBluetoothFlags[projectId] = sampleGroupBluetoothFlags;
+      projectDocDistributions[projectId] = docDistributions;
+      projectBoxValues[projectId] = {
         'heaviest': (record['box_heaviest'] ?? '').toString(),
         'average': (record['box_average'] ?? '').toString(),
         'lightest': (record['box_lightest'] ?? '').toString(),
       };
-      projectDietPenSelections[projectName] = dietPens;
-      projectDietInputValues[projectName] = dietInputs;
+      final rawBluetooth = (record['is_bluetooth'] ?? '').toString();
+      projectBluetoothInputs[projectId] =
+          rawBluetooth.trim().toLowerCase() == 'yes';
+      final rawSampleBluetooth =
+          (record['sample_is_bluetooth'] ?? record['is_bluetooth'] ?? '')
+              .toString();
+      projectSampleBluetoothInputs[projectId] =
+          rawSampleBluetooth.trim().toLowerCase() == 'yes';
+      final rawDistributionBluetooth =
+          (record['distribution_is_bluetooth'] ?? record['is_bluetooth'] ?? '')
+              .toString();
+      projectDistributionBluetoothInputs[projectId] =
+          rawDistributionBluetooth.trim().toLowerCase() == 'yes';
+      projectDietPenSelections[projectId] = dietPens;
+      projectDietInputValues[projectId] = dietInputs;
 
       final dietMappingController = Get.isRegistered<DietMappingController>()
           ? Get.find<DietMappingController>()
           : Get.put(DietMappingController(), permanent: true);
 
-      if (selectedProjectName.value == projectName) {
+      if (selectedProjectId.value == projectId) {
         dietMappingController.dietPenSelections.assignAll(dietPens);
         dietMappingController.loadDietInputValues(dietInputs);
         if ((dietController.text.trim().isNotEmpty) &&
@@ -318,66 +452,79 @@ class BroilerController extends GetxController {
         }
       }
     } catch (error) {
-      debugPrint('Failed to hydrate stepper data for $projectName: $error');
+      debugPrint('Failed to hydrate stepper data for $projectId: $error');
     }
   }
 
-  Future<void> markDrafted(String projectName, {int step = 1}) async {
-    projectStatuses[projectName] = BroilerWorkflowStatus.drafted;
+  Future<void> markDrafted(String projectId, {int step = 1}) async {
+    projectStatuses[projectId] = BroilerWorkflowStatus.drafted;
     projectStatuses.refresh();
-    updateLastOpenedStep(projectName, step);
-    await _syncProjectToFirestore(projectName);
+    updateLastOpenedStep(projectId, step);
+    await _syncProjectToFirestore(projectId);
   }
 
-  Future<void> markInProgress(String projectName) async {
-    projectStatuses[projectName] = BroilerWorkflowStatus.inProgress;
+  Future<void> markInProgress(String projectId) async {
+    projectStatuses[projectId] = BroilerWorkflowStatus.inProgress;
     projectStatuses.refresh();
-    projects.refresh(); // Notify observers that projects related data changed
+    projects.refresh();
     _notifyStatusChange();
-    updateLastOpenedStep(projectName, 2);
-    await _syncProjectToFirestore(projectName);
+    updateLastOpenedStep(projectId, 2);
+    await _syncProjectToFirestore(projectId);
   }
 
-  void updateLastOpenedStep(String projectName, int step) {
-    projectLastOpenedSteps[projectName] = step.clamp(0, 2);
+  void updateLastOpenedStep(String projectId, int step) {
+    projectLastOpenedSteps[projectId] = step.clamp(0, 2);
   }
 
   Future<bool> saveStepperData({
-    required String projectName,
+    required String projectId,
     required List<double> sampleWeights,
     required List<List<double>> sampleGroups,
+    required List<List<bool>> sampleBluetoothFlags,
     required List<Map<String, dynamic>> docDistributions,
+    required bool sampleInputBluetooth,
+    required bool distributionBluetooth,
     required String boxHeaviest,
     required String boxAverage,
     required String boxLightest,
     required Map<int, List<int>> dietPens,
     required Map<int, Map<String, String>> dietInputs,
   }) {
-    projectSampleWeights[projectName] = List<double>.from(sampleWeights);
-    projectSampleGroups[projectName] = List<List<double>>.generate(
+    projectSampleWeights[projectId] = List<double>.from(sampleWeights);
+    projectSampleGroups[projectId] = List<List<double>>.generate(
       3,
       (index) => index < sampleGroups.length
           ? List<double>.from(sampleGroups[index])
           : <double>[],
     );
-    projectDocDistributions[projectName] = List<Map<String, dynamic>>.from(
+    projectSampleGroupBluetoothFlags[projectId] = List<List<bool>>.generate(
+      3,
+      (index) => index < sampleBluetoothFlags.length
+          ? List<bool>.from(sampleBluetoothFlags[index])
+          : <bool>[],
+    );
+    projectDocDistributions[projectId] = List<Map<String, dynamic>>.from(
       docDistributions,
     );
-    projectBoxValues[projectName] = {
+    projectSampleBluetoothInputs[projectId] = sampleInputBluetooth;
+    projectDistributionBluetoothInputs[projectId] = distributionBluetooth;
+    projectBluetoothInputs[projectId] =
+        sampleInputBluetooth || distributionBluetooth;
+    projectBoxValues[projectId] = {
       'heaviest': boxHeaviest,
       'average': boxAverage,
       'lightest': boxLightest,
     };
-    projectDietPenSelections[projectName] = {
+    projectDietPenSelections[projectId] = {
       for (final entry in dietPens.entries)
         entry.key: List<int>.from(entry.value),
     };
-    projectDietInputValues[projectName] = {
+    projectDietInputValues[projectId] = {
       for (final entry in dietInputs.entries)
         entry.key: Map<String, String>.from(entry.value),
     };
 
-    return _syncProjectToFirestore(projectName);
+    return _syncProjectToFirestore(projectId);
   }
 
   void clearForm() {
@@ -397,6 +544,7 @@ class BroilerController extends GetxController {
     dietController.clear();
     replicationController.clear();
 
+    selectedProjectId.value = null;
     selectedProjectName.value = null;
     selectedTrialHouse.value = null;
     selectedStrain.value = null;
@@ -443,8 +591,10 @@ class BroilerController extends GetxController {
     }
 
     final replicationNumber = (int.tryParse(replication) ?? 1).clamp(1, 9999);
+    final currentProjectId = selectedProjectId.value ?? '';
 
     final data = BroilerProjectData(
+      projectId: currentProjectId,
       projectName: projectName,
       trialDate: trialDate,
       trialHouse: trialHouse,
@@ -463,30 +613,63 @@ class BroilerController extends GetxController {
       dietReplication: replicationNumber,
     );
 
-    final existingIndex = projects.indexWhere(
-      (item) => item.projectName == projectName,
-    );
+    final existingIndex = currentProjectId.isEmpty
+        ? -1
+        : projects.indexWhere((item) => item.projectId == currentProjectId);
     if (existingIndex >= 0) {
       projects[existingIndex] = data;
     } else {
       projects.add(data);
     }
 
-    selectedProjectName.value = projectName;
-
     final dietMappingController = Get.isRegistered<DietMappingController>()
         ? Get.find<DietMappingController>()
         : Get.put(DietMappingController(), permanent: true);
     dietMappingController.syncFromValues(diet: diet, replication: replication);
 
-    final saved = await _syncProjectToFirestore(projectName);
+    final syncKey = currentProjectId.isEmpty
+        ? data.projectId
+        : currentProjectId;
+    final saved = await _syncProjectToFirestore(syncKey);
     if (saved) {
+      selectedProjectName.value = projectName;
       Get.snackbar('Draft', 'Project saved to draft');
       return true;
     }
 
     Get.snackbar('Save Failed', 'Project could not be saved to Firebase');
     return false;
+  }
+
+  Future<bool> deleteDraftedProject(String projectId) async {
+    if (statusFor(projectId) != BroilerWorkflowStatus.drafted) {
+      return false;
+    }
+
+    try {
+      await _firestoreService.deleteProjectRecord(projectId: projectId);
+    } catch (error) {
+      debugPrint('Failed to delete project $projectId: $error');
+      Get.snackbar('Delete Failed', 'Project could not be deleted');
+      return false;
+    }
+
+    projects.removeWhere((item) => item.projectId == projectId);
+    projectStatuses.remove(projectId);
+    projectLastOpenedSteps.remove(projectId);
+    projectSampleWeights.remove(projectId);
+    projectSampleGroups.remove(projectId);
+    projectDocDistributions.remove(projectId);
+    projectBoxValues.remove(projectId);
+    projectDietPenSelections.remove(projectId);
+    projectDietInputValues.remove(projectId);
+
+    if (selectedProjectId.value == projectId) {
+      clearForm();
+    }
+
+    Get.snackbar('Deleted', 'Draft project removed');
+    return true;
   }
 
   @override

@@ -6,11 +6,13 @@ class SampleDocInputPage extends StatefulWidget {
     this.readOnly = false,
     required this.sampleNumber,
     required this.initialWeights,
+    this.initialBluetoothFlags = const <bool>[],
   });
 
   final bool readOnly;
   final int sampleNumber;
   final List<double> initialWeights;
+  final List<bool> initialBluetoothFlags;
 
   @override
   State<SampleDocInputPage> createState() => _SampleDocInputPageState();
@@ -20,6 +22,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
   static const double _calculatorButtonHeight = 72;
   static const double _docFieldHeight = 50;
   final List<TextEditingController> _controllers = [];
+  final List<bool> _bluetoothFlags = [];
   final ScrollController _listScrollController = ScrollController();
   int _activeIndex = 0;
 
@@ -28,15 +31,21 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
     super.initState();
     if (widget.initialWeights.isEmpty) {
       _controllers.add(TextEditingController());
+      _bluetoothFlags.add(false);
       _activeIndex = 0;
     } else {
-      for (final value in widget.initialWeights) {
+      for (var index = 0; index < widget.initialWeights.length; index++) {
+        final value = widget.initialWeights[index];
         final isWhole = value % 1 == 0;
         _controllers.add(
           TextEditingController(
             text: isWhole ? value.toInt().toString() : value.toString(),
           ),
         );
+        final initialFlag = index < widget.initialBluetoothFlags.length
+            ? widget.initialBluetoothFlags[index]
+            : false;
+        _bluetoothFlags.add(initialFlag);
       }
       _activeIndex = _controllers.length - 1;
       _scrollToBottom();
@@ -53,6 +62,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
   }
 
   void _appendToActive(String value) {
+    _bluetoothFlags[_activeIndex] = false;
     final controller = _controllers[_activeIndex];
     var current = controller.text;
 
@@ -69,6 +79,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
   }
 
   void _removeLastChar() {
+    _bluetoothFlags[_activeIndex] = false;
     final controller = _controllers[_activeIndex];
     if (controller.text.isEmpty) return;
     controller.text = controller.text.substring(0, controller.text.length - 1);
@@ -79,6 +90,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
     if (_activeIndex == _controllers.length - 1) {
       setState(() {
         _controllers.add(TextEditingController());
+        _bluetoothFlags.add(false);
         _activeIndex += 1;
       });
       _scrollToBottom();
@@ -95,26 +107,260 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
   }
 
   void _clearActiveField() {
+    _bluetoothFlags[_activeIndex] = false;
     _controllers[_activeIndex].clear();
     setState(() {});
   }
 
-  void _deleteActiveField() {
+  Future<void> _showScaleSelectionModal() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE5E7EB),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Select Scale Type',
+                    style: TextStyle(
+                      color: Color(0xFF111827),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _buildScaleOptionTile(
+                    label: 'Hanging Scale',
+                    icon: Icons.scale,
+                    onTap: () => Navigator.of(sheetContext).pop('hanging'),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildScaleOptionTile(
+                    label: 'Bench Scale',
+                    icon: Icons.monitor_weight_outlined,
+                    onTap: () => Navigator.of(sheetContext).pop('bench'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected == null || !mounted) return;
+
+    _bluetoothFlags[_activeIndex] = true;
+
+    final message = selected == 'hanging'
+        ? 'Hanging Scale selected'
+        : 'Bench Scale selected';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Widget _buildScaleOptionTile({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: const Color(0xFFF9FAFB),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE8F5EE),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: const Color(0xFF22C55E), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF1F2937),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0xFF9CA3AF)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _confirmDeleteField(int index) async {
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x22000000),
+                      blurRadius: 18,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFEE2E2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline,
+                        color: Color(0xFFDC2626),
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Delete Field?',
+                      style: TextStyle(
+                        color: Color(0xFF111827),
+                        fontSize: 21,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'DOC ${index + 1} will be deleted. Continue?',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontSize: 15,
+                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () =>
+                                Navigator.of(dialogContext).pop(false),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFFD1D5DB)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              foregroundColor: const Color(0xFF374151),
+                            ),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () =>
+                                Navigator.of(dialogContext).pop(true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFEF4444),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text(
+                              'Delete',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ) ??
+        false;
+
+    if (!confirmed) return false;
+
     if (_controllers.length == 1) {
-      _controllers.first.clear();
-      setState(() {});
-      return;
+      setState(() {
+        _controllers.first.clear();
+        _bluetoothFlags[0] = false;
+        _activeIndex = 0;
+      });
+      return false;
     }
 
-    final removedIndex = _activeIndex;
-    _controllers.removeAt(removedIndex);
-    if (_activeIndex >= _controllers.length) {
-      _activeIndex = _controllers.length - 1;
-    }
-    setState(() {});
-    if (removedIndex >= _controllers.length) {
-      _scrollToBottom();
-    }
+    setState(() {
+      _controllers.removeAt(index);
+      _bluetoothFlags.removeAt(index);
+
+      if (_activeIndex == index) {
+        _activeIndex = index >= _controllers.length
+            ? _controllers.length - 1
+            : index;
+      } else if (_activeIndex > index) {
+        _activeIndex -= 1;
+      }
+    });
+    return true;
   }
 
   void _scrollToBottom() {
@@ -130,15 +376,20 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
 
   void _saveSample() {
     final values = <double>[];
-    for (final controller in _controllers) {
+    final bluetoothFlags = <bool>[];
+    for (var i = 0; i < _controllers.length; i++) {
+      final controller = _controllers[i];
       final text = controller.text.trim();
       if (text.isEmpty) continue;
       final parsed = double.tryParse(text);
       if (parsed != null && parsed > 0) {
         values.add(parsed);
+        bluetoothFlags.add(i < _bluetoothFlags.length && _bluetoothFlags[i]);
       }
     }
-    Navigator.of(context).pop(values);
+    Navigator.of(
+      context,
+    ).pop({'values': values, 'bluetoothFlags': bluetoothFlags});
   }
 
   @override
@@ -151,6 +402,13 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
         foregroundColor: const Color(0xFF111827),
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF111827)),
+        actions: [
+          IconButton(
+            onPressed: _showScaleSelectionModal,
+            icon: const Icon(Icons.bluetooth, color: Color(0xFF111827)),
+            tooltip: 'Bluetooth',
+          ),
+        ],
         shape: const Border(
           bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
         ),
@@ -210,6 +468,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: const Color(0xFFF6F6F6),
         borderRadius: BorderRadius.circular(16),
@@ -226,7 +485,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
         child: Column(
           children: List.generate(_controllers.length, (index) {
             final isActive = index == _activeIndex;
-            return GestureDetector(
+            final row = GestureDetector(
               onTap: widget.readOnly
                   ? null
                   : () => setState(() => _activeIndex = index),
@@ -279,6 +538,29 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
                 ),
               ),
             );
+
+            if (widget.readOnly) {
+              return row;
+            }
+
+            return Dismissible(
+              key: ValueKey(_controllers[index]),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                margin: EdgeInsets.only(
+                  bottom: index == _controllers.length - 1 ? 0 : 10,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: const Icon(Icons.delete_outline, color: Colors.white),
+              ),
+              confirmDismiss: (_) => _confirmDeleteField(index),
+              child: row,
+            );
           }),
         ),
       ),
@@ -321,10 +603,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
             '6',
             onTap: widget.readOnly ? null : () => _appendToActive('6'),
           ),
-          _PadButtonSpec.icon(
-            Icons.skip_previous_rounded,
-            onTap: widget.readOnly ? null : _deleteActiveField,
-          ),
+          const _PadButtonSpec._(label: ''),
         ]),
         const SizedBox(height: 10),
         _buildKeypadRow([

@@ -1,5 +1,6 @@
 class BroilerProjectData {
   BroilerProjectData({
+    required this.projectId,
     required this.projectName,
     required this.trialDate,
     required this.trialHouse,
@@ -19,6 +20,7 @@ class BroilerProjectData {
     this.updatedAt,
   });
 
+  final String projectId;
   final String projectName;
   final String trialDate;
   final String trialHouse;
@@ -36,4 +38,46 @@ class BroilerProjectData {
   final String replication;
   final int? dietReplication;
   final DateTime? updatedAt;
+
+  BroilerProjectData copyWith({
+    String? projectId,
+    String? projectName,
+    String? trialDate,
+    String? trialHouse,
+    String? strain,
+    String? hatchery,
+    String? breedingFarm,
+    String? boxBatchCode,
+    String? selector,
+    String? docInDate,
+    String? docWeight,
+    String? weighing3Weeks,
+    String? weighing5Weeks,
+    String? numberOfBirds,
+    String? diet,
+    String? replication,
+    int? dietReplication,
+    DateTime? updatedAt,
+  }) {
+    return BroilerProjectData(
+      projectId: projectId ?? this.projectId,
+      projectName: projectName ?? this.projectName,
+      trialDate: trialDate ?? this.trialDate,
+      trialHouse: trialHouse ?? this.trialHouse,
+      strain: strain ?? this.strain,
+      hatchery: hatchery ?? this.hatchery,
+      breedingFarm: breedingFarm ?? this.breedingFarm,
+      boxBatchCode: boxBatchCode ?? this.boxBatchCode,
+      selector: selector ?? this.selector,
+      docInDate: docInDate ?? this.docInDate,
+      docWeight: docWeight ?? this.docWeight,
+      weighing3Weeks: weighing3Weeks ?? this.weighing3Weeks,
+      weighing5Weeks: weighing5Weeks ?? this.weighing5Weeks,
+      numberOfBirds: numberOfBirds ?? this.numberOfBirds,
+      diet: diet ?? this.diet,
+      replication: replication ?? this.replication,
+      dietReplication: dietReplication ?? this.dietReplication,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }

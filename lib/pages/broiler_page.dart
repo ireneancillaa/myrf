@@ -132,8 +132,8 @@ class _BroilerPageState extends State<BroilerPage> {
                           final matchDate = _matchesDateFilter(item.trialDate);
                           return matchKeyword && matchDate;
                         }).toList()..sort((a, b) {
-                          final aStatus = _controller.statusFor(a.projectName);
-                          final bStatus = _controller.statusFor(b.projectName);
+                          final aStatus = _controller.statusFor(a.projectId);
+                          final bStatus = _controller.statusFor(b.projectId);
                           final aPriority =
                               aStatus == BroilerWorkflowStatus.drafted ? 0 : 1;
                           final bPriority =
@@ -166,9 +166,9 @@ class _BroilerPageState extends State<BroilerPage> {
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
                       itemBuilder: (context, index) {
                         final data = projects[index];
-                        final status = _controller.statusFor(data.projectName);
+                        final status = _controller.statusFor(data.projectId);
 
-                        return BroilerProjectCard(
+                        final card = BroilerProjectCard(
                           project: BroilerProjectItem(
                             title: data.projectName,
                             status: status == BroilerWorkflowStatus.inProgress
@@ -185,20 +185,54 @@ class _BroilerPageState extends State<BroilerPage> {
                             final initialStep =
                                 status == BroilerWorkflowStatus.inProgress
                                 ? 0
-                                : _controller.lastOpenedStepFor(
-                                    data.projectName,
-                                  );
+                                : _controller.lastOpenedStepFor(data.projectId);
 
                             Get.to(
                               () => BroilerProjectStepperPage(
+                                projectId: data.projectId,
                                 projectName: data.projectName,
                                 initialStep: initialStep,
                                 readOnly: _controller.isReadOnly(
-                                  data.projectName,
+                                  data.projectId,
                                 ),
                               ),
                             );
                           },
+                        );
+
+                        if (status != BroilerWorkflowStatus.drafted) {
+                          return card;
+                        }
+
+                        return Dismissible(
+                          key: ValueKey('drafted_${data.projectId}_$index'),
+                          direction: DismissDirection.endToStart,
+                          confirmDismiss: (_) async {
+                            final confirmed =
+                                await _showDeleteDraftedConfirmation(
+                                  context,
+                                  data.projectName,
+                                );
+                            if (!confirmed) return false;
+                            return _controller.deleteDraftedProject(
+                              data.projectId,
+                            );
+                          },
+                          background: const SizedBox.shrink(),
+                          secondaryBackground: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          child: card,
                         );
                       },
                       separatorBuilder: (_, _) => const SizedBox(height: 14),
@@ -252,6 +286,139 @@ class _BroilerPageState extends State<BroilerPage> {
         ],
       ),
     );
+  }
+
+  Future<bool> _showDeleteDraftedConfirmation(
+    BuildContext context,
+    String projectName,
+  ) async {
+    final result = await showDialog<bool>(
+      barrierDismissible: false,
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          backgroundColor: Colors.white,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: Color(0xFFDC2626),
+                          size: 26,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Text(
+                          'Delete Draft Project',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Draft project "$projectName" will be permanently deleted. This action cannot be undone.',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.45,
+                      color: Color(0xFF4B5563),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(false),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF374151),
+                            side: const BorderSide(color: Color(0xFFD1D5DB)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDC2626),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'Delete',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    return result ?? false;
   }
 
   String _dateFilterButtonLabel() {
