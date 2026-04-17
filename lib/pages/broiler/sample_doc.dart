@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'doc_distribution_input_page.dart';
 import 'sample_doc_input_page.dart';
@@ -62,6 +65,8 @@ class _SampleDocSectionState extends State<SampleDocSection> {
   final List<DateTime?> _sampleUpdatedAt = [null, null, null];
   late bool _sampleInputBluetooth;
   late bool _distributionBluetooth;
+  final ImagePicker _imagePicker = ImagePicker();
+  XFile? _selectedAttachment;
 
   @override
   void initState() {
@@ -117,6 +122,28 @@ class _SampleDocSectionState extends State<SampleDocSection> {
     widget.onSampleBluetoothFlagsChanged(
       _sampleDocBluetoothFlags.map((item) => List<bool>.from(item)).toList(),
     );
+  }
+
+  Future<void> _pickAttachmentFromGallery() async {
+    try {
+      final pickedImage = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      if (pickedImage == null) return;
+
+      setState(() {
+        _selectedAttachment = pickedImage;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to open gallery. Please try again.'),
+        ),
+      );
+    }
   }
 
   Future<void> _openSampleInputPage(int sampleIndex) async {
@@ -289,6 +316,8 @@ class _SampleDocSectionState extends State<SampleDocSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildAttachmentSection(),
+            const SizedBox(height: 16),
             const Text(
               'Sample DOC',
               style: TextStyle(
@@ -325,6 +354,97 @@ class _SampleDocSectionState extends State<SampleDocSection> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAttachmentSection() {
+    const borderRadius = 10.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Add Attachment',
+          style: TextStyle(
+            fontSize: 20,
+            color: Color(0xFF22C55E),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+        InkWell(
+          onTap: _pickAttachmentFromGallery,
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: CustomPaint(
+            painter: _DashedRoundedRectPainter(
+              color: const Color(0xFFB8B8B8),
+              strokeWidth: 1.8,
+              dashWidth: 12,
+              dashGap: 10,
+              radius: borderRadius,
+            ),
+            child: Container(
+              width: double.infinity,
+              height: 230,
+              padding: const EdgeInsets.all(16),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F8FA),
+                borderRadius: BorderRadius.circular(borderRadius),
+              ),
+              child: _selectedAttachment == null
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 72,
+                          color: Color(0xFF65728B),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Tap to upload from gallery',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF7A7A7A),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    )
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.file(
+                            File(_selectedAttachment!.path),
+                            fit: BoxFit.cover,
+                          ),
+                          Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              color: const Color(0x88000000),
+                              child: const Text(
+                                'Tap to change attachment',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -715,5 +835,53 @@ class _SampleDocSectionState extends State<SampleDocSection> {
         ],
       ),
     );
+  }
+}
+
+class _DashedRoundedRectPainter extends CustomPainter {
+  const _DashedRoundedRectPainter({
+    required this.color,
+    required this.strokeWidth,
+    required this.dashWidth,
+    required this.dashGap,
+    required this.radius,
+  });
+
+  final Color color;
+  final double strokeWidth;
+  final double dashWidth;
+  final double dashGap;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+
+    final rect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    );
+    final path = Path()..addRRect(rect);
+
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final next = distance + dashWidth;
+        canvas.drawPath(metric.extractPath(distance, next), paint);
+        distance = next + dashGap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRoundedRectPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.strokeWidth != strokeWidth ||
+        oldDelegate.dashWidth != dashWidth ||
+        oldDelegate.dashGap != dashGap ||
+        oldDelegate.radius != radius;
   }
 }

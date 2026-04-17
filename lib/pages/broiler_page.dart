@@ -593,7 +593,7 @@ class _BroilerPageState extends State<BroilerPage> {
                             children: [
                               const Expanded(
                                 child: Text(
-                                  'Choose transaction date',
+                                  'Choose project date',
                                   style: TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.w700,

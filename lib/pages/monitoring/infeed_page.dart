@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../controller/broiler_controller.dart';
 import '../../models/broiler_project_data.dart';
+import 'infeed_input_page.dart';
 
 class InfeedPage extends StatefulWidget {
   const InfeedPage({super.key});
@@ -11,27 +12,19 @@ class InfeedPage extends StatefulWidget {
   State<InfeedPage> createState() => _InfeedPageState();
 }
 
-class _InfeedPageState extends State<InfeedPage>
-    with SingleTickerProviderStateMixin {
+class _InfeedPageState extends State<InfeedPage> {
   static const Color _primaryGreen = Color(0xFF22C55E);
-  static const Color _textPrimary = Color(0xFF111827);
-  static const double _fieldTextSize = 14;
-  static const double _fieldHintSize = 14;
-  static const double _fieldHeight = 50;
+  static const double _cardMinHeight = 70;
 
-  late final TabController _tabController;
   late final BroilerController _controller;
 
-  final _formKeys = List.generate(8, (_) => GlobalKey<FormState>());
-  final _dateControllers = List.generate(8, (_) => TextEditingController());
-  final _feedUsedControllers = List.generate(8, (_) => TextEditingController());
-  final _selectedPens = List<String?>.filled(8, null);
-  final _selectedDiets = List<String?>.filled(8, null);
+  final _dateControllers = List.generate(9, (_) => TextEditingController());
+  final _penValuesByStage = List<List<double>>.generate(9, (_) => <double>[]);
+  final _stageUpdatedAt = List<DateTime?>.filled(9, null);
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _controller = Get.isRegistered<BroilerController>()
         ? Get.find<BroilerController>()
         : Get.put(BroilerController(), permanent: true);
@@ -39,11 +32,7 @@ class _InfeedPageState extends State<InfeedPage>
 
   @override
   void dispose() {
-    _tabController.dispose();
     for (final controller in _dateControllers) {
-      controller.dispose();
-    }
-    for (final controller in _feedUsedControllers) {
       controller.dispose();
     }
     super.dispose();
@@ -63,76 +52,122 @@ class _InfeedPageState extends State<InfeedPage>
     return null;
   }
 
-  Future<void> _selectDate(int formIndex) async {
-    final currentText = _dateControllers[formIndex].text.trim();
-    final initialDate = _parseInitialDate(currentText);
-
-    final date = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2035),
-    );
-
-    if (date != null) {
-      _dateControllers[formIndex].text = _formatDate(date);
+  String _stageTitle(int stageIndex) {
+    switch (stageIndex) {
+      case 0:
+        return 'Pre Starter 1';
+      case 1:
+        return 'Pre Starter 2';
+      case 2:
+        return 'Starter 1';
+      case 3:
+        return 'Starter 2';
+      case 4:
+        return 'Starter 3';
+      case 5:
+        return 'Finisher 1';
+      case 6:
+        return 'Finisher 2';
+      case 7:
+        return 'Finisher 3';
+      default:
+        return 'Finisher 4';
     }
   }
 
-  DateTime _parseInitialDate(String value) {
-    final today = DateTime.now();
-    final currentDate = DateTime(today.year, today.month, today.day);
-
-    if (value.isEmpty) {
-      return currentDate;
+  String _stageGroup(int stageIndex) {
+    switch (stageIndex) {
+      case 0:
+      case 1:
+        return 'Pre Starter';
+      case 2:
+      case 3:
+      case 4:
+        return 'Starter';
+      default:
+        return 'Finisher';
     }
-
-    final parts = value.split('/');
-    if (parts.length == 3) {
-      return DateTime(
-        int.tryParse(parts[2]) ?? currentDate.year,
-        int.tryParse(parts[1]) ?? currentDate.month,
-        int.tryParse(parts[0]) ?? currentDate.day,
-      );
-    }
-
-    return currentDate;
   }
 
-  String _formatDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    return '$day/$month/${date.year}';
+  String _stageRange(int stageIndex) {
+    switch (stageIndex) {
+      case 0:
+      case 1:
+        return '0-10 days';
+      case 2:
+      case 3:
+      case 4:
+        return '11-21 days';
+      default:
+        return '22-45 days';
+    }
   }
 
-  void _submit(int formIndex, String stageName) {
-    final formState = _formKeys[formIndex].currentState;
-    if (formState == null || !formState.validate()) {
-      return;
-    }
+  bool _stageHasData(int stageIndex) {
+    return _penValuesByStage[stageIndex].isNotEmpty;
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Infeed data saved for $stageName'),
-        backgroundColor: _primaryGreen,
+  String _formatPenTotal(int stageIndex) {
+    final values = _penValuesByStage[stageIndex];
+    if (values.isEmpty) return '-';
+
+    final total = values.fold<double>(0, (sum, value) => sum + value);
+    if (total % 1 == 0) {
+      return '${total.toInt()} kg';
+    }
+    return '${total.toStringAsFixed(2)} kg';
+  }
+
+  String _formatTimestamp(DateTime value) {
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final day = value.day.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    final second = value.second.toString().padLeft(2, '0');
+    return '$day ${monthNames[value.month - 1]} ${value.year} - $hour:$minute:$second';
+  }
+
+  Future<void> _openStageEditor(int stageIndex) async {
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => InfeedInputPage(
+          stageTitle: _stageTitle(stageIndex),
+          stageGroup: _stageGroup(stageIndex),
+          stageRange: _stageRange(stageIndex),
+          initialDate: _dateControllers[stageIndex].text,
+          initialValues: _penValuesByStage[stageIndex],
+        ),
       ),
     );
 
-    _dateControllers[formIndex].clear();
-    _feedUsedControllers[formIndex].clear();
-  }
+    if (result == null) return;
 
-  String _getStageName(int stageIndex) {
-    switch (stageIndex) {
-      case 0:
-        return 'Pre Starter (0-10 days)';
-      case 1:
-      case 2:
-      case 3:
-        return 'Starter (11-21 days)';
-      default:
-        return 'Finisher (22-45 days)';
-    }
+    final values = (result['values'] as List<dynamic>? ?? const <dynamic>[])
+        .map((value) => (value as num).toDouble())
+        .toList();
+
+    setState(() {
+      _dateControllers[stageIndex].text = (result['date'] ?? '').toString();
+      _penValuesByStage[stageIndex]
+        ..clear()
+        ..addAll(values);
+      if (_penValuesByStage[stageIndex].isNotEmpty) {
+        _stageUpdatedAt[stageIndex] = DateTime.now();
+      }
+    });
   }
 
   @override
@@ -157,18 +192,6 @@ class _InfeedPageState extends State<InfeedPage>
             fontWeight: FontWeight.w700,
           ),
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Color(0xFF16A000),
-          unselectedLabelColor: Color(0xFF6B7280),
-          indicatorColor: Color(0xFF16A000),
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(text: 'Pre Starter'),
-            Tab(text: 'Starter'),
-            Tab(text: 'Finisher'),
-          ],
-        ),
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -179,12 +202,26 @@ class _InfeedPageState extends State<InfeedPage>
             return const Center(child: Text('Please select a project first'));
           }
 
-          return TabBarView(
-            controller: _tabController,
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
-              _buildPreStarterForm(project),
-              _buildStarterForm(project),
-              _buildFinisherForm(project),
+              _buildStageCard(0),
+              const SizedBox(height: 14),
+              _buildStageCard(1),
+              const SizedBox(height: 14),
+              _buildStageCard(2),
+              const SizedBox(height: 14),
+              _buildStageCard(3),
+              const SizedBox(height: 14),
+              _buildStageCard(4),
+              const SizedBox(height: 14),
+              _buildStageCard(5),
+              const SizedBox(height: 14),
+              _buildStageCard(6),
+              const SizedBox(height: 14),
+              _buildStageCard(7),
+              const SizedBox(height: 14),
+              _buildStageCard(8),
             ],
           );
         }),
@@ -192,344 +229,112 @@ class _InfeedPageState extends State<InfeedPage>
     );
   }
 
-  Widget _buildPreStarterForm(BroilerProjectData project) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildInfoCard(project),
-          const SizedBox(height: 24),
-          const Text(
-            'Pre Starter (0-10 days)',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: _textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildFeedForm(
-            formIndex: 0,
-            stageName: _getStageName(0),
-            formNumber: 1,
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildStageCard(int stageIndex) {
+    final hasData = _stageHasData(stageIndex);
+    final titleColor = hasData ? _primaryGreen : const Color(0xFF6F6F6F);
+    final updatedAt = _stageUpdatedAt[stageIndex];
+    final updatedAtText = updatedAt == null ? '-' : _formatTimestamp(updatedAt);
+    final badgeValue = _formatPenTotal(stageIndex);
 
-  Widget _buildStarterForm(BroilerProjectData project) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildInfoCard(project),
-          const SizedBox(height: 24),
-          const Text(
-            'Starter (11-21 days)',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: _textPrimary,
+    return InkWell(
+      onTap: () => _openStageEditor(stageIndex),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: _cardMinHeight),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: hasData ? _primaryGreen : const Color(0xFFE0E0E0),
+            width: hasData ? 1.4 : 1,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x18000000),
+              blurRadius: 4,
+              offset: Offset(0, 1),
             ),
-          ),
-          const SizedBox(height: 16),
-          _buildFeedForm(
-            formIndex: 1,
-            stageName: _getStageName(1),
-            formNumber: 1,
-          ),
-          const SizedBox(height: 16),
-          _buildFeedForm(
-            formIndex: 2,
-            stageName: _getStageName(2),
-            formNumber: 2,
-          ),
-          const SizedBox(height: 16),
-          _buildFeedForm(
-            formIndex: 3,
-            stageName: _getStageName(3),
-            formNumber: 3,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFinisherForm(BroilerProjectData project) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildInfoCard(project),
-          const SizedBox(height: 24),
-          const Text(
-            'Finisher (22-45 days)',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: _textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildFeedForm(
-            formIndex: 4,
-            stageName: _getStageName(4),
-            formNumber: 1,
-          ),
-          const SizedBox(height: 16),
-          _buildFeedForm(
-            formIndex: 5,
-            stageName: _getStageName(5),
-            formNumber: 2,
-          ),
-          const SizedBox(height: 16),
-          _buildFeedForm(
-            formIndex: 6,
-            stageName: _getStageName(6),
-            formNumber: 3,
-          ),
-          const SizedBox(height: 16),
-          _buildFeedForm(
-            formIndex: 7,
-            stageName: _getStageName(7),
-            formNumber: 4,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoCard(BroilerProjectData project) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          ],
+        ),
+        child: Row(
           children: [
-            Text(
-              project.projectName,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: hasData ? _primaryGreen : const Color(0xFF8A8A8A),
+                ),
+                color: hasData ? _primaryGreen : Colors.transparent,
+              ),
+              child: hasData
+                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  : null,
             ),
-            const SizedBox(height: 4),
-            Text(
-              project.trialHouse,
-              style: TextStyle(color: Colors.grey.shade600),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _stageTitle(stageIndex),
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w500,
+                      color: titleColor,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.schedule,
+                        size: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        updatedAtText,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
+            _buildStageBadge(badgeValue, hasData: hasData),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFeedForm({
-    required int formIndex,
-    required String stageName,
-    required int formNumber,
-  }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKeys[formIndex],
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Form $formNumber',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: _primaryGreen,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildDropdownField(
-                label: 'Pen Number',
-                icon: Icons.tag,
-                value: _selectedPens[formIndex],
-                items: List.generate(10, (index) {
-                  final formattedPen =
-                      'Pen ${(index + 1).toString().padLeft(2, '0')}';
-                  return DropdownMenuItem(
-                    value: formattedPen,
-                    child: Text(formattedPen),
-                  );
-                }),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() {
-                    _selectedPens[formIndex] = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildDropdownField(
-                label: 'Diet',
-                icon: Icons.lunch_dining,
-                value: _selectedDiets[formIndex],
-                items: const [
-                  DropdownMenuItem(value: 'Diet A', child: Text('Diet A')),
-                  DropdownMenuItem(value: 'Diet B', child: Text('Diet B')),
-                  DropdownMenuItem(value: 'Diet C', child: Text('Diet C')),
-                ],
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() {
-                    _selectedDiets[formIndex] = value;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildDateField(
-                controller: _dateControllers[formIndex],
-                onTap: () => _selectDate(formIndex),
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _feedUsedControllers[formIndex],
-                label: 'Feed Used (kg)',
-                icon: Icons.lunch_dining,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                validatorMessage: 'Please enter feed used',
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => _submit(formIndex, stageName),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryGreen,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Text(
-                    'Save $stageName',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+  Widget _buildStageBadge(String value, {required bool hasData}) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 72, minHeight: 34),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: hasData ? const Color(0xFFECFDF3) : const Color(0xFFF6F6F6),
+        border: Border.all(
+          color: hasData ? const Color(0xFF86EFAC) : const Color(0xFFE0E0E0),
+        ),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        hasData ? value : '-',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: hasData ? _primaryGreen : const Color(0xFF6F6F6F),
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
         ),
       ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    required String validatorMessage,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return SizedBox(
-      height: _fieldHeight,
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        style: const TextStyle(fontSize: _fieldTextSize),
-        decoration: _fieldDecoration(label: label, hint: label, icon: icon),
-        validator: (value) {
-          if (value == null || value.trim().isEmpty) {
-            return validatorMessage;
-          }
-          return null;
-        },
-      ),
-    );
-  }
-
-  Widget _buildDropdownField({
-    required String label,
-    required IconData icon,
-    required String? value,
-    required List<DropdownMenuItem<String>> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return SizedBox(
-      height: _fieldHeight,
-      child: DropdownButtonFormField<String>(
-        initialValue: value,
-        isExpanded: true,
-        dropdownColor: Colors.white,
-        style: const TextStyle(
-          fontSize: _fieldTextSize,
-          color: _textPrimary,
-          height: 1.0,
-        ),
-        decoration: _fieldDecoration(label: label, hint: label, icon: icon)
-            .copyWith(
-              labelText: label == 'Pen Number' && value == null ? null : label,
-            ),
-        items: items,
-        onChanged: onChanged,
-      ),
-    );
-  }
-
-  Widget _buildDateField({
-    required TextEditingController controller,
-    required VoidCallback onTap,
-  }) {
-    return SizedBox(
-      height: _fieldHeight,
-      child: TextFormField(
-        readOnly: true,
-        controller: controller,
-        style: const TextStyle(fontSize: _fieldTextSize),
-        decoration: _fieldDecoration(
-          label: 'Date',
-          hint: 'Date',
-          icon: Icons.calendar_today,
-        ).copyWith(suffixIcon: const Icon(Icons.arrow_drop_down)),
-        onTap: onTap,
-        validator: (value) {
-          if (value == null || value.trim().isEmpty) {
-            return 'Please select a date';
-          }
-          return null;
-        },
-      ),
-    );
-  }
-
-  InputDecoration _fieldDecoration({
-    required String label,
-    required String hint,
-    required IconData icon,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      labelStyle: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-      hintStyle: const TextStyle(
-        fontSize: _fieldHintSize,
-        color: Color(0xFF9CA3AF),
-      ),
-      prefixIcon: Icon(icon),
-      filled: true,
-      fillColor: Colors.white,
-      border: const OutlineInputBorder(),
-      enabledBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFFE0E0E0)),
-      ),
-      focusedBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: _primaryGreen),
-      ),
-      floatingLabelBehavior: FloatingLabelBehavior.auto,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
     );
   }
 }
