@@ -50,6 +50,7 @@ class BroilerController extends GetxController {
   late final BroilerFirestoreService _firestoreService;
   StreamSubscription<Map<String, String>>? _statusSubscription;
   StreamSubscription<List<BroilerProjectData>>? _projectsSubscription;
+  final Map<String, Future<void>> _projectSyncQueue = <String, Future<void>>{};
 
   @override
   void onInit() {
@@ -172,6 +173,32 @@ class BroilerController extends GetxController {
       };
       projectStatuses.assignAll(mapped);
     });
+  }
+
+  String _createLocalProjectId() {
+    return 'local_${DateTime.now().microsecondsSinceEpoch}';
+  }
+
+  void _enqueueProjectSync(String projectId, {bool showErrorSnackbar = true}) {
+    final queueKey = projectId.trim();
+    if (queueKey.isEmpty) return;
+
+    final previousSync = _projectSyncQueue[queueKey] ?? Future<void>.value();
+    final nextSync = previousSync.then((_) async {
+      final saved = await _syncProjectToFirestore(queueKey);
+      if (!saved && showErrorSnackbar) {
+        Get.snackbar('Sync Failed', 'Data could not be synced to Firebase');
+      }
+    });
+
+    _projectSyncQueue[queueKey] = nextSync;
+    unawaited(
+      nextSync.whenComplete(() {
+        if (identical(_projectSyncQueue[queueKey], nextSync)) {
+          _projectSyncQueue.remove(queueKey);
+        }
+      }),
+    );
   }
 
   Future<bool> _syncProjectToFirestore(String projectId) async {
@@ -456,20 +483,22 @@ class BroilerController extends GetxController {
     }
   }
 
-  Future<void> markDrafted(String projectId, {int step = 1}) async {
+  Future<void> markDrafted(String projectId, {int step = 1}) {
     projectStatuses[projectId] = BroilerWorkflowStatus.drafted;
     projectStatuses.refresh();
     updateLastOpenedStep(projectId, step);
-    await _syncProjectToFirestore(projectId);
+    _enqueueProjectSync(projectId);
+    return Future<void>.value();
   }
 
-  Future<void> markInProgress(String projectId) async {
+  Future<void> markInProgress(String projectId) {
     projectStatuses[projectId] = BroilerWorkflowStatus.inProgress;
     projectStatuses.refresh();
     projects.refresh();
     _notifyStatusChange();
     updateLastOpenedStep(projectId, 2);
-    await _syncProjectToFirestore(projectId);
+    _enqueueProjectSync(projectId);
+    return Future<void>.value();
   }
 
   void updateLastOpenedStep(String projectId, int step) {
@@ -524,7 +553,8 @@ class BroilerController extends GetxController {
         entry.key: Map<String, String>.from(entry.value),
     };
 
-    return _syncProjectToFirestore(projectId);
+    _enqueueProjectSync(projectId);
+    return Future<bool>.value(true);
   }
 
   void clearForm() {
@@ -591,7 +621,10 @@ class BroilerController extends GetxController {
     }
 
     final replicationNumber = (int.tryParse(replication) ?? 1).clamp(1, 9999);
-    final currentProjectId = selectedProjectId.value ?? '';
+    final selectedId = selectedProjectId.value?.trim() ?? '';
+    final currentProjectId = selectedId.isNotEmpty
+        ? selectedId
+        : _createLocalProjectId();
 
     final data = BroilerProjectData(
       projectId: currentProjectId,
@@ -613,9 +646,9 @@ class BroilerController extends GetxController {
       dietReplication: replicationNumber,
     );
 
-    final existingIndex = currentProjectId.isEmpty
-        ? -1
-        : projects.indexWhere((item) => item.projectId == currentProjectId);
+    final existingIndex = projects.indexWhere(
+      (item) => item.projectId == currentProjectId,
+    );
     if (existingIndex >= 0) {
       projects[existingIndex] = data;
     } else {
@@ -627,18 +660,11 @@ class BroilerController extends GetxController {
         : Get.put(DietMappingController(), permanent: true);
     dietMappingController.syncFromValues(diet: diet, replication: replication);
 
-    final syncKey = currentProjectId.isEmpty
-        ? data.projectId
-        : currentProjectId;
-    final saved = await _syncProjectToFirestore(syncKey);
-    if (saved) {
-      selectedProjectName.value = projectName;
-      Get.snackbar('Draft', 'Project saved to draft');
-      return true;
-    }
-
-    Get.snackbar('Save Failed', 'Project could not be saved to Firebase');
-    return false;
+    selectedProjectId.value = currentProjectId;
+    selectedProjectName.value = projectName;
+    _enqueueProjectSync(currentProjectId, showErrorSnackbar: true);
+    Get.snackbar('Draft', 'Project saved to drafts');
+    return true;
   }
 
   Future<bool> deleteDraftedProject(String projectId) async {

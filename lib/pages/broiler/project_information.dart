@@ -412,7 +412,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
       Widget? mandatoryHintWidget;
       if (showMandatoryInHint && isMandatory && selectedValue == null) {
         mandatoryHintWidget = Transform.translate(
-          // Geser sedikit ke atas (offset negatif Y) untuk kompensasi dropdown baseline
+          // Shift slightly upward (negative Y offset) to compensate for the dropdown baseline
           offset: const Offset(0, -4),
           child: Text.rich(
             TextSpan(

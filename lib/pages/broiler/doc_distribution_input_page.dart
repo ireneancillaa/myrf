@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class DocDistributionInputPage extends StatefulWidget {
   const DocDistributionInputPage({
@@ -114,6 +118,15 @@ class _DocDistributionInputPageState extends State<DocDistributionInputPage> {
   }
 
   Future<void> _showScaleSelectionModal() async {
+    final blockedMessage = await _bluetoothBlockedMessage();
+    if (blockedMessage != null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(blockedMessage)));
+      return;
+    }
+
     final selected = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -180,6 +193,37 @@ class _DocDistributionInputPageState extends State<DocDistributionInputPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<String?> _bluetoothBlockedMessage() async {
+    try {
+      if (Platform.isAndroid) {
+        final permissionStatuses = await <Permission>[
+          Permission.bluetoothConnect,
+          Permission.bluetoothScan,
+        ].request();
+        final hasDeniedPermission = permissionStatuses.values.any(
+          (status) =>
+              status.isDenied ||
+              status.isPermanentlyDenied ||
+              status.isRestricted,
+        );
+        if (hasDeniedPermission) {
+          return 'Bluetooth permission has not been granted. Please allow Bluetooth access.';
+        }
+      }
+
+      final state = await FlutterBluePlus.adapterState
+          .where((item) => item != BluetoothAdapterState.unknown)
+          .first;
+      if (state != BluetoothAdapterState.on) {
+        return 'Bluetooth is still off. Please turn on Bluetooth first.';
+      }
+
+      return null;
+    } catch (_) {
+      return 'Bluetooth status could not be read. Please try again shortly.';
+    }
   }
 
   Widget _buildScaleOptionTile({
