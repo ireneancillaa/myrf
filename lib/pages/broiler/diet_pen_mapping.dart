@@ -725,17 +725,12 @@ class _DietInputField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final field = TextFormField(
-      key: ValueKey('$label|$value|$maxLines'),
+      key: ValueKey('$label|$maxLines'),
       initialValue: value,
       maxLines: maxLines,
       textInputAction: maxLines == 1
           ? TextInputAction.done
           : TextInputAction.newline,
-      onFieldSubmitted: (_) {
-        if (maxLines == 1) {
-          FocusScope.of(context).unfocus();
-        }
-      },
       onChanged: onChanged,
       style: const TextStyle(fontSize: DietPenMappingSection._fieldTextSize),
       decoration: InputDecoration(

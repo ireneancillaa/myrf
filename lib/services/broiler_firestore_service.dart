@@ -93,6 +93,7 @@ class BroilerFirestoreService {
     required List<List<double>> sampleGroups,
     required List<List<bool>> sampleGroupBluetoothFlags,
     required List<Map<String, dynamic>> docDistributions,
+    required List<String> attachmentUrls,
     required bool sampleInputBluetooth,
     required bool distributionBluetooth,
     required String boxHeaviest,
@@ -171,6 +172,10 @@ class BroilerFirestoreService {
                   (distributionBluetooth ? 'yes' : 'no')),
             },
           )
+          .toList(),
+      'attachment_urls': attachmentUrls
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
           .toList(),
       'status': status,
       'status_updated_at': FieldValue.serverTimestamp(),

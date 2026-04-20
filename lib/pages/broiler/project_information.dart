@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 
 import '../../controller/broiler_controller.dart';
 
-// TODO: kalau ada nama yg sama dgn status drafted maka akan muncul pop up, kalau statusnya in progress maka bisa sama projectnya
 class BroilerProjectInformationSection extends StatelessWidget {
   const BroilerProjectInformationSection({
     super.key,
@@ -51,6 +50,22 @@ class BroilerProjectInformationSection extends StatelessWidget {
               hint: 'Project Name / Chick Cycle',
               icon: Icons.autorenew_rounded,
               isMandatory: true,
+              customValidator: (value) {
+                final name = (value ?? '').trim();
+                if (name.isEmpty) return null;
+
+                final currentProjectId = controller.selectedProjectId.value
+                    ?.trim();
+                final hasDuplicate = controller.hasDuplicateDraftedProjectName(
+                  projectName: name,
+                  excludeProjectId: currentProjectId,
+                );
+
+                if (hasDuplicate) {
+                  return 'Project name already used by another Drafted project';
+                }
+                return null;
+              },
               minLines: 1,
               maxLines: 2,
             ),
@@ -341,6 +356,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     bool isMandatory = false,
+    String? Function(String?)? customValidator,
     int minLines = 1,
     int maxLines = 1,
   }) {
@@ -368,14 +384,12 @@ class BroilerProjectInformationSection extends StatelessWidget {
             minLines: minLines,
             maxLines: maxLines,
             style: const TextStyle(fontSize: _fieldTextSize),
-            validator: isMandatory
-                ? (value) {
-                    if ((value ?? '').trim().isEmpty) {
-                      return '$label is required';
-                    }
-                    return null;
-                  }
-                : null,
+            validator: (value) {
+              if (isMandatory && (value ?? '').trim().isEmpty) {
+                return '$label is required';
+              }
+              return customValidator?.call(value);
+            },
             decoration: _fieldDecoration(
               hint: hint,
               icon: icon,

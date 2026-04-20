@@ -13,6 +13,7 @@ class SampleDocController extends GetxController {
     <bool>[],
   ].obs;
   final docDistributions = <Map<String, dynamic>>[].obs;
+  final attachmentUrls = <String>[].obs;
   final sampleInputBluetooth = false.obs;
   final distributionBluetooth = false.obs;
   final totalPens = 10.obs;
@@ -70,6 +71,13 @@ class SampleDocController extends GetxController {
     _notifyChanges();
   }
 
+  void setAttachmentUrls(List<String> urls) {
+    attachmentUrls.assignAll(
+      urls.map((item) => item.trim()).where((item) => item.isNotEmpty).toList(),
+    );
+    _notifyChanges();
+  }
+
   void setSampleInputBluetooth(bool value) {
     sampleInputBluetooth.value = value;
     _notifyChanges();
@@ -88,6 +96,7 @@ class SampleDocController extends GetxController {
     sampleGroups.assignAll([<double>[], <double>[], <double>[]]);
     sampleGroupBluetoothFlags.assignAll([<bool>[], <bool>[], <bool>[]]);
     docDistributions.clear();
+    attachmentUrls.clear();
     sampleInputBluetooth.value = false;
     distributionBluetooth.value = false;
     _notifyChanges();

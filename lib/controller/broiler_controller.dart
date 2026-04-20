@@ -39,6 +39,7 @@ class BroilerController extends GetxController {
   final projectSampleGroups = <String, List<List<double>>>{}.obs;
   final projectSampleGroupBluetoothFlags = <String, List<List<bool>>>{}.obs;
   final projectDocDistributions = <String, List<Map<String, dynamic>>>{}.obs;
+  final projectAttachmentUrls = <String, List<String>>{}.obs;
   final projectBluetoothInputs = <String, bool>{}.obs;
   final projectSampleBluetoothInputs = <String, bool>{}.obs;
   final projectDistributionBluetoothInputs = <String, bool>{}.obs;
@@ -124,6 +125,32 @@ class BroilerController extends GetxController {
 
   BroilerWorkflowStatus statusFor(String projectId) {
     return projectStatuses[projectId] ?? BroilerWorkflowStatus.drafted;
+  }
+
+  bool hasDuplicateDraftedProjectName({
+    required String projectName,
+    String? excludeProjectId,
+  }) {
+    final normalizedName = projectName.trim().toLowerCase();
+    if (normalizedName.isEmpty) return false;
+
+    final normalizedExcludeId = excludeProjectId?.trim() ?? '';
+    for (final project in projects) {
+      if (normalizedExcludeId.isNotEmpty &&
+          project.projectId == normalizedExcludeId) {
+        continue;
+      }
+
+      final isDrafted =
+          statusFor(project.projectId) == BroilerWorkflowStatus.drafted;
+      if (!isDrafted) continue;
+
+      if (project.projectName.trim().toLowerCase() == normalizedName) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   void addStatusChangeListener(VoidCallback callback) {
@@ -234,6 +261,9 @@ class BroilerController extends GetxController {
           projectDocDistributions[data.projectId] ??
               const <Map<String, dynamic>>[],
         ),
+        attachmentUrls: List<String>.from(
+          projectAttachmentUrls[data.projectId] ?? const <String>[],
+        ),
         sampleInputBluetooth:
             projectSampleBluetoothInputs[data.projectId] ?? false,
         distributionBluetooth:
@@ -281,6 +311,8 @@ class BroilerController extends GetxController {
         projectDocDistributions[savedProjectId] =
             projectDocDistributions.remove(projectId) ??
             const <Map<String, dynamic>>[];
+        projectAttachmentUrls[savedProjectId] =
+            projectAttachmentUrls.remove(projectId) ?? const <String>[];
         projectBoxValues[savedProjectId] =
             projectBoxValues.remove(projectId) ??
             const <String, String>{
@@ -419,6 +451,14 @@ class BroilerController extends GetxController {
         .toList();
   }
 
+  List<String> _parseAttachmentUrls(dynamic raw) {
+    if (raw is! List) return const <String>[];
+    return raw
+        .map((item) => item?.toString().trim() ?? '')
+        .where((item) => item.isNotEmpty)
+        .toList();
+  }
+
   Future<void> hydrateStepperDataFromFirestore(String projectId) async {
     try {
       final record = await _firestoreService.getProjectRecord(
@@ -435,6 +475,7 @@ class BroilerController extends GetxController {
       final docDistributions = _parseDocDistributions(
         record['doc_distributions'],
       );
+      final attachmentUrls = _parseAttachmentUrls(record['attachment_urls']);
       final dietPens = _parseDietPens(record['diet_pen_selections']);
       final dietInputs = _parseDietInputs(record['diet_input_values']);
 
@@ -442,6 +483,7 @@ class BroilerController extends GetxController {
       projectSampleGroups[projectId] = sampleGroups;
       projectSampleGroupBluetoothFlags[projectId] = sampleGroupBluetoothFlags;
       projectDocDistributions[projectId] = docDistributions;
+      projectAttachmentUrls[projectId] = attachmentUrls;
       projectBoxValues[projectId] = {
         'heaviest': (record['box_heaviest'] ?? '').toString(),
         'average': (record['box_average'] ?? '').toString(),
@@ -511,6 +553,7 @@ class BroilerController extends GetxController {
     required List<List<double>> sampleGroups,
     required List<List<bool>> sampleBluetoothFlags,
     required List<Map<String, dynamic>> docDistributions,
+    required List<String> attachmentUrls,
     required bool sampleInputBluetooth,
     required bool distributionBluetooth,
     required String boxHeaviest,
@@ -535,6 +578,10 @@ class BroilerController extends GetxController {
     projectDocDistributions[projectId] = List<Map<String, dynamic>>.from(
       docDistributions,
     );
+    projectAttachmentUrls[projectId] = attachmentUrls
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
     projectSampleBluetoothInputs[projectId] = sampleInputBluetooth;
     projectDistributionBluetoothInputs[projectId] = distributionBluetooth;
     projectBluetoothInputs[projectId] =
@@ -626,6 +673,21 @@ class BroilerController extends GetxController {
         ? selectedId
         : _createLocalProjectId();
 
+    if (hasDuplicateDraftedProjectName(
+      projectName: projectName,
+      excludeProjectId: currentProjectId,
+    )) {
+      Get.defaultDialog(
+        title: 'Duplicate Project Name',
+        middleText:
+            'Project name already exists in Drafted status. Use a different name.',
+        textConfirm: 'OK',
+        confirmTextColor: Colors.white,
+        buttonColor: const Color(0xFF22C55E),
+      );
+      return false;
+    }
+
     final data = BroilerProjectData(
       projectId: currentProjectId,
       projectName: projectName,
@@ -686,6 +748,7 @@ class BroilerController extends GetxController {
     projectSampleWeights.remove(projectId);
     projectSampleGroups.remove(projectId);
     projectDocDistributions.remove(projectId);
+    projectAttachmentUrls.remove(projectId);
     projectBoxValues.remove(projectId);
     projectDietPenSelections.remove(projectId);
     projectDietInputValues.remove(projectId);

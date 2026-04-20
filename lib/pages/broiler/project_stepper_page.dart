@@ -109,6 +109,11 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
       sampleDocController.setDocDistributions(savedDistributions);
     }
 
+    final savedAttachmentUrls = controller.projectAttachmentUrls[_projectId!];
+    if (savedAttachmentUrls != null) {
+      sampleDocController.setAttachmentUrls(savedAttachmentUrls);
+    }
+
     final savedBluetoothInput = controller.projectBluetoothInputs[_projectId!];
     if (savedBluetoothInput != null) {
       sampleDocController.setSampleInputBluetooth(savedBluetoothInput);
@@ -485,6 +490,14 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
               setState(() {});
             }
           },
+          initialAttachmentUrls: sampleDocController.attachmentUrls,
+          projectId: _projectId,
+          onAttachmentUrlsChanged: (urls) {
+            sampleDocController.setAttachmentUrls(urls);
+            if (mounted) {
+              setState(() {});
+            }
+          },
           sampleInputBluetooth: sampleDocController.sampleInputBluetooth.value,
           onSampleInputBluetoothChanged: (value) {
             sampleDocController.setSampleInputBluetooth(value);
@@ -585,6 +598,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
       sampleGroups: sampleDocController.sampleGroups,
       sampleBluetoothFlags: sampleDocController.sampleGroupBluetoothFlags,
       docDistributions: sampleDocController.docDistributions,
+      attachmentUrls: sampleDocController.attachmentUrls,
       sampleInputBluetooth: sampleDocController.sampleInputBluetooth.value,
       distributionBluetooth: sampleDocController.distributionBluetooth.value,
       boxHeaviest: sampleDocController.boxHeaviestController.text,
