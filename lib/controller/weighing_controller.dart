@@ -1,7 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'broiler_controller.dart';
+import '../services/monitoring_firestore_service.dart';
 
 class WeighingRecord {
+  final String id;
   final String dateStr;
   final String age;
   final String feed;
@@ -13,6 +19,7 @@ class WeighingRecord {
   final DateTime recordedAt;
 
   WeighingRecord({
+    this.id = '',
     required this.dateStr,
     required this.age,
     required this.feed,
@@ -23,12 +30,43 @@ class WeighingRecord {
     this.weightPens,
     required this.recordedAt,
   });
+
+  factory WeighingRecord.fromJson(Map<String, dynamic> json) {
+    return WeighingRecord(
+      id: json['id'] ?? '',
+      dateStr: json['dateStr'] ?? '',
+      age: json['age'] ?? '-',
+      feed: json['feed'] ?? '-',
+      feedPens: (json['feedPens'] as List?)?.map((e) => e.toString()).toList(),
+      birds: json['birds'] ?? '-',
+      birdsPens: (json['birdsPens'] as List?)?.map((e) => e.toString()).toList(),
+      weight: json['weight'] ?? '-',
+      weightPens: (json['weightPens'] as List?)?.map((e) => e.toString()).toList(),
+      recordedAt: (json['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'dateStr': dateStr,
+      'age': age,
+      'feed': feed,
+      'feedPens': feedPens,
+      'birds': birds,
+      'birdsPens': birdsPens,
+      'weight': weight,
+      'weightPens': weightPens,
+    };
+  }
 }
 
 class WeighingController extends GetxController {
   final weighingHistory = <WeighingRecord>[].obs;
 
-  // New Form Entry Controllers
+  late final BroilerController _broilerController;
+  late final MonitoringFirestoreService _monitoringService;
+  StreamSubscription? _historySub;
+
   final dateController = TextEditingController();
   final ageController = TextEditingController();
 
@@ -47,6 +85,39 @@ class WeighingController extends GetxController {
   final birdsWeightValue = RxnString();
   final birdsWeightPens = RxList<String>();
 
+  @override
+  void onInit() {
+    super.onInit();
+    _broilerController = Get.isRegistered<BroilerController>()
+        ? Get.find<BroilerController>()
+        : Get.put(BroilerController(), permanent: true);
+
+    _monitoringService = Get.isRegistered<MonitoringFirestoreService>()
+        ? Get.find<MonitoringFirestoreService>()
+        : Get.put(MonitoringFirestoreService(), permanent: true);
+
+    ever(_broilerController.selectedProjectId, (String? projectId) {
+      _listenToHistory(projectId);
+    });
+    _listenToHistory(_broilerController.selectedProjectId.value);
+  }
+
+  void _listenToHistory(String? projectId) {
+    _historySub?.cancel();
+    if (projectId == null || projectId.trim().isEmpty) {
+      weighingHistory.clear();
+      return;
+    }
+
+    _historySub = _monitoringService
+        .watchRecords(projectId: projectId, moduleName: 'weighing')
+        .listen((records) {
+      weighingHistory.assignAll(
+        records.map((r) => WeighingRecord.fromJson(r)).toList(),
+      );
+    });
+  }
+
   void initNewWeighing() {
     dateController.clear();
     ageController.clear();
@@ -64,31 +135,35 @@ class WeighingController extends GetxController {
     birdsWeightPens.clear();
   }
 
-  void saveCurrentWeighing() {
-    weighingHistory.insert(
-      0,
-      WeighingRecord(
-        dateStr: dateController.text,
-        age: ageController.text.isNotEmpty ? ageController.text : '-',
-        feed: feedAndBagValue.value ?? '-',
-        feedPens: feedAndBagPens.isNotEmpty
-            ? List<String>.from(feedAndBagPens)
-            : null,
-        birds: lastBirdsValue.value ?? '-',
-        birdsPens: lastBirdsPens.isNotEmpty
-            ? List<String>.from(lastBirdsPens)
-            : null,
-        weight: birdsWeightValue.value ?? '-',
-        weightPens: birdsWeightPens.isNotEmpty
-            ? List<String>.from(birdsWeightPens)
-            : null,
-        recordedAt: DateTime.now(),
-      ),
+  Future<void> saveCurrentWeighing() async {
+    final projectId = _broilerController.selectedProjectId.value;
+    if (projectId == null || projectId.trim().isEmpty) {
+      Get.snackbar('Error', 'No active project selected.');
+      return;
+    }
+
+    final record = WeighingRecord(
+      dateStr: dateController.text,
+      age: ageController.text.isNotEmpty ? ageController.text : '-',
+      feed: feedAndBagValue.value ?? '-',
+      feedPens: feedAndBagPens.isNotEmpty ? List<String>.from(feedAndBagPens) : null,
+      birds: lastBirdsValue.value ?? '-',
+      birdsPens: lastBirdsPens.isNotEmpty ? List<String>.from(lastBirdsPens) : null,
+      weight: birdsWeightValue.value ?? '-',
+      weightPens: birdsWeightPens.isNotEmpty ? List<String>.from(birdsWeightPens) : null,
+      recordedAt: DateTime.now(),
+    );
+
+    await _monitoringService.addRecord(
+      projectId: projectId,
+      moduleName: 'weighing',
+      data: record.toJson(),
     );
   }
 
   @override
   void onClose() {
+    _historySub?.cancel();
     dateController.dispose();
     ageController.dispose();
     box1Controller.dispose();

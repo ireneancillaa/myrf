@@ -431,6 +431,16 @@ class _InfeedInputPageState extends State<InfeedInputPage> {
       }
     }
 
+    if (values.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please input at least one value'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).pop({
       'date': widget.initialDate,
       'values': values,

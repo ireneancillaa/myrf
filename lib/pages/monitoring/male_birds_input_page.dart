@@ -431,6 +431,16 @@ class _MaleBirdsInputPageState extends State<MaleBirdsInputPage> {
       }
     }
 
+    if (values.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please inputs at least one value'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).pop({
       'date': widget.initialDate,
       'values': values,

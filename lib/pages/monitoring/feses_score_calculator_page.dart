@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class FesesScoreCalculatorPage extends StatefulWidget {
   const FesesScoreCalculatorPage({
@@ -124,6 +127,160 @@ class _FesesScoreCalculatorPageState extends State<FesesScoreCalculatorPage> {
       return parsed.toInt().toString();
     }
     return parsed.toStringAsFixed(3);
+  }
+
+  Future<void> _showScaleSelectionModal() async {
+    final blockedMessage = await _bluetoothBlockedMessage();
+    if (blockedMessage != null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(blockedMessage)));
+      return;
+    }
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE5E7EB),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Select Scale Type',
+                    style: TextStyle(
+                      color: Color(0xFF111827),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _buildScaleOptionTile(
+                    label: 'Hanging Scale',
+                    icon: Icons.scale,
+                    onTap: () => Navigator.of(sheetContext).pop('hanging'),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildScaleOptionTile(
+                    label: 'Bench Scale',
+                    icon: Icons.monitor_weight_outlined,
+                    onTap: () => Navigator.of(sheetContext).pop('bench'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected == null || !mounted) return;
+
+    final message = selected == 'hanging'
+        ? 'Hanging Scale selected'
+        : 'Bench Scale selected';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<String?> _bluetoothBlockedMessage() async {
+    try {
+      if (Platform.isAndroid) {
+        final permissionStatuses = await <Permission>[
+          Permission.bluetoothConnect,
+          Permission.bluetoothScan,
+        ].request();
+        final hasDeniedPermission = permissionStatuses.values.any(
+          (status) =>
+              status.isDenied ||
+              status.isPermanentlyDenied ||
+              status.isRestricted,
+        );
+        if (hasDeniedPermission) {
+          return 'Bluetooth permission has not been granted. Please allow Bluetooth access.';
+        }
+      }
+
+      final state = await FlutterBluePlus.adapterState
+          .where((item) => item != BluetoothAdapterState.unknown)
+          .first;
+      if (state != BluetoothAdapterState.on) {
+        return 'Bluetooth is still off. Please turn on Bluetooth first.';
+      }
+
+      return null;
+    } catch (_) {
+      return 'Bluetooth status could not be read. Please try again shortly.';
+    }
+  }
+
+  Widget _buildScaleOptionTile({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: const Color(0xFFF9FAFB),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE8F5EE),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: const Color(0xFF22C55E), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF1F2937),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0xFF9CA3AF)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _save() {
@@ -351,6 +508,13 @@ class _FesesScoreCalculatorPageState extends State<FesesScoreCalculatorPage> {
         elevation: 0,
         centerTitle: false,
         iconTheme: const IconThemeData(color: Color(0xFF111827)),
+        actions: [
+          IconButton(
+            onPressed: _showScaleSelectionModal,
+            icon: const Icon(Icons.bluetooth, color: Color(0xFF111827)),
+            tooltip: 'Bluetooth',
+          ),
+        ],
         shape: const Border(
           bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
         ),

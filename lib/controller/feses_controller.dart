@@ -1,0 +1,113 @@
+import 'dart:async';
+import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'broiler_controller.dart';
+import '../services/monitoring_firestore_service.dart';
+
+class FesesScoreEntry {
+  final String id;
+  final String date;
+  final String penNumber;
+  final double fesesKg;
+  final double cawanKg;
+  final double ovenKg;
+  final double totalKg;
+  final DateTime recordedAt;
+
+  FesesScoreEntry({
+    this.id = '',
+    required this.date,
+    required this.penNumber,
+    required this.fesesKg,
+    required this.cawanKg,
+    required this.ovenKg,
+    required this.totalKg,
+    required this.recordedAt,
+  });
+
+  factory FesesScoreEntry.fromJson(Map<String, dynamic> json) {
+    return FesesScoreEntry(
+      id: json['id'] ?? '',
+      date: json['date'] ?? '',
+      penNumber: json['penNumber'] ?? '',
+      fesesKg: (json['fesesKg'] as num?)?.toDouble() ?? 0,
+      cawanKg: (json['cawanKg'] as num?)?.toDouble() ?? 0,
+      ovenKg: (json['ovenKg'] as num?)?.toDouble() ?? 0,
+      totalKg: (json['totalKg'] as num?)?.toDouble() ?? 0,
+      recordedAt: (json['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'date': date,
+      'penNumber': penNumber,
+      'fesesKg': fesesKg,
+      'cawanKg': cawanKg,
+      'ovenKg': ovenKg,
+      'totalKg': totalKg,
+    };
+  }
+}
+
+class FesesController extends GetxController {
+  final entries = <FesesScoreEntry>[].obs;
+
+  late final BroilerController _broilerController;
+  late final MonitoringFirestoreService _monitoringService;
+  StreamSubscription? _historySub;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _broilerController = Get.isRegistered<BroilerController>()
+        ? Get.find<BroilerController>()
+        : Get.put(BroilerController(), permanent: true);
+
+    _monitoringService = Get.isRegistered<MonitoringFirestoreService>()
+        ? Get.find<MonitoringFirestoreService>()
+        : Get.put(MonitoringFirestoreService(), permanent: true);
+
+    ever(_broilerController.selectedProjectId, (String? projectId) {
+      _listenToHistory(projectId);
+    });
+    _listenToHistory(_broilerController.selectedProjectId.value);
+  }
+
+  void _listenToHistory(String? projectId) {
+    _historySub?.cancel();
+    if (projectId == null || projectId.trim().isEmpty) {
+      entries.clear();
+      return;
+    }
+
+    _historySub = _monitoringService
+        .watchRecords(projectId: projectId, moduleName: 'feses')
+        .listen((records) {
+      entries.assignAll(
+        records.map((r) => FesesScoreEntry.fromJson(r)).toList(),
+      );
+    });
+  }
+
+  Future<void> addFesesScore(FesesScoreEntry entry) async {
+    final projectId = _broilerController.selectedProjectId.value;
+    if (projectId == null || projectId.trim().isEmpty) {
+      Get.snackbar('Error', 'No active project selected.');
+      return;
+    }
+
+    await _monitoringService.addRecord(
+      projectId: projectId,
+      moduleName: 'feses',
+      data: entry.toJson(),
+    );
+  }
+
+  @override
+  void onClose() {
+    _historySub?.cancel();
+    super.onClose();
+  }
+}

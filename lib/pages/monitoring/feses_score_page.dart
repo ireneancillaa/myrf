@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../controller/broiler_controller.dart';
 import '../../models/broiler_project_data.dart';
+import '../../controller/feses_controller.dart';
 import 'feses_score_input_page.dart';
 
 class FesesScorePage extends StatefulWidget {
@@ -15,24 +16,28 @@ class FesesScorePage extends StatefulWidget {
 class _FesesScorePageState extends State<FesesScorePage> {
   static const Color _primaryGreen = Color(0xFF22C55E);
 
-  late final BroilerController _controller;
-  final List<FesesScoreEntry> _entries = [];
+  late final BroilerController _broilerController;
+  late final FesesController _fesesController;
 
   @override
   void initState() {
     super.initState();
-    _controller = Get.isRegistered<BroilerController>()
+    _broilerController = Get.isRegistered<BroilerController>()
         ? Get.find<BroilerController>()
         : Get.put(BroilerController(), permanent: true);
+        
+    _fesesController = Get.isRegistered<FesesController>()
+        ? Get.find<FesesController>()
+        : Get.put(FesesController(), permanent: true);
   }
 
   BroilerProjectData? _currentProject() {
-    final selectedName = _controller.selectedProjectName.value;
+    final selectedName = _broilerController.selectedProjectName.value;
     if (selectedName == null || selectedName.trim().isEmpty) {
       return null;
     }
 
-    for (final project in _controller.projects) {
+    for (final project in _broilerController.projects) {
       if (project.projectName == selectedName) {
         return project;
       }
@@ -46,10 +51,7 @@ class _FesesScorePageState extends State<FesesScorePage> {
     );
 
     if (result == null) return;
-
-    setState(() {
-      _entries.insert(0, result);
-    });
+    _fesesController.addFesesScore(result);
   }
 
   @override
@@ -82,17 +84,20 @@ class _FesesScorePageState extends State<FesesScorePage> {
         }
 
         return SafeArea(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
-            itemCount: _entries.length,
-            itemBuilder: (context, index) {
-              final item = _entries[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: _FesesScoreCard(entry: item),
-              );
-            },
-          ),
+          child: Obx(() {
+            final entries = _fesesController.entries;
+            return ListView.builder(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
+              itemCount: entries.length,
+              itemBuilder: (context, index) {
+                final item = entries[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _FesesScoreCard(entry: item),
+                );
+              },
+            );
+          }),
         );
       }),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -139,11 +144,11 @@ class _FesesScoreCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFDADDE2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,14 +160,14 @@ class _FesesScoreCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: const BoxDecoration(
-                  color: Color(0xFFD4DED4),
+                  color: Color(0xFFE8F5EE),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: Image.asset(
                     'assets/remarks.png',
-                    width: 28,
-                    height: 28,
+                    width: 32,
+                    height: 32,
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -175,26 +180,25 @@ class _FesesScoreCard extends StatelessWidget {
                     Text(
                       entry.penNumber,
                       style: const TextStyle(
-                        color: Color(0xFF03A120),
-                        fontSize: 22,
+                        color: Color(0xFF22C55E),
+                        fontSize: 17,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Row(
                       children: [
                         const Icon(
-                          Icons.schedule,
-                          size: 16,
-                          color: Color(0xFF3E3E3E),
+                          Icons.access_time,
+                          size: 14,
+                          color: Color(0xFF6B7280),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
                         Text(
                           entry.date,
                           style: const TextStyle(
-                            color: Color(0xFF3E3E3E),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF4B5563),
+                            fontSize: 13,
                           ),
                         ),
                       ],

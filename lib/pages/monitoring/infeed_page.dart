@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../controller/broiler_controller.dart';
+import '../../controller/infeed_controller.dart';
 import '../../models/broiler_project_data.dart';
 import 'infeed_input_page.dart';
 
@@ -17,10 +18,7 @@ class _InfeedPageState extends State<InfeedPage> {
   static const double _cardMinHeight = 70;
 
   late final BroilerController _controller;
-
-  final _dateControllers = List.generate(9, (_) => TextEditingController());
-  final _penValuesByStage = List<List<double>>.generate(9, (_) => <double>[]);
-  final _stageUpdatedAt = List<DateTime?>.filled(9, null);
+  late final InfeedController _infeedController;
 
   @override
   void initState() {
@@ -28,13 +26,14 @@ class _InfeedPageState extends State<InfeedPage> {
     _controller = Get.isRegistered<BroilerController>()
         ? Get.find<BroilerController>()
         : Get.put(BroilerController(), permanent: true);
+        
+    _infeedController = Get.isRegistered<InfeedController>()
+        ? Get.find<InfeedController>()
+        : Get.put(InfeedController(), permanent: true);
   }
 
   @override
   void dispose() {
-    for (final controller in _dateControllers) {
-      controller.dispose();
-    }
     super.dispose();
   }
 
@@ -104,11 +103,11 @@ class _InfeedPageState extends State<InfeedPage> {
   }
 
   bool _stageHasData(int stageIndex) {
-    return _penValuesByStage[stageIndex].isNotEmpty;
+    return _infeedController.penValuesByStage[stageIndex].isNotEmpty;
   }
 
   String _formatPenTotal(int stageIndex) {
-    final values = _penValuesByStage[stageIndex];
+    final values = _infeedController.penValuesByStage[stageIndex];
     if (values.isEmpty) return '-';
 
     final total = values.fold<double>(0, (sum, value) => sum + value);
@@ -147,8 +146,8 @@ class _InfeedPageState extends State<InfeedPage> {
           stageTitle: _stageTitle(stageIndex),
           stageGroup: _stageGroup(stageIndex),
           stageRange: _stageRange(stageIndex),
-          initialDate: _dateControllers[stageIndex].text,
-          initialValues: _penValuesByStage[stageIndex],
+          initialDate: _infeedController.dateControllers[stageIndex].text,
+          initialValues: _infeedController.penValuesByStage[stageIndex],
         ),
       ),
     );
@@ -159,15 +158,11 @@ class _InfeedPageState extends State<InfeedPage> {
         .map((value) => (value as num).toDouble())
         .toList();
 
-    setState(() {
-      _dateControllers[stageIndex].text = (result['date'] ?? '').toString();
-      _penValuesByStage[stageIndex]
-        ..clear()
-        ..addAll(values);
-      if (_penValuesByStage[stageIndex].isNotEmpty) {
-        _stageUpdatedAt[stageIndex] = DateTime.now();
-      }
-    });
+    _infeedController.saveStage(
+      stageIndex,
+      (result['date'] ?? '').toString(),
+      values,
+    );
   }
 
   @override
@@ -232,7 +227,7 @@ class _InfeedPageState extends State<InfeedPage> {
   Widget _buildStageCard(int stageIndex) {
     final hasData = _stageHasData(stageIndex);
     final titleColor = hasData ? _primaryGreen : const Color(0xFF6F6F6F);
-    final updatedAt = _stageUpdatedAt[stageIndex];
+    final updatedAt = _infeedController.stageUpdatedAt[stageIndex];
     final updatedAtText = updatedAt == null ? '-' : _formatTimestamp(updatedAt);
     final badgeValue = _formatPenTotal(stageIndex);
 

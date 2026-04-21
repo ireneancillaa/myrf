@@ -1,24 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:myrf/pages/monitoring/feses_score_calculator_page.dart';
 
-import 'feses_score_calculator_page.dart';
-
-class FesesScoreEntry {
-  const FesesScoreEntry({
-    required this.date,
-    required this.penNumber,
-    required this.fesesKg,
-    required this.cawanKg,
-    required this.ovenKg,
-    required this.totalKg,
-  });
-
-  final String date;
-  final String penNumber;
-  final double fesesKg;
-  final double cawanKg;
-  final double ovenKg;
-  final double totalKg;
-}
+import '../../controller/feses_controller.dart';
 
 class FesesScoreInputPage extends StatefulWidget {
   const FesesScoreInputPage({super.key});
@@ -34,6 +17,7 @@ class _FesesScoreInputPageState extends State<FesesScoreInputPage> {
 
   final List<TextEditingController> _controllers = [];
   final TextEditingController _codeController = TextEditingController();
+  String? _codeError;
   final List<String> _labels = const ['Feses', 'Cawan', 'Oven'];
   final List<List<double>> _fieldPenValues = [[], [], []];
   final List<DateTime?> _fieldUpdatedAt = List<DateTime?>.filled(3, null);
@@ -141,7 +125,26 @@ class _FesesScoreInputPageState extends State<FesesScoreInputPage> {
   void _submit() {
     final code = _codeController.text.trim();
     if (code.isEmpty) {
-      _showMessage('Please select kode cawan');
+      setState(() {
+        _codeError = 'Please select kode cawan';
+      });
+      return;
+    } else {
+      setState(() {
+        _codeError = null;
+      });
+    }
+    
+    if (_controllers[0].text.trim().isEmpty) {
+      _showMessage('Please input Feses value');
+      return;
+    }
+    if (_controllers[1].text.trim().isEmpty) {
+      _showMessage('Please input Cawan value');
+      return;
+    }
+    if (_controllers[2].text.trim().isEmpty) {
+      _showMessage('Please input Oven value');
       return;
     }
 
@@ -158,6 +161,7 @@ class _FesesScoreInputPageState extends State<FesesScoreInputPage> {
         cawanKg: cawanKg,
         ovenKg: ovenKg,
         totalKg: totalKg,
+        recordedAt: DateTime.now(),
       ),
     );
   }
@@ -234,57 +238,85 @@ class _FesesScoreInputPageState extends State<FesesScoreInputPage> {
   }
 
   Widget _buildHeaderField() {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 2), // Spacing for underline
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFF22C55E), width: 1.0)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Enlarged and vertically centered Icon Box
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Image.asset(
-              'assets/remarks.png',
-              width: 32,
-              height: 32,
-              fit: BoxFit.contain,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.only(bottom: 2), // Spacing for underline
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: _codeError != null ? const Color(0xFFEF4444) : const Color(0xFF22C55E), 
+                width: 1.0,
+              ),
             ),
           ),
-          // Label and textfield side-by-side with icon
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Kode Cawan',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF858991)),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Enlarged and vertically centered Icon Box
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Image.asset(
+                  'assets/remarks.png',
+                  width: 32,
+                  height: 32,
+                  fit: BoxFit.contain,
                 ),
-                TextField(
-                  controller: _codeController,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF111111),
-                  ),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(vertical: 6),
-                    border: InputBorder.none,
-                    hintText: 'Kode Cawan',
-                    hintStyle: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF9CA3AF),
+              ),
+              // Label and textfield side-by-side with icon
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Kode Cawan',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF858991)),
                     ),
-                  ),
+                    TextField(
+                      controller: _codeController,
+                      onChanged: (val) {
+                        if (_codeError != null && val.trim().isNotEmpty) {
+                          setState(() {
+                            _codeError = null;
+                          });
+                        }
+                      },
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF111111),
+                      ),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(vertical: 6),
+                        border: InputBorder.none,
+                        hintText: 'Kode Cawan',
+                        hintStyle: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+            ],
+          ),
+        ),
+        if (_codeError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 44),
+            child: Text(
+              _codeError!,
+              style: const TextStyle(
+                color: Color(0xFFEF4444),
+                fontSize: 12,
+              ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 

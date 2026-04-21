@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../controller/broiler_controller.dart';
 import '../../models/broiler_project_data.dart';
+import '../../controller/male_birds_controller.dart';
 import 'male_birds_input_page.dart';
 
 class MaleBirdsPage extends StatefulWidget {
@@ -15,24 +17,28 @@ class MaleBirdsPage extends StatefulWidget {
 class _MaleBirdsPageState extends State<MaleBirdsPage> {
   static const Color _primaryGreen = Color(0xFF22C55E);
 
-  late final BroilerController _controller;
-  final List<MaleBirdsEntry> _entries = [];
+  late final BroilerController _broilerController;
+  late final MaleBirdsController _maleBirdsController;
 
   @override
   void initState() {
     super.initState();
-    _controller = Get.isRegistered<BroilerController>()
+    _broilerController = Get.isRegistered<BroilerController>()
         ? Get.find<BroilerController>()
         : Get.put(BroilerController(), permanent: true);
+        
+    _maleBirdsController = Get.isRegistered<MaleBirdsController>()
+        ? Get.find<MaleBirdsController>()
+        : Get.put(MaleBirdsController(), permanent: true);
   }
 
   BroilerProjectData? _currentProject() {
-    final selectedName = _controller.selectedProjectName.value;
+    final selectedName = _broilerController.selectedProjectName.value;
     if (selectedName == null || selectedName.trim().isEmpty) {
       return null;
     }
 
-    for (final project in _controller.projects) {
+    for (final project in _broilerController.projects) {
       if (project.projectName == selectedName) {
         return project;
       }
@@ -48,9 +54,9 @@ class _MaleBirdsPageState extends State<MaleBirdsPage> {
       ),
     );
     if (result == null) return;
-    // Ambil data dari result
     final date = result['date'] as String? ?? nowIso;
     final values = result['values'] as List<double>? ?? [];
+    final age = result['age']?.toString() ?? '-'; 
     String formatNum(double? val) {
       if (val == null) return '-';
       if (val % 1 == 0) {
@@ -61,19 +67,35 @@ class _MaleBirdsPageState extends State<MaleBirdsPage> {
     }
 
     final male = values.isNotEmpty ? formatNum(values[0]) : '-';
-    final female = values.length > 1 ? formatNum(values[1]) : '-';
-    final age = result['age']?.toString() ?? '-';
-    setState(() {
-      _entries.insert(
-        0,
-        MaleBirdsEntry(date: date, age: age, male: male, female: female),
-      );
-    });
+    
+    int numberOfBirds = 0;
+    final project = _currentProject();
+    if (project != null) {
+      numberOfBirds = int.tryParse(project.numberOfBirds) ?? 0;
+    }
+    
+    int currentTotalMale = 0;
+    for (final e in _maleBirdsController.entries) {
+      currentTotalMale += int.tryParse(e.male) ?? 0;
+    }
+    final newMaleValue = int.tryParse(male) ?? 0;
+    currentTotalMale += newMaleValue;
+    
+    _maleBirdsController.addMaleBirds(
+      MaleBirdsEntry(
+        date: date,
+        age: age,
+        male: male,
+        female: (numberOfBirds - currentTotalMale).toString(),
+        recordedAt: DateTime.now(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Obx(() {
+      return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -97,12 +119,14 @@ class _MaleBirdsPageState extends State<MaleBirdsPage> {
       body: SafeArea(
         child: ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-          itemCount: _entries.length,
+          itemCount: _maleBirdsController.entries.length,
           itemBuilder: (context, index) {
-            final item = _entries[index];
+            final item = _maleBirdsController.entries[index];
             return Padding(
               padding: const EdgeInsets.only(bottom: 14),
-              child: _MaleBirdsCard(entry: item),
+              child: _MaleBirdsCard(
+                entry: item,
+              ),
             );
           },
         ),
@@ -129,6 +153,7 @@ class _MaleBirdsPageState extends State<MaleBirdsPage> {
         ),
       ),
     );
+    });
   }
 }
 
@@ -171,7 +196,7 @@ class _MaleBirdsCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFDADDE2)),
       ),
       child: Column(
@@ -188,7 +213,12 @@ class _MaleBirdsCard extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: Icon(Icons.male, color: Color(0xFF22C55E), size: 32),
+                  child: SvgPicture.asset(
+                    'assets/male.svg',
+                    width: 25,
+                    height: 25,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -231,11 +261,23 @@ class _MaleBirdsCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _ValueColumn(label: 'Age', value: entry.age),
+              _ValueColumn(
+                label: 'Age',
+                value: entry.age,
+                textAlign: TextAlign.left,
+              ),
               _VerticalDivider(),
-              _ValueColumn(label: 'Male', value: entry.male),
+              _ValueColumn(
+                label: 'Male',
+                value: entry.male,
+                textAlign: TextAlign.center,
+              ),
               _VerticalDivider(),
-              _ValueColumn(label: 'Female', value: entry.female),
+              _ValueColumn(
+                label: 'Female',
+                value: entry.female,
+                textAlign: TextAlign.right,
+              ),
             ],
           ),
         ],
@@ -244,23 +286,17 @@ class _MaleBirdsCard extends StatelessWidget {
   }
 }
 
-class MaleBirdsEntry {
-  final String date;
-  final String age;
-  final String male;
-  final String female;
-  MaleBirdsEntry({
-    required this.date,
-    required this.age,
-    required this.male,
-    required this.female,
-  });
-}
 
 class _ValueColumn extends StatelessWidget {
   final String label;
   final String value;
-  const _ValueColumn({required this.label, required this.value});
+  final TextAlign textAlign;
+
+  const _ValueColumn({
+    required this.label,
+    required this.value,
+    this.textAlign = TextAlign.center,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -290,63 +326,5 @@ class _VerticalDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(width: 1, height: 14, color: const Color(0xFFD1D5DB));
-  }
-}
-
-class _MetricText extends StatelessWidget {
-  const _MetricText({
-    required this.label,
-    required this.value,
-    this.textAlign = TextAlign.center,
-  });
-
-  final String label;
-  final String value;
-  final TextAlign textAlign;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(
-        text: '$label ',
-        style: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF7A7A7A),
-          fontWeight: FontWeight.w500,
-        ),
-        children: [
-          TextSpan(
-            text: value,
-            style: const TextStyle(
-              color: Color(0xFF111111),
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-      textAlign: textAlign,
-    );
-  }
-}
-
-class _MetricDivider extends StatelessWidget {
-  const _MetricDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 16,
-      child: Center(
-        child: Text(
-          '|',
-          style: TextStyle(
-            color: Color(0xFF7D7D7D),
-            fontSize: 18,
-            fontWeight: FontWeight.w300,
-          ),
-        ),
-      ),
-    );
   }
 }

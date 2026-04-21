@@ -19,6 +19,12 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
   static const Color _primaryGreen = Color(0xFF22C55E);
   static const Color _textPrimary = Color(0xFF111827);
 
+  String? _dateError;
+  String? _feedAndBagError;
+  String? _lastBirdsError;
+  String? _actualBirdsError;
+  String? _birdsWeightError;
+
   late final WeighingController _weighingController;
 
   @override
@@ -71,15 +77,58 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
     }
   }
 
-  void _submit() {
-    _weighingController.saveCurrentWeighing();
+  bool _isSubmitting = false;
+
+  Future<void> _submit() async {
+    if (_isSubmitting) return;
+
+    setState(() {
+      // Reset semua error sebelum divalidasi ulang
+      _dateError = _weighingController.dateController.text.isEmpty
+          ? 'Please select a date'
+          : null;
+      _feedAndBagError =
+          (_weighingController.feedAndBagValue.value ?? '').isEmpty
+          ? 'Input Feed & Bag required'
+          : null;
+      _lastBirdsError = (_weighingController.lastBirdsValue.value ?? '').isEmpty
+          ? 'Input Last Birds required'
+          : null;
+      _actualBirdsError =
+          (_weighingController.actualBirdsValue.value ?? '').isEmpty
+          ? 'Input Actual Birds required'
+          : null;
+      _birdsWeightError =
+          (_weighingController.birdsWeightValue.value ?? '').isEmpty
+          ? 'Input Birds Weight required'
+          : null;
+    });
+
+    // Jika ada salah satu error yang tidak null, batalkan submit
+    if (_dateError != null ||
+        _feedAndBagError != null ||
+        _lastBirdsError != null ||
+        _actualBirdsError != null ||
+        _birdsWeightError != null) {
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    await _weighingController.saveCurrentWeighing();
     Get.snackbar(
       'Success',
       'Weighing record saved',
       backgroundColor: const Color(0xFF22C55E),
       colorText: Colors.white,
     );
-    Navigator.of(context).pop();
+
+    if (mounted) {
+      setState(() {
+        _isSubmitting = false;
+      });
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> _selectDate() async {
@@ -341,7 +390,7 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
                     _buildChecklistItem(
                       title: 'Last Birds',
                       value: _weighingController.lastBirdsValue.value,
-                      unit: 'g',
+                      unit: '',
                       onTap: () => _onChecklistTap('lastBirds'),
                     ),
                     const SizedBox(height: 12),

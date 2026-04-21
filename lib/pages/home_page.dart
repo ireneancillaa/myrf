@@ -646,43 +646,35 @@ class _HomePageState extends State<HomePage> {
   Widget _buildQuickActionItem(QuickActionItem action) {
     VoidCallback? onTap;
 
+    void navigateWithMessage(Widget page) {
+      final projectId = _broilerController.selectedProjectId.value;
+      if (projectId == null || projectId.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a project first.'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+        return;
+      }
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+    }
+
     switch (action.title) {
       case 'Weighing':
-        onTap = () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => WeighingDoaPage(selectedFarmName: _selectedFarm),
-            ),
-          );
-        };
+        onTap = () => navigateWithMessage(WeighingDoaPage(selectedFarmName: _selectedFarm));
         break;
       case 'Infeed':
-        onTap = () {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const InfeedPage()));
-        };
+        onTap = () => navigateWithMessage(const InfeedPage());
         break;
       case 'Mortality':
-        onTap = () {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const DepletionPage()));
-        };
+        onTap = () => navigateWithMessage(const DepletionPage());
         break;
-        case 'Male Birds':
-        onTap = () {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const MaleBirdsPage()));
-        };
+      case 'Male Birds':
+        onTap = () => navigateWithMessage(const MaleBirdsPage());
         break;
       case 'Feses':
-        onTap = () {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const FesesScorePage()));
-        };
+        onTap = () => navigateWithMessage(const FesesScorePage());
         break;
       default:
         onTap = null;

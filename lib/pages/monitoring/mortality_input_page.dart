@@ -1,26 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:get/get.dart';
+import '../../controller/broiler_controller.dart';
+import '../../controller/mortality_controller.dart';
 
-class DepletionEntry {
-  const DepletionEntry({
-    required this.type,
-    required this.gender,
-    required this.date,
-    required this.age,
-    required this.penNumber,
-    required this.bodyWeight,
-    this.remarks,
-  });
-
-  final String type;
-  final String? gender;
-  final String date;
-  final String age;
-  final String penNumber;
-  final String bodyWeight;
-  final String? remarks;
-}
 
 class MortalityInputPage extends StatefulWidget {
   const MortalityInputPage({super.key});
@@ -49,20 +33,57 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
   String? _selectedType;
   String? _selectedGender;
   String? _penNumberError;
+  String? _typeError;
+  String? _genderError;
+  String? _dateError;
+  String? _bodyWeightError;
+  String? _ageError;
+
+  final BroilerController _broilerController = Get.find<BroilerController>();
 
   @override
   void initState() {
     super.initState();
+    _dateController.addListener(_updateAgeFromDate);
   }
 
   @override
   void dispose() {
+    _dateController.removeListener(_updateAgeFromDate);
     _dateController.dispose();
     _penNumberController.dispose();
     _bodyWeightController.dispose();
     _remarksController.dispose();
     _ageController.dispose();
     super.dispose();
+  }
+
+  void _updateAgeFromDate() {
+    final inputDate = _parseDate(_dateController.text);
+    final docInDateStr = _broilerController.selectedDocInDate.value;
+    if (inputDate == null || docInDateStr == null || docInDateStr.isEmpty) {
+      _ageController.text = '';
+      setState(() {});
+      return;
+    }
+    final docInParts = docInDateStr.split('/');
+    if (docInParts.length != 3) {
+      _ageController.text = '';
+      setState(() {});
+      return;
+    }
+    final docInDay = int.tryParse(docInParts[0]);
+    final docInMonth = int.tryParse(docInParts[1]);
+    final docInYear = int.tryParse(docInParts[2]);
+    if (docInDay == null || docInMonth == null || docInYear == null) {
+      _ageController.text = '';
+      setState(() {});
+      return;
+    }
+    final docInDate = DateTime(docInYear, docInMonth, docInDay);
+    final diff = inputDate.difference(docInDate).inDays + 1;
+    _ageController.text = diff > 0 ? diff.toString() : '';
+    setState(() {});
   }
 
   String? _validatePenNumber(String value) {
@@ -99,6 +120,7 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
     final selectedDate = DateTime(date.year, date.month, date.day);
     setState(() {
       _dateController.text = _formatDate(selectedDate);
+      _dateError = null;
     });
   }
 
@@ -274,6 +296,7 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
     if (picked == null) return;
     setState(() {
       _selectedType = picked;
+      _typeError = null;
     });
   }
 
@@ -287,39 +310,63 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
     if (picked == null) return;
     setState(() {
       _selectedGender = picked;
+      _genderError = null;
     });
   }
 
   void _submit() {
+    bool hasError = false;
+    
     if ((_selectedType ?? '').isEmpty) {
-      _showMessage('Please select depletion type');
-      return;
+      _typeError = 'Please select type';
+      hasError = true;
+    } else {
+      _typeError = null;
     }
+    
     if ((_selectedGender ?? '').isEmpty) {
-      _showMessage('Please select gender');
-      return;
+      _genderError = 'Please select gender';
+      hasError = true;
+    } else {
+      _genderError = null;
     }
+    
     if (_dateController.text.trim().isEmpty) {
-      _showMessage('Please select a date');
-      return;
+      _dateError = 'Please select a date';
+      hasError = true;
+    } else {
+      _dateError = null;
     }
+    
     if (_penNumberController.text.trim().isEmpty) {
-      _showMessage('Please enter pen number');
-      return;
+      _penNumberError = 'Please enter pen number';
+      hasError = true;
+    } else {
+      final pnError = _validatePenNumber(_penNumberController.text);
+      if (pnError != null) {
+        _penNumberError = pnError;
+        hasError = true;
+      } else {
+        _penNumberError = null;
+      }
     }
-    final penNumberError = _validatePenNumber(_penNumberController.text);
-    if (penNumberError != null) {
-      setState(() {
-        _penNumberError = penNumberError;
-      });
-      return;
-    }
+    
     if (_bodyWeightController.text.trim().isEmpty) {
-      _showMessage('Please enter body weight');
-      return;
+      _bodyWeightError = 'Please enter body weight';
+      hasError = true;
+    } else {
+      _bodyWeightError = null;
     }
+    
     if (_ageController.text.trim().isEmpty) {
-      _showMessage('Please enter age');
+      _ageError = 'Please enter age';
+      hasError = true;
+    } else {
+      _ageError = null;
+    }
+
+    if (hasError) {
+      setState(() {});
       return;
     }
 
@@ -332,15 +379,7 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
         penNumber: _penNumberController.text.trim(),
         bodyWeight: _bodyWeightController.text.trim(),
         remarks: _remarksController.text.trim(),
-      ),
-    );
-  }
-
-  void _showMessage(String message, {bool success = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: success ? _primaryGreen : const Color(0xFFEF4444),
+        recordedAt: DateTime.now(),
       ),
     );
   }
@@ -386,6 +425,7 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
                           prefixAssetPath: _depletionIconAsset,
                           onTap: _pickType,
                           useCommonFieldStyle: true,
+                          errorText: _typeError,
                         ),
                         const SizedBox(height: 18),
                         _buildUnderlineSelectField(
@@ -394,9 +434,11 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
                           prefixAssetPath: _genderIconAsset,
                           onTap: _pickGender,
                           useCommonFieldStyle: true,
+                          errorText: _genderError,
                         ),
                         const SizedBox(height: 18),
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               child: _buildUnderlineSelectField(
@@ -406,6 +448,7 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
                                 onTap: _selectDate,
                                 showChevron: false,
                                 useCommonFieldStyle: true,
+                                errorText: _dateError,
                               ),
                             ),
                             const SizedBox(width: 24),
@@ -416,6 +459,8 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
                                 hint: 'Age',
                                 prefixAssetPath: _ageIconAsset,
                                 keyboardType: TextInputType.number,
+                                readOnly: true,
+                                errorText: _ageError,
                               ),
                             ),
                           ],
@@ -442,6 +487,10 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
                                 label: 'Body Weight (g)',
                                 hint: 'Body Weight (g)',
                                 prefixAssetPath: _bodyWeightIconAsset,
+                                errorText: _bodyWeightError,
+                                onChanged: (_) {
+                                  if (_bodyWeightError != null) setState(() => _bodyWeightError = null);
+                                },
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
                                       decimal: true,
@@ -502,57 +551,92 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
     required VoidCallback onTap,
     bool showChevron = true,
     bool useCommonFieldStyle = false,
+    String? errorText,
   }) {
-    return InkWell(
-      onTap: onTap,
-      splashColor: Colors.transparent,
-      highlightColor: Colors.transparent,
-      hoverColor: Colors.transparent,
-      focusColor: Colors.transparent,
-      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-      child: Container(
-        padding: const EdgeInsets.only(bottom: 2),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: _primaryGreen, width: 1.0)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _buildPrefixIcon(icon: icon, assetPath: prefixAssetPath),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: Color(0xFF858991),
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value.isEmpty ? label : value,
-                    style: TextStyle(
-                      color: value.isEmpty ? const Color(0xFF9CA3AF) : _textColor,
-                      fontSize: 15,
-                      fontWeight: value.isEmpty ? FontWeight.w400 : FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: onTap,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          focusColor: Colors.transparent,
+          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+          child: Container(
+            padding: const EdgeInsets.only(bottom: 2),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: errorText != null ? const Color(0xFFEF4444) : _primaryGreen, 
+                  width: 1.0
+                ),
               ),
             ),
-            if (showChevron)
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Color(0xFF111827),
-                size: 24,
-              ),
-          ],
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _buildPrefixIcon(icon: icon, assetPath: prefixAssetPath),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: Color(0xFF858991),
+                          fontSize: 14,
+                        ),
+                      ),
+                      TextFormField(
+                        controller: TextEditingController(text: value),
+                        readOnly: true,
+                        style: TextStyle(
+                          color: value.isEmpty
+                              ? const Color(0xFF9CA3AF)
+                              : _textColor,
+                          fontSize: 15,
+                          fontWeight: value.isEmpty
+                              ? FontWeight.w400
+                              : FontWeight.w500,
+                        ),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                          border: InputBorder.none,
+                          hintText: label,
+                          hintStyle: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF9CA3AF),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (showChevron)
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Color(0xFF111827),
+                    size: 24,
+                  ),
+              ],
+            ),
+          ),
         ),
-      ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 44),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                color: Color(0xFFEF4444),
+                fontSize: 12,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -567,6 +651,7 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
     ValueChanged<String>? onChanged,
     int minLines = 1,
     int maxLines = 1,
+    bool readOnly = false,
   }) {
     final isNumericKeyboard =
         keyboardType == TextInputType.number ||
@@ -576,55 +661,79 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
         keyboardType ==
             const TextInputType.numberWithOptions(decimal: true, signed: true);
 
-    return Container(
-      padding: const EdgeInsets.only(bottom: 2),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: _primaryGreen, width: 1.0)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _buildPrefixIcon(icon: icon, assetPath: prefixAssetPath),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF858991)),
-                ),
-                TextFormField(
-                  controller: controller,
-                  keyboardType: keyboardType,
-                  inputFormatters: isNumericKeyboard
-                      ? [FilteringTextInputFormatter.deny(RegExp(r'-'))]
-                      : null,
-                  minLines: minLines,
-                  maxLines: maxLines,
-                  onChanged: onChanged,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF111111),
-                  ),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 6),
-                    border: InputBorder.none,
-                    hintText: hint,
-                    errorText: errorText,
-                    hintStyle: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF9CA3AF),
-                    ),
-                  ),
-                ),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.only(bottom: 2),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: errorText != null ? const Color(0xFFEF4444) : _primaryGreen, 
+                width: 1.0
+              ),
             ),
           ),
-        ],
-      ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _buildPrefixIcon(icon: icon, assetPath: prefixAssetPath),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF858991),
+                      ),
+                    ),
+                    TextFormField(
+                      controller: controller,
+                      keyboardType: keyboardType,
+                      inputFormatters: isNumericKeyboard
+                          ? [FilteringTextInputFormatter.deny(RegExp(r'-'))]
+                          : null,
+                      minLines: minLines,
+                      maxLines: maxLines,
+                      onChanged: onChanged,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF111111),
+                      ),
+                      readOnly: readOnly,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                        border: InputBorder.none,
+                        hintText: hint,
+                        hintStyle: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 44),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                color: Color(0xFFEF4444),
+                fontSize: 12,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -633,13 +742,19 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
       padding: const EdgeInsets.only(right: 12),
       child: assetPath != null
           ? (assetPath.endsWith('.svg')
-              ? SvgPicture.asset(assetPath, width: 32, height: 32, fit: BoxFit.contain)
-              : Image.asset(assetPath, width: 32, height: 32, fit: BoxFit.contain))
-          : Icon(
-              icon ?? Icons.circle_outlined,
-              color: _primaryGreen,
-              size: 32,
-            ),
+                ? SvgPicture.asset(
+                    assetPath,
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.contain,
+                  )
+                : Image.asset(
+                    assetPath,
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.contain,
+                  ))
+          : Icon(icon ?? Icons.circle_outlined, color: _primaryGreen, size: 32),
     );
   }
 }
