@@ -37,13 +37,13 @@ class SampleFarmInfo {
 class QuickActionItem {
   const QuickActionItem({
     required this.title,
-    required this.icon,
+    required this.iconAsset,
     required this.iconColor,
     required this.iconBgColor,
   });
 
   final String title;
-  final IconData icon;
+  final String iconAsset;
   final Color iconColor;
   final Color iconBgColor;
 }

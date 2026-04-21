@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 
 import '../../controller/broiler_controller.dart';
 import '../../models/broiler_project_data.dart';
-import 'depletion_input_page.dart';
+import 'mortality_input_page.dart';
 
 class DepletionPage extends StatefulWidget {
   const DepletionPage({super.key});
@@ -42,7 +42,7 @@ class _DepletionPageState extends State<DepletionPage> {
 
   Future<void> _openAddDepletion() async {
     final result = await Navigator.of(context).push<DepletionEntry>(
-      MaterialPageRoute(builder: (_) => const DepletionInputPage()),
+      MaterialPageRoute(builder: (_) => const MortalityInputPage()),
     );
 
     if (result == null) return;
@@ -61,7 +61,7 @@ class _DepletionPageState extends State<DepletionPage> {
         surfaceTintColor: Colors.white,
         foregroundColor: const Color(0xFF111827),
         elevation: 0,
-        centerTitle: true,
+        centerTitle: false,
         iconTheme: const IconThemeData(color: Color(0xFF111827)),
         shape: const Border(
           bottom: BorderSide(color: Color(0xFFDADDE2), width: 1),
@@ -82,58 +82,77 @@ class _DepletionPageState extends State<DepletionPage> {
         }
 
         return SafeArea(
-          child: Stack(
-            children: [
-              ListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
-                itemCount: _entries.length,
-                itemBuilder: (context, index) {
-                  final item = _entries[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _DepletionCard(entry: item),
-                  );
-                },
-              ),
-              Positioned(
-                right: 18,
-                bottom: 22,
-                child: SizedBox(
-                  height: 56,
-                  child: ElevatedButton.icon(
-                    onPressed: _openAddDepletion,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryGreen,
-                      foregroundColor: Colors.white,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 22,
-                        vertical: 12,
-                      ),
-                    ),
-                    icon: const Icon(Icons.add, size: 30),
-                    label: const Text(
-                      'Depletion',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
+            itemCount: _entries.length,
+            itemBuilder: (context, index) {
+              final item = _entries[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _DepletionCard(entry: item),
+              );
+            },
           ),
         );
       }),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: SizedBox(
+          height: 56,
+          child: FloatingActionButton.extended(
+            backgroundColor: _primaryGreen,
+            foregroundColor: Colors.white,
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            onPressed: _openAddDepletion,
+            icon: const Icon(Icons.add, size: 28),
+            label: const Text(
+              'Depletion',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
 class _DepletionCard extends StatelessWidget {
+  String _formatDateTime(String value) {
+    // Parsing dari string, fallback ke value asli jika gagal
+    DateTime? dt;
+    try {
+      dt = DateTime.parse(value);
+    } catch (_) {
+      return value;
+    }
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final day = dt.day.toString().padLeft(2, '0');
+    final hour = dt.hour.toString().padLeft(2, '0');
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final second = dt.second.toString().padLeft(2, '0');
+    return '$day ${monthNames[dt.month - 1]} ${dt.year} - $hour:$minute:$second';
+  }
+
   const _DepletionCard({required this.entry});
 
   final DepletionEntry entry;
@@ -183,13 +202,23 @@ class _DepletionCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      entry.date,
-                      style: const TextStyle(
-                        color: Color(0xFF3E3E3E),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.schedule,
+                          size: 16,
+                          color: Color(0xFF3E3E3E),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _formatDateTime(entry.date),
+                          style: const TextStyle(
+                            color: Color(0xFF3E3E3E),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

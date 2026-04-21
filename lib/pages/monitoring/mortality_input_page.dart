@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class DepletionEntry {
   const DepletionEntry({
     required this.type,
+    required this.gender,
     required this.date,
     required this.age,
     required this.penNumber,
@@ -12,6 +14,7 @@ class DepletionEntry {
   });
 
   final String type;
+  final String? gender;
   final String date;
   final String age;
   final String penNumber;
@@ -19,25 +22,21 @@ class DepletionEntry {
   final String? remarks;
 }
 
-class DepletionInputPage extends StatefulWidget {
-  const DepletionInputPage({super.key});
+class MortalityInputPage extends StatefulWidget {
+  const MortalityInputPage({super.key});
 
   @override
-  State<DepletionInputPage> createState() => _DepletionInputPageState();
+  State<MortalityInputPage> createState() => _MortalityInputPageState();
 }
 
-class _DepletionInputPageState extends State<DepletionInputPage> {
+class _MortalityInputPageState extends State<MortalityInputPage> {
   static const Color _primaryGreen = Color(0xFF22C55E);
-  static const Color _labelColor = Color(0xFF858991);
   static const Color _textColor = Color(0xFF111111);
   static const String _depletionIconAsset = 'assets/chicken.png';
+  static const String _genderIconAsset = 'assets/gender.svg';
   static const String _ageIconAsset = 'assets/chicken.png';
   static const String _bodyWeightIconAsset = 'assets/body-weight.png';
   static const String _remarksIconAsset = 'assets/remarks.png';
-  static const double _fieldTextSize = 14;
-  static const double _fieldHintSize = 14;
-  static const double _fieldLabelSize = 14;
-  static const double _fieldHeight = 50;
   static const double _buttonTextSize = 16;
   static const double _buttonHeight = 50;
 
@@ -48,6 +47,7 @@ class _DepletionInputPageState extends State<DepletionInputPage> {
   final _ageController = TextEditingController();
 
   String? _selectedType;
+  String? _selectedGender;
   String? _penNumberError;
 
   @override
@@ -277,9 +277,26 @@ class _DepletionInputPageState extends State<DepletionInputPage> {
     });
   }
 
+  Future<void> _pickGender() async {
+    final picked = await _showDropdownBottomSheet(
+      title: 'Select Gender',
+      hint: 'Select Gender',
+      options: const ['Male', 'Female'],
+      selectedValue: _selectedGender,
+    );
+    if (picked == null) return;
+    setState(() {
+      _selectedGender = picked;
+    });
+  }
+
   void _submit() {
     if ((_selectedType ?? '').isEmpty) {
       _showMessage('Please select depletion type');
+      return;
+    }
+    if ((_selectedGender ?? '').isEmpty) {
+      _showMessage('Please select gender');
       return;
     }
     if (_dateController.text.trim().isEmpty) {
@@ -309,7 +326,8 @@ class _DepletionInputPageState extends State<DepletionInputPage> {
     Navigator.of(context).pop(
       DepletionEntry(
         type: _selectedType!.trim(),
-        date: _dateController.text.trim(),
+        gender: _selectedGender!.trim(),
+        date: DateTime.now().toIso8601String(),
         age: _ageController.text.trim(),
         penNumber: _penNumberController.text.trim(),
         bodyWeight: _bodyWeightController.text.trim(),
@@ -367,6 +385,14 @@ class _DepletionInputPageState extends State<DepletionInputPage> {
                           value: _selectedType ?? '',
                           prefixAssetPath: _depletionIconAsset,
                           onTap: _pickType,
+                          useCommonFieldStyle: true,
+                        ),
+                        const SizedBox(height: 18),
+                        _buildUnderlineSelectField(
+                          label: 'Gender',
+                          value: _selectedGender ?? '',
+                          prefixAssetPath: _genderIconAsset,
+                          onTap: _pickGender,
                           useCommonFieldStyle: true,
                         ),
                         const SizedBox(height: 18),
@@ -477,57 +503,6 @@ class _DepletionInputPageState extends State<DepletionInputPage> {
     bool showChevron = true,
     bool useCommonFieldStyle = false,
   }) {
-    if (useCommonFieldStyle) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildFieldLabel(label),
-          const SizedBox(height: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: _fieldHeight),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(6),
-              splashColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              hoverColor: Colors.transparent,
-              focusColor: Colors.transparent,
-              overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-              child: InputDecorator(
-                isEmpty: value.trim().isEmpty,
-                decoration:
-                    _fieldDecoration(
-                      hint: label,
-                      icon: icon,
-                      prefixAssetPath: prefixAssetPath,
-                    ).copyWith(
-                      suffixIcon: showChevron
-                          ? const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 22,
-                              color: Color(0xFF6B7280),
-                            )
-                          : null,
-                      suffixIconConstraints: const BoxConstraints(
-                        minWidth: 28,
-                        minHeight: 28,
-                      ),
-                    ),
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: _fieldTextSize,
-                    color: _textColor,
-                    height: 1.0,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
     return InkWell(
       onTap: onTap,
       splashColor: Colors.transparent,
@@ -536,35 +511,36 @@ class _DepletionInputPageState extends State<DepletionInputPage> {
       focusColor: Colors.transparent,
       overlayColor: const WidgetStatePropertyAll(Colors.transparent),
       child: Container(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.only(bottom: 2),
         decoration: const BoxDecoration(
           border: Border(bottom: BorderSide(color: _primaryGreen, width: 1.0)),
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _buildPrefixIcon(icon: icon, assetPath: prefixAssetPath),
-            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     label,
                     style: const TextStyle(
-                      color: _labelColor,
-                      fontSize: _fieldLabelSize,
-                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF858991),
+                      fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    value.isEmpty ? '-' : value,
-                    style: const TextStyle(
-                      color: _textColor,
-                      fontSize: _fieldTextSize,
-                      fontWeight: FontWeight.w500,
+                    value.isEmpty ? label : value,
+                    style: TextStyle(
+                      color: value.isEmpty ? const Color(0xFF9CA3AF) : _textColor,
+                      fontSize: 15,
+                      fontWeight: value.isEmpty ? FontWeight.w400 : FontWeight.w500,
                     ),
                   ),
+                  const SizedBox(height: 6),
                 ],
               ),
             ),
@@ -572,57 +548,11 @@ class _DepletionInputPageState extends State<DepletionInputPage> {
               const Icon(
                 Icons.keyboard_arrow_down_rounded,
                 color: Color(0xFF111827),
-                size: 30,
+                size: 24,
               ),
           ],
         ),
       ),
-    );
-  }
-
-  InputDecoration _fieldDecoration({
-    required String hint,
-    IconData? icon,
-    String? prefixAssetPath,
-  }) {
-    return InputDecoration(
-      isDense: true,
-      hintText: hint,
-      hintStyle: const TextStyle(
-        fontSize: _fieldHintSize,
-        color: Color(0xFF9CA3AF),
-        height: 1.0,
-      ),
-      prefixIcon: Padding(
-        padding: const EdgeInsets.only(left: 0, right: 8),
-        child: prefixAssetPath != null
-            ? Image.asset(
-                prefixAssetPath,
-                width: 22,
-                height: 22,
-                fit: BoxFit.contain,
-              )
-            : Icon(icon),
-      ),
-      prefixIconConstraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-      filled: false,
-      border: const UnderlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFF22C55E), width: 1.0),
-      ),
-      enabledBorder: const UnderlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFF22C55E), width: 1.0),
-      ),
-      focusedBorder: const UnderlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFF22C55E), width: 1.0),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-    );
-  }
-
-  Widget _buildFieldLabel(String label) {
-    return Text(
-      label,
-      style: const TextStyle(fontSize: _fieldLabelSize, color: _labelColor),
     );
   }
 
@@ -646,52 +576,70 @@ class _DepletionInputPageState extends State<DepletionInputPage> {
         keyboardType ==
             const TextInputType.numberWithOptions(decimal: true, signed: true);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildFieldLabel(label),
-        const SizedBox(height: 6),
-        ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: _fieldHeight),
-          child: TextFormField(
-            controller: controller,
-            keyboardType: keyboardType,
-            textAlignVertical: TextAlignVertical.center,
-            inputFormatters: isNumericKeyboard
-                ? [FilteringTextInputFormatter.deny(RegExp(r'-'))]
-                : null,
-            minLines: minLines,
-            maxLines: maxLines,
-            style: const TextStyle(fontSize: _fieldTextSize, height: 1.0),
-            onChanged: onChanged,
-            decoration: _fieldDecoration(
-              hint: hint,
-              icon: icon,
-              prefixAssetPath: prefixAssetPath,
-            ).copyWith(errorText: errorText),
+    return Container(
+      padding: const EdgeInsets.only(bottom: 2),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _primaryGreen, width: 1.0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _buildPrefixIcon(icon: icon, assetPath: prefixAssetPath),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF858991)),
+                ),
+                TextFormField(
+                  controller: controller,
+                  keyboardType: keyboardType,
+                  inputFormatters: isNumericKeyboard
+                      ? [FilteringTextInputFormatter.deny(RegExp(r'-'))]
+                      : null,
+                  minLines: minLines,
+                  maxLines: maxLines,
+                  onChanged: onChanged,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF111111),
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                    border: InputBorder.none,
+                    hintText: hint,
+                    errorText: errorText,
+                    hintStyle: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF9CA3AF),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildPrefixIcon({IconData? icon, String? assetPath}) {
-    return Container(
-      width: 78 / 1.45,
-      height: 78 / 1.45,
-      decoration: const BoxDecoration(
-        color: Color(0xFFD4DED4),
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: assetPath != null
-            ? Image.asset(assetPath, width: 24, height: 24, fit: BoxFit.contain)
-            : Icon(
-                icon ?? Icons.circle_outlined,
-                color: _primaryGreen,
-                size: 34,
-              ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: assetPath != null
+          ? (assetPath.endsWith('.svg')
+              ? SvgPicture.asset(assetPath, width: 32, height: 32, fit: BoxFit.contain)
+              : Image.asset(assetPath, width: 32, height: 32, fit: BoxFit.contain))
+          : Icon(
+              icon ?? Icons.circle_outlined,
+              color: _primaryGreen,
+              size: 32,
+            ),
     );
   }
 }

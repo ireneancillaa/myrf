@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import 'package:myrf/pages/monitoring/weighing_input_page.dart';
 
-import '../../controller/broiler_controller.dart';
+import '../../controller/weighing_controller.dart';
+
+const Color primaryGreen = Color(0xFF22C55E);
+const Color textPrimary = Color(0xFF111827);
 
 class WeighingDoaPage extends StatefulWidget {
   const WeighingDoaPage({super.key, this.selectedFarmName});
@@ -13,320 +18,322 @@ class WeighingDoaPage extends StatefulWidget {
 }
 
 class _WeighingDoaPageState extends State<WeighingDoaPage> {
-  static const Color _primaryGreen = Color(0xFF22C55E);
-  static const Color _textPrimary = Color(0xFF111827);
-  static const double _fieldTextSize = 14;
-  static const double _fieldHintSize = 14;
-  static const double _fieldHeight = 50;
+  Widget _buildValueColumn(String label, String value) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF111827),
+          ),
+        ),
+      ],
+    );
+  }
 
-  final _formKey = GlobalKey<FormState>();
-  final _dateController = TextEditingController();
-  final _penNumberController = TextEditingController();
-  final _boxWeightController = TextEditingController();
-  final _feedUsedController = TextEditingController();
-  final _lastTotalBirdsController = TextEditingController();
-  final _actualTotalBirdsController = TextEditingController();
-  final _totalWeightController = TextEditingController();
+  Widget _buildVerticalDivider() {
+    return Container(width: 1, height: 14, color: const Color(0xFFD1D5DB));
+  }
 
-  late final BroilerController _controller;
+  Widget _buildWeighingCard(record) {
+    final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(record.recordedAt);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE8F5EE),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Image.asset(
+                    'assets/body-weight.png',
+                    width: 28,
+                    height: 28,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Weighing',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.access_time,
+                          size: 14,
+                          color: Color(0xFF6B7280),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          dateStr,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF4B5563),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Values Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildValueColumn('Age', record.age),
+              _buildVerticalDivider(),
+              _buildValueColumn('Feed', record.feed),
+              _buildVerticalDivider(),
+              _buildValueColumn('Birds', record.birds),
+              _buildVerticalDivider(),
+              _buildValueColumn('Weight', record.weight),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  late final WeighingController _weighingController;
 
   @override
   void initState() {
     super.initState();
-    _controller = Get.isRegistered<BroilerController>()
-        ? Get.find<BroilerController>()
-        : Get.put(BroilerController(), permanent: true);
-  }
 
-  @override
-  void dispose() {
-    _dateController.dispose();
-    _penNumberController.dispose();
-    _boxWeightController.dispose();
-    _feedUsedController.dispose();
-    _lastTotalBirdsController.dispose();
-    _actualTotalBirdsController.dispose();
-    _totalWeightController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _selectDate() async {
-    final today = DateTime.now();
-    final initialDate = DateTime(today.year, today.month, today.day);
-
-    final date = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-    );
-
-    if (date != null) {
-      _dateController.text = '${date.day}/${date.month}/${date.year}';
-    }
-  }
-
-  String _contextName() {
-    final selectedProject = _controller.selectedProjectName.value;
-    final fromWidget = widget.selectedFarmName?.trim() ?? '';
-
-    if (selectedProject != null && selectedProject.trim().isNotEmpty) {
-      return selectedProject;
-    }
-    if (fromWidget.isNotEmpty) return fromWidget;
-    return '';
-  }
-
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Weighing DOA data saved successfully'),
-        backgroundColor: _primaryGreen,
-      ),
-    );
-    Navigator.of(context).pop();
+    _weighingController = Get.isRegistered<WeighingController>()
+        ? Get.find<WeighingController>()
+        : Get.put(WeighingController(), permanent: true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final contextName = _contextName();
-    final hasContext = contextName.isNotEmpty;
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-        foregroundColor: const Color(0xFF111827),
+        foregroundColor: textPrimary,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF111827)),
         shape: const Border(
           bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
         ),
         title: const Text(
-          'Weighing DOA',
+          'Weighing',
           style: TextStyle(
-            color: Color(0xFF111827),
-            fontSize: 20,
+            color: textPrimary,
+            fontSize: 22,
             fontWeight: FontWeight.w700,
           ),
         ),
       ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: !hasContext
-            ? const Center(child: Text('Please select a project first'))
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        contextName,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF6B7280),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(14),
+      body: Obx(() {
+        if (_weighingController.weighingHistory.isEmpty) {
+          return const Center(
+            child: Text(
+              'No weighing data yet',
+              style: TextStyle(color: Colors.grey),
+            ),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          itemCount: _weighingController.weighingHistory.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final record = _weighingController.weighingHistory[index];
+            return Dismissible(
+              key: ValueKey(record.recordedAt.toIso8601String()),
+              direction: DismissDirection.endToStart,
+              confirmDismiss: (_) async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (dialogContext) {
+                    return Dialog(
+                      backgroundColor: Colors.transparent,
+                      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                         decoration: BoxDecoration(
-                          color: _primaryGreen.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _primaryGreen.withOpacity(0.25),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.monitor_weight_outlined,
-                              color: _primaryGreen,
-                              size: 22,
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x22000000),
+                              blurRadius: 18,
+                              offset: Offset(0, 8),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Isi data timbang harian untuk memantau performa dan angka mortalitas.',
-                                style: TextStyle(
-                                  color: _primaryGreen.withOpacity(0.95),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 56,
+                              height: 56,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFEE2E2),
+                                shape: BoxShape.circle,
                               ),
+                              child: const Icon(
+                                Icons.delete_outline,
+                                color: Color(0xFFDC2626),
+                                size: 30,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            const Text(
+                              'Delete Data?',
+                              style: TextStyle(
+                                color: Color(0xFF111827),
+                                fontSize: 21,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'This weighing data will be deleted. Continue?',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color(0xFF6B7280),
+                                fontSize: 15,
+                                height: 1.35,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () =>
+                                        Navigator.of(dialogContext).pop(false),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(
+                                        color: Color(0xFFD1D5DB),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      foregroundColor: const Color(0xFF374151),
+                                    ),
+                                    child: const Text(
+                                      'Cancel',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () =>
+                                        Navigator.of(dialogContext).pop(true),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFEF4444),
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Delete',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      const Text(
-                        'Record Daily Data',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: _textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      _buildInputField(
-                        controller: _dateController,
-                        label: 'Date',
-                        prefixIcon: Icons.calendar_today,
-                        suffixIcon: Icons.arrow_drop_down,
-                        readOnly: true,
-                        onTap: _selectDate,
-                        validatorMessage: 'Please select a date',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInputField(
-                        controller: _penNumberController,
-                        label: 'Pen Number',
-                        prefixIcon: Icons.tag_outlined,
-                        validatorMessage: 'Please enter pen number',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInputField(
-                        controller: _boxWeightController,
-                        label: 'Box Weight (kg)',
-                        prefixIcon: Icons.scale_outlined,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        validatorMessage: 'Please enter box weight',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInputField(
-                        controller: _feedUsedController,
-                        label: 'Feed Used (kg)',
-                        prefixIcon: Icons.soup_kitchen_outlined,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        validatorMessage: 'Please enter feed used',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInputField(
-                        controller: _lastTotalBirdsController,
-                        label: 'Last Total Birds',
-                        prefixIcon: Icons.groups_2_outlined,
-                        keyboardType: TextInputType.number,
-                        validatorMessage: 'Please enter last total birds',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInputField(
-                        controller: _actualTotalBirdsController,
-                        label: 'Actual Total Birds',
-                        prefixIcon: Icons.group_outlined,
-                        keyboardType: TextInputType.number,
-                        validatorMessage: 'Please enter actual total birds',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInputField(
-                        controller: _totalWeightController,
-                        label: 'Total Weight (kg)',
-                        prefixIcon: Icons.monitor_weight_outlined,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        validatorMessage: 'Please enter total weight',
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _submit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _primaryGreen,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: const Text(
-                            'Save Data',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    );
+                  },
+                );
+                return confirmed == true;
+              },
+              onDismissed: (_) {
+                _weighingController.weighingHistory.removeAt(index);
+              },
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                color: const Color(0xFFEF4444),
+                child: const Icon(Icons.delete, color: Colors.white, size: 32),
               ),
-      ),
-    );
-  }
-
-  Widget _buildInputField({
-    required TextEditingController controller,
-    required String label,
-    required IconData prefixIcon,
-    required String validatorMessage,
-    TextInputType? keyboardType,
-    bool readOnly = false,
-    IconData? suffixIcon,
-    VoidCallback? onTap,
-  }) {
-    return SizedBox(
-      height: _fieldHeight,
-      child: TextFormField(
-        controller: controller,
-        readOnly: readOnly,
-        keyboardType: keyboardType,
-        style: const TextStyle(fontSize: _fieldTextSize),
-        decoration: _fieldDecoration(
-          label: label,
-          prefixIcon: prefixIcon,
-          suffixIcon: suffixIcon,
+              child: _buildWeighingCard(record),
+            );
+          },
+        );
+      }),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: primaryGreen,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            10,
+          ),
         ),
-        onTap: onTap,
-        validator: (value) {
-          if (value == null || value.trim().isEmpty) {
-            return validatorMessage;
-          }
-          return null;
+        onPressed: () async {
+          _weighingController.initNewWeighing();
+          await Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const WeighingInputPage()));
+          // Tidak perlu setState/refresh, Obx akan otomatis update jika weighingHistory berubah
         },
+        icon: const Icon(Icons.add),
+        label: const Text(
+          'Weighing',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
+        ),
       ),
-    );
-  }
-
-  InputDecoration _fieldDecoration({
-    required String label,
-    required IconData prefixIcon,
-    IconData? suffixIcon,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: label,
-      labelStyle: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-      hintStyle: const TextStyle(
-        fontSize: _fieldHintSize,
-        color: Color(0xFF9CA3AF),
-      ),
-      prefixIcon: Icon(prefixIcon),
-      suffixIcon: suffixIcon == null ? null : Icon(suffixIcon),
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-      border: const OutlineInputBorder(),
-      enabledBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFFE0E0E0)),
-      ),
-      focusedBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFF22C55E)),
-      ),
-      floatingLabelBehavior: FloatingLabelBehavior.auto,
     );
   }
 }

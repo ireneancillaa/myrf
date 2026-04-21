@@ -179,7 +179,7 @@ class _InfeedPageState extends State<InfeedPage> {
         surfaceTintColor: Colors.white,
         foregroundColor: const Color(0xFF111827),
         elevation: 0,
-        centerTitle: true,
+        centerTitle: false,
         iconTheme: const IconThemeData(color: Color(0xFF111827)),
         shape: const Border(
           bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),

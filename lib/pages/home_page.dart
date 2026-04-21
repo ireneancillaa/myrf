@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:myrf/pages/monitoring/male_birds_page.dart';
 
 import '../controller/broiler_controller.dart';
 import '../controller/user_session_controller.dart';
 import '../models/home_models.dart';
 import 'monitoring/infeed_page.dart';
-import 'monitoring/depletion_page.dart';
+import 'monitoring/mortality_page.dart';
 import 'monitoring/feses_score_page.dart';
 import 'monitoring/brooding_page.dart';
 import 'monitoring/weighing_doa_page.dart';
@@ -24,31 +26,38 @@ class _HomePageState extends State<HomePage> {
   String? _selectedFarm;
   late final BroilerController _broilerController;
   late final UserSessionController _sessionController;
+  bool _isSummaryExpanded = false;
 
   final List<QuickActionItem> _quickActions = const [
     QuickActionItem(
-      title: 'Weighing DOA',
-      icon: Icons.scale_outlined,
+      title: 'Weighing',
+      iconAsset: 'assets/body-weight.png',
       iconColor: Color(0xFF22C55E),
       iconBgColor: Color(0xFFE8F5EE),
     ),
     QuickActionItem(
       title: 'Infeed',
-      icon: Icons.soup_kitchen_rounded,
+      iconAsset: 'assets/infeed.png',
       iconColor: Color(0xFF22C55E),
       iconBgColor: Color(0xFFE8F5EE),
     ),
     QuickActionItem(
-      title: 'Depletion',
-      icon: Icons.warning_amber_rounded,
-      iconColor: Color(0xFFE94949),
-      iconBgColor: Color(0xFFFBEDED),
+      title: 'Mortality',
+      iconAsset: 'assets/chicken.png',
+      iconColor: Color(0xFF22C55E),
+      iconBgColor: Color(0xFFE8F5EE),
+    ),
+    QuickActionItem(
+      title: 'Male Birds',
+      iconAsset: 'assets/male.svg',
+      iconColor: Color(0xFF22C55E),
+      iconBgColor: Color(0xFFE8F5EE),
     ),
     QuickActionItem(
       title: 'Feses',
-      icon: Icons.science_rounded,
-      iconColor: Color(0xFFE6A10B),
-      iconBgColor: Color(0xFFFCF6E8),
+      iconAsset: 'assets/remarks.png',
+      iconColor: Color(0xFF22C55E),
+      iconBgColor: Color(0xFFE8F5EE),
     ),
   ];
   final List<BroodingCardItem> _broodingRows = const [
@@ -375,11 +384,58 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildFarmSummaryCard() {
-    final strain = _displayValue(
-      _broilerController.selectedStrain.value ??
-          _broilerController.strainController.text,
+  Widget _buildInfoBox({
+    required String title,
+    required String value,
+    required String iconAsset,
+    required Color bgColor,
+  }) {
+    return Expanded(
+      child: Container(
+        height: 64,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: const Color(0xFFE6E6E6)),
+        ),
+        child: Row(
+          children: [
+            Image.asset(iconAsset, width: 28, height: 28),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E1E1E),
+                    ),
+                  ),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF555555),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Widget _buildFarmSummaryCard() {
     final hatchery = _displayValue(
       _broilerController.selectedHatchery.value ??
           _broilerController.hatcheryController.text,
@@ -392,6 +448,8 @@ class _HomePageState extends State<HomePage> {
           _broilerController.docInDateController.text,
     );
     final numberOfBirds = _birdCountValue();
+    final diet = _displayValue(_broilerController.dietController.text);
+    final replication = _displayValue(_broilerController.replicationController.text);
 
     return Container(
       width: double.infinity,
@@ -404,252 +462,153 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF1D9), // Previous strain background
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: Center(
-                  child: Image.asset(
-                    'assets/strain.png',
-                    width: 30,
-                    height: 30,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  constraints: const BoxConstraints(minHeight: 50),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Obx(() {
-                    _broilerController.projectStatuses.toString();
-                    final farmOptions = _buildFarmOptions();
-                    final selectedValue = farmOptions.contains(_selectedFarm)
-                        ? _selectedFarm
-                        : farmOptions.first;
+          Obx(() {
+            _broilerController.projectStatuses.toString();
+            final farmOptions = _buildFarmOptions();
+            final selectedValue = farmOptions.contains(_selectedFarm)
+                ? _selectedFarm
+                : farmOptions.first;
 
-                    if (_selectedFarm != selectedValue) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (!mounted) return;
-                        setState(() => _selectedFarm = selectedValue);
-                        if (_broilerController.inProgressProjectNames.contains(
-                          selectedValue,
-                        )) {
-                          _broilerController.selectProjectByName(selectedValue);
-                        }
-                      });
-                    }
+            if (_selectedFarm != selectedValue) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                setState(() => _selectedFarm = selectedValue);
+                if (_broilerController.inProgressProjectNames.contains(
+                  selectedValue,
+                )) {
+                  _broilerController.selectProjectByName(selectedValue);
+                }
+              });
+            }
 
-                    return InkWell(
-                      onTap: () async {
-                        final picked = await _showFarmSelectionModal(
-                          context: context,
-                          options: farmOptions,
-                          selectedValue: selectedValue,
-                        );
+            return InkWell(
+              onTap: () async {
+                final picked = await _showFarmSelectionModal(
+                  context: context,
+                  options: farmOptions,
+                  selectedValue: selectedValue,
+                );
 
-                        if (picked == null) return;
+                if (picked == null) return;
 
-                        setState(() => _selectedFarm = picked);
+                setState(() => _selectedFarm = picked);
 
-                        if (_broilerController.inProgressProjectNames.contains(
-                          picked,
-                        )) {
-                          _broilerController.selectProjectByName(picked);
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                selectedValue ?? 'Select Farm',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: selectedValue == null
-                                      ? const Color(0xFF9CA3AF)
-                                      : const Color(0xFF222222),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 20,
-                              color: Color(0xFF555555),
-                            ),
-                          ],
-                        ),
+                if (_broilerController.inProgressProjectNames.contains(
+                  picked,
+                )) {
+                  _broilerController.selectProjectByName(picked);
+                }
+              },
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      selectedValue ?? 'Select Farm',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E1E1E),
                       ),
-                    );
-                  }),
-                ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 24,
+                    color: Color(0xFF1E1E1E),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            strain,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF737373)),
-          ),
+            );
+          }),
           const SizedBox(height: 16),
-          // Hatchery
           Row(
             children: [
-              Image.asset('assets/hatchery.png', width: 20, height: 20),
-              const SizedBox(width: 8),
-              const Text(
-                'Hatchery: ',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: Color(0xFF1E1E1E),
-                ),
-              ),
-              Text(
-                hatchery,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF4A4A4A)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // DOC In Date
-          Row(
-            children: [
-              Image.asset('assets/doc-in-date.png', width: 20, height: 20),
-              const SizedBox(width: 8),
-              const Text(
-                'DOC In Date: ',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: Color(0xFF1E1E1E),
-                ),
-              ),
-              Text(
-                docInDate,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF4A4A4A)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          // Breeding Farm & Number of Birds
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 60,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBF3),
-                    borderRadius: BorderRadius.circular(5),
-                    border: Border.all(color: const Color(0xFFE6E6E6)),
-                  ),
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        'assets/breeding-farm.png',
-                        width: 28,
-                        height: 28,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Breeding Farm',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1E1E1E),
-                              ),
-                            ),
-                            Text(
-                              breedingFarm,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF555555),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              _buildInfoBox(
+                title: 'Breeding Farm',
+                value: breedingFarm,
+                iconAsset: 'assets/breeding-farm.png',
+                bgColor: const Color(0xFFFFFBF3),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  height: 60,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3FCF7),
-                    borderRadius: BorderRadius.circular(5),
-                    border: Border.all(color: const Color(0xFFE6E6E6)),
-                  ),
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        'assets/number-of-birds.png',
-                        width: 28,
-                        height: 28,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Number of Birds',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1E1E1E),
-                              ),
-                            ),
-                            Text(
-                              numberOfBirds,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF555555),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              _buildInfoBox(
+                title: 'Number of Birds',
+                value: numberOfBirds,
+                iconAsset: 'assets/number-of-birds.png',
+                bgColor: const Color(0xFFF3FCF7),
               ),
             ],
+          ),
+          if (_isSummaryExpanded) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _buildInfoBox(
+                  title: 'Diet',
+                  value: diet,
+                  iconAsset: 'assets/diet-replication.png',
+                  bgColor: const Color(0xFFE8F5EE),
+                ),
+                const SizedBox(width: 12),
+                _buildInfoBox(
+                  title: 'Replication',
+                  value: replication,
+                  iconAsset: 'assets/diet-replication.png',
+                  bgColor: const Color(0xFFFFF1D9),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _buildInfoBox(
+                  title: 'Hatchery',
+                  value: hatchery,
+                  iconAsset: 'assets/hatchery.png',
+                  bgColor: const Color(0xFFF4F9FF),
+                ),
+                const SizedBox(width: 12),
+                _buildInfoBox(
+                  title: 'DOC In Date',
+                  value: docInDate,
+                  iconAsset: 'assets/doc-in-date.png',
+                  bgColor: const Color(0xFFFEF2F2),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 16),
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isSummaryExpanded = !_isSummaryExpanded;
+              });
+            },
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  _isSummaryExpanded ? 'View Less' : 'View Details',
+                  style: const TextStyle(
+                    color: Color(0xFF22C55E),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  _isSummaryExpanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: const Color(0xFF22C55E),
+                  size: 20,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -688,7 +647,7 @@ class _HomePageState extends State<HomePage> {
     VoidCallback? onTap;
 
     switch (action.title) {
-      case 'Weighing DOA':
+      case 'Weighing':
         onTap = () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -704,14 +663,21 @@ class _HomePageState extends State<HomePage> {
           ).push(MaterialPageRoute(builder: (_) => const InfeedPage()));
         };
         break;
-      case 'Depletion':
+      case 'Mortality':
         onTap = () {
           Navigator.of(
             context,
           ).push(MaterialPageRoute(builder: (_) => const DepletionPage()));
         };
         break;
-      case 'Feces Score':
+        case 'Male Birds':
+        onTap = () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const MaleBirdsPage()));
+        };
+        break;
+      case 'Feses':
         onTap = () {
           Navigator.of(
             context,
@@ -731,28 +697,37 @@ class _HomePageState extends State<HomePage> {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
                 color: action.iconBgColor,
-                borderRadius: BorderRadius.circular(8),
+                shape: BoxShape.circle,
               ),
-              child: Icon(action.icon, color: action.iconColor, size: 28),
+              child: Center(
+                child: action.iconAsset.endsWith('.svg')
+                    ? SvgPicture.asset(action.iconAsset, width: 28, height: 28)
+                    : Image.asset(
+                        action.iconAsset,
+                        width: 28,
+                        height: 28,
+                        fit: BoxFit.contain,
+                      ),
+              ),
             ),
             const SizedBox(height: 8),
             SizedBox(
-              height: 32,
+              height: 30,
               child: Center(
                 child: Text(
                   action.title,
                   textAlign: TextAlign.center,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     height: 1.2,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E1E1E),
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF777777),
                   ),
                 ),
               ),
