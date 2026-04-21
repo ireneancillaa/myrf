@@ -276,6 +276,8 @@ class _InfeedInputPageState extends State<InfeedInputPage> {
       return;
     }
 
+    if (!mounted) return;
+
     final selected = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -613,6 +615,8 @@ class _InfeedInputPageState extends State<InfeedInputPage> {
   }
 
   Widget _buildKeypad() {
+    final isActiveFieldEmpty =
+        _controllers.isEmpty || _controllers[_activeIndex].text.trim().isEmpty;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -661,7 +665,10 @@ class _InfeedInputPageState extends State<InfeedInputPage> {
             '3',
             onTap: () => setState(() => _appendToActive('3')),
           ),
-          _PadButtonSpec.icon(Icons.skip_next_rounded, onTap: _addPen),
+          _PadButtonSpec.icon(
+            Icons.skip_next_rounded,
+            onTap: isActiveFieldEmpty ? null : _addPen,
+          ),
         ]),
         const SizedBox(height: 10),
         _buildKeypadRow([

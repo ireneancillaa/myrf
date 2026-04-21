@@ -276,6 +276,8 @@ class _MaleBirdsInputPageState extends State<MaleBirdsInputPage> {
       return;
     }
 
+    if (!mounted) return;
+
     final selected = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
