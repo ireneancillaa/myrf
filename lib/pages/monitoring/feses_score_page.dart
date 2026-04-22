@@ -6,6 +6,8 @@ import '../../models/broiler_project_data.dart';
 import '../../controller/feses_controller.dart';
 import 'feses_score_input_page.dart';
 
+import '../../widgets/empty_state_widget.dart';
+
 class FesesScorePage extends StatefulWidget {
   const FesesScorePage({super.key});
 
@@ -83,21 +85,23 @@ class _FesesScorePageState extends State<FesesScorePage> {
           return const Center(child: Text('Please select a project first'));
         }
 
+        final entries = _fesesController.entries;
+        if (entries.isEmpty) {
+          return const EmptyStateWidget(moduleName: 'Feses Score');
+        }
+
         return SafeArea(
-          child: Obx(() {
-            final entries = _fesesController.entries;
-            return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
-              itemCount: entries.length,
-              itemBuilder: (context, index) {
-                final item = entries[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: _FesesScoreCard(entry: item),
-                );
-              },
-            );
-          }),
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
+            itemCount: entries.length,
+            itemBuilder: (context, index) {
+              final item = entries[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _FesesScoreCard(entry: item),
+              );
+            },
+          ),
         );
       }),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

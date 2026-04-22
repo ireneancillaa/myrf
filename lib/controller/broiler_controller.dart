@@ -5,7 +5,10 @@ import 'package:get/get.dart';
 
 import 'diet_mapping_controller.dart';
 import '../models/broiler_project_data.dart';
+import '../models/temperature_standard.dart';
 import '../services/broiler_firestore_service.dart';
+import '../services/config_firestore_service.dart';
+import '../services/monitoring_firestore_service.dart';
 
 enum BroilerWorkflowStatus { drafted, inProgress }
 
@@ -47,9 +50,21 @@ class BroilerController extends GetxController {
   final projectDietPenSelections = <String, Map<int, List<int>>>{}.obs;
   final projectDietInputValues = <String, Map<int, Map<String, String>>>{}.obs;
 
+  final currentAge = 0.obs;
+  final currentTemperatureStandard = Rxn<TemperatureStandard>();
+
+  final frontTemp = '-'.obs;
+  final middleTemp = '-'.obs;
+  final rearTemp = '-'.obs;
+  final minTempStat = 0.0.obs;
+  final maxTempStat = 0.0.obs;
+
   VoidCallback? _onStatusChangeCallback;
   late final BroilerFirestoreService _firestoreService;
+  late final ConfigFirestoreService _configService;
+  late final MonitoringFirestoreService _monitoringService;
   StreamSubscription<Map<String, String>>? _statusSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _monitoringSubscription;
   StreamSubscription<List<BroilerProjectData>>? _projectsSubscription;
   final Map<String, Future<void>> _projectSyncQueue = <String, Future<void>>{};
 
@@ -59,8 +74,77 @@ class BroilerController extends GetxController {
     _firestoreService = Get.isRegistered<BroilerFirestoreService>()
         ? Get.find<BroilerFirestoreService>()
         : Get.put(BroilerFirestoreService(), permanent: true);
+    _configService = Get.isRegistered<ConfigFirestoreService>()
+        ? Get.find<ConfigFirestoreService>()
+        : Get.put(ConfigFirestoreService(), permanent: true);
+    _monitoringService = Get.isRegistered<MonitoringFirestoreService>()
+        ? Get.find<MonitoringFirestoreService>()
+        : Get.put(MonitoringFirestoreService(), permanent: true);
+
+    docInDateController.addListener(updateCurrentAgeAndStandard);
 
     _bindFirestoreStreams();
+
+    ever(selectedProjectId, (_) => _listenToTemperatureRecords());
+  }
+
+  void _listenToTemperatureRecords() {
+    _monitoringSubscription?.cancel();
+    final projectId = selectedProjectId.value;
+    if (projectId == null || projectId.isEmpty) return;
+
+    _monitoringSubscription = _monitoringService
+        .watchRecords(projectId: projectId, moduleName: 'brooding')
+        .listen((records) {
+      if (records.isEmpty) {
+        frontTemp.value = '-';
+        middleTemp.value = '-';
+        rearTemp.value = '-';
+        minTempStat.value = 0.0;
+        maxTempStat.value = 0.0;
+        return;
+      }
+
+      // Assume records are ordered by created_at descending
+      final latest = records.first;
+      
+      final fLatest = latest['front_temp'];
+      final mLatest = latest['middle_temp'];
+      final rLatest = latest['rear_temp'];
+
+      frontTemp.value = fLatest != null ? '$fLatest°C' : '-';
+      middleTemp.value = mLatest != null ? '$mLatest°C' : '-';
+      rearTemp.value = rLatest != null ? '$rLatest°C' : '-';
+
+      // Statistics might come from a specific summary or calculated from all records
+      // For now, let's assume they are in the latest record or we calculate them
+      double min = 100.0;
+      double max = 0.0;
+
+      for (final record in records) {
+        final f = (record['front_temp'] ?? 0).toDouble();
+        final m = (record['middle_temp'] ?? 0).toDouble();
+        final r = (record['rear_temp'] ?? 0).toDouble();
+        
+        if (f > 0) {
+          if (f < min) min = f;
+          if (f > max) max = f;
+        }
+        if (m > 0) {
+          if (m < min) min = m;
+          if (m > max) max = m;
+        }
+        if (r > 0) {
+          if (r < min) min = r;
+          if (r > max) max = r;
+        }
+      }
+
+      if (max > 0) {
+        minTempStat.value = min;
+        maxTempStat.value = max;
+      }
+    });
   }
 
   List<String> get projectNames =>
@@ -112,6 +196,39 @@ class BroilerController extends GetxController {
       diet: project.diet,
       replication: project.replication,
     );
+  }
+
+  void updateCurrentAgeAndStandard() {
+    final docInStr = docInDateController.text.trim();
+    if (docInStr.isEmpty) {
+      currentAge.value = 0;
+      currentTemperatureStandard.value = null;
+      return;
+    }
+
+    try {
+      final parts = docInStr.split('/');
+      if (parts.length != 3) return;
+      final day = int.tryParse(parts[0]);
+      final month = int.tryParse(parts[1]);
+      final year = int.tryParse(parts[2]);
+      if (day == null || month == null || year == null) return;
+
+      final docInDate = DateTime(year, month, day);
+      final today = DateTime.now();
+      final difference = today.difference(docInDate).inDays;
+      // Age usually starts at Day 1
+      currentAge.value = difference + 1;
+
+      _fetchTemperatureStandard(currentAge.value);
+    } catch (e) {
+      debugPrint('Error calculating age: $e');
+    }
+  }
+
+  Future<void> _fetchTemperatureStandard(int age) async {
+    final standard = await _configService.getTemperatureStandard(age);
+    currentTemperatureStandard.value = standard;
   }
 
   void selectProjectByName(String? projectName) {

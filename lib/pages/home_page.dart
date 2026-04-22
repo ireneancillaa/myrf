@@ -7,7 +7,7 @@ import '../controller/broiler_controller.dart';
 import '../controller/user_session_controller.dart';
 import '../models/home_models.dart';
 import 'monitoring/infeed_page.dart';
-import 'monitoring/mortality_page.dart';
+import 'monitoring/depletion_page.dart';
 import 'monitoring/feses_score_page.dart';
 import 'monitoring/brooding_page.dart';
 import 'monitoring/weighing_doa_page.dart';
@@ -58,29 +58,6 @@ class _HomePageState extends State<HomePage> {
       iconAsset: 'assets/remarks.png',
       iconColor: Color(0xFF22C55E),
       iconBgColor: Color(0xFFE8F5EE),
-    ),
-  ];
-  final List<BroodingCardItem> _broodingRows = const [
-    BroodingCardItem(
-      icon: Icons.thermostat,
-      iconColor: Color(0xFFE6A10B),
-      value: '32.5°C',
-      valueColor: Color(0xFFE6A10B),
-      label: 'Front Area',
-    ),
-    BroodingCardItem(
-      icon: Icons.thermostat,
-      iconColor: Color(0xFFE94949),
-      value: '33.0°C',
-      valueColor: Color(0xFFE94949),
-      label: 'Middle Area',
-    ),
-    BroodingCardItem(
-      icon: Icons.thermostat,
-      iconColor: Color(0xFF2E9DEB),
-      value: '31.8°C',
-      valueColor: Color(0xFF2E9DEB),
-      label: 'Rear Area',
     ),
   ];
 
@@ -318,7 +295,7 @@ class _HomePageState extends State<HomePage> {
             _buildBroodingGrid(),
             const SizedBox(height: 20),
             const Text(
-              'Quick Actions',
+              'Project Monitoring',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -344,7 +321,7 @@ class _HomePageState extends State<HomePage> {
       shape: const Border(
         bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
       ),
-      toolbarHeight: 84,
+      // toolbarHeight: 84,
       titleSpacing: 16,
       title: Obx(
         () => Column(
@@ -359,15 +336,15 @@ class _HomePageState extends State<HomePage> {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'My Research Farm',
-              style: const TextStyle(
-                color: Color(0xFF6B7280),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            // const SizedBox(height: 4),
+            // Text(
+            //   'My Research Farm',
+            //   style: const TextStyle(
+            //     color: Color(0xFF6B7280),
+            //     fontSize: 12,
+            //     fontWeight: FontWeight.w600,
+            //   ),
+            // ),
           ],
         ),
       ),
@@ -735,7 +712,7 @@ class _HomePageState extends State<HomePage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         const Text(
-          'Temperature Record',
+          'Environment Temperature',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -778,20 +755,46 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildBroodingGrid() {
-    return Row(
-      children: [
-        Expanded(child: _buildBroodingCard(_broodingRows[0])),
-        const SizedBox(width: 10),
-        Expanded(child: _buildBroodingCard(_broodingRows[1])),
-        const SizedBox(width: 10),
-        Expanded(child: _buildBroodingCard(_broodingRows[2])),
-      ],
+    return Obx(
+      () => Row(
+        children: [
+          Expanded(
+            child: _buildBroodingCard(
+              BroodingCardItem(
+                icon: Icons.thermostat,
+                value: _broilerController.frontTemp.value,
+                label: 'Front Area',
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _buildBroodingCard(
+              BroodingCardItem(
+                icon: Icons.thermostat,
+                value: _broilerController.middleTemp.value,
+                label: 'Middle Area',
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _buildBroodingCard(
+              BroodingCardItem(
+                icon: Icons.thermostat,
+                value: _broilerController.rearTemp.value,
+                label: 'Rear Area',
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildBroodingCard(BroodingCardItem item) {
     final temperature = _temperatureFromValue(item.value);
-    final indicatorColor = _temperatureColor(temperature);
+    final indicatorColor = _temperatureColor(temperature, area: item.label);
 
     return Container(
       height: 80,
@@ -837,11 +840,35 @@ class _HomePageState extends State<HomePage> {
     return double.tryParse(normalized);
   }
 
-  Color _temperatureColor(double? temperature) {
-    if (temperature == null) return const Color(0xFF6B7280);
-    if (temperature <= 27) return const Color(0xFF2E9DEB);
-    if (temperature <= 31) return const Color(0xFFE6A10B);
-    return const Color(0xFFE94949);
+  Color _temperatureColor(double? temperature, {String? area}) {
+    if (temperature == null) return const Color(0xFF2E9DEB);
+
+    final standard = _broilerController.currentTemperatureStandard.value;
+    if (standard == null) {
+      if (temperature <= 27) return const Color(0xFF2E9DEB);
+      if (temperature <= 31) return const Color(0xFFE6A10B);
+      return const Color(0xFFE94949);
+    }
+
+    // Global Stats (Min/Max Temperature)
+    if (area == null) {
+      if (temperature < standard.min) return const Color(0xFF2E9DEB);
+      if (temperature > standard.max) return const Color(0xFFE94949);
+      return const Color(0xFF22C55E);
+    }
+
+    // Area-specific targets (Front, Middle, Rear)
+    double target = standard.front;
+    if (area.toLowerCase().contains('middle')) {
+      target = standard.middle;
+    } else if (area.toLowerCase().contains('rear')) {
+      target = standard.rear;
+    }
+
+    const tolerance = 1.0;
+    if (temperature < target - tolerance) return const Color(0xFF2E9DEB);
+    if (temperature > target + tolerance) return const Color(0xFFE94949);
+    return const Color(0xFF22C55E);
   }
 
   Widget _buildProjectIncompleteSection() {

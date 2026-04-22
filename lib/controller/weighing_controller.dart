@@ -119,7 +119,11 @@ class WeighingController extends GetxController {
   }
 
   void initNewWeighing() {
-    dateController.clear();
+    final now = DateTime.now();
+    final dayStr = now.day.toString().padLeft(2, '0');
+    final monthStr = now.month.toString().padLeft(2, '0');
+    dateController.text = '$dayStr/$monthStr/${now.year}';
+
     ageController.clear();
     box1Controller.clear();
     weight1Controller.clear();

@@ -5,6 +5,8 @@ import 'package:myrf/pages/monitoring/weighing_input_page.dart';
 
 import '../../controller/weighing_controller.dart';
 
+import '../../widgets/empty_state_widget.dart';
+
 const Color primaryGreen = Color(0xFF22C55E);
 const Color textPrimary = Color(0xFF111827);
 
@@ -165,12 +167,7 @@ class _WeighingDoaPageState extends State<WeighingDoaPage> {
       ),
       body: Obx(() {
         if (_weighingController.weighingHistory.isEmpty) {
-          return const Center(
-            child: Text(
-              'No weighing data yet',
-              style: TextStyle(color: Colors.grey),
-            ),
-          );
+          return const EmptyStateWidget(moduleName: 'Weighing');
         }
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),

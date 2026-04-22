@@ -116,7 +116,7 @@ class _BroodingPageState extends State<BroodingPage> {
                   Expanded(
                     child: _buildTemperatureCard(
                       title: 'Front Area',
-                      value: '32.5°C',
+                      value: _controller.frontTemp.value,
                       icon: Icons.thermostat,
                     ),
                   ),
@@ -124,7 +124,7 @@ class _BroodingPageState extends State<BroodingPage> {
                   Expanded(
                     child: _buildTemperatureCard(
                       title: 'Middle Area',
-                      value: '33.0°C',
+                      value: _controller.middleTemp.value,
                       icon: Icons.thermostat,
                     ),
                   ),
@@ -132,7 +132,7 @@ class _BroodingPageState extends State<BroodingPage> {
                   Expanded(
                     child: _buildTemperatureCard(
                       title: 'Rear Area',
-                      value: '26°C',
+                      value: _controller.rearTemp.value,
                       icon: Icons.thermostat,
                     ),
                   ),
@@ -153,7 +153,7 @@ class _BroodingPageState extends State<BroodingPage> {
                   Expanded(
                     child: _buildTemperatureCardMinMax(
                       title: 'Minimum Temperature',
-                      value: 28.5,
+                      value: _controller.minTempStat.value,
                       icon: Icons.arrow_downward,
                       isLarge: true,
                     ),
@@ -162,7 +162,7 @@ class _BroodingPageState extends State<BroodingPage> {
                   Expanded(
                     child: _buildTemperatureCardMinMax(
                       title: 'Maximum Temperature',
-                      value: 35.2,
+                      value: _controller.maxTempStat.value,
                       icon: Icons.arrow_upward,
                       isLarge: true,
                     ),
@@ -200,7 +200,7 @@ class _BroodingPageState extends State<BroodingPage> {
     required IconData icon,
     bool isSmall = false,
   }) {
-    final color = _temperatureColor(_temperatureFromValue(value));
+    final color = _temperatureColor(_temperatureFromValue(value), area: title);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -240,7 +240,7 @@ class _BroodingPageState extends State<BroodingPage> {
     required IconData icon,
     bool isLarge = false,
   }) {
-    final color = _temperatureColor(value);
+    final color = _temperatureColor(value, area: title);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -273,7 +273,7 @@ class _BroodingPageState extends State<BroodingPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  '${value.toStringAsFixed(1)}°C',
+                  value == 0.0 ? '-' : '${value.toStringAsFixed(1)}°C',
                   style: TextStyle(
                     fontSize: isLarge ? 24 : 18,
                     fontWeight: FontWeight.bold,
@@ -366,11 +366,36 @@ class _BroodingPageState extends State<BroodingPage> {
     return double.tryParse(normalized);
   }
 
-  Color _temperatureColor(double? temperature) {
-    if (temperature == null) return const Color(0xFF6B7280);
-    if (temperature <= 27) return const Color(0xFF2E9DEB);
-    if (temperature <= 31) return const Color(0xFFE6A10B);
-    return const Color(0xFFE94949);
+  Color _temperatureColor(double? temperature, {String? area}) {
+    if (temperature == null) return const Color(0xFF2E9DEB);
+    final standard = _controller.currentTemperatureStandard.value;
+    if (standard == null) {
+      if (temperature <= 27) return const Color(0xFF2E9DEB);
+      if (temperature <= 31) return const Color(0xFFE6A10B);
+      return const Color(0xFFE94949);
+    }
+
+    // Global Stats (Min/Max Temperature)
+    if (area == null ||
+        area.toLowerCase().contains('minimum') ||
+        area.toLowerCase().contains('maximum')) {
+      if (temperature < standard.min) return const Color(0xFF2E9DEB);
+      if (temperature > standard.max) return const Color(0xFFE94949);
+      return const Color(0xFF22C55E);
+    }
+
+    // Area-specific targets (Front, Middle, Rear)
+    double target = standard.front;
+    if (area.toLowerCase().contains('middle')) {
+      target = standard.middle;
+    } else if (area.toLowerCase().contains('rear')) {
+      target = standard.rear;
+    }
+
+    const tolerance = 1.0;
+    if (temperature < target - tolerance) return const Color(0xFF2E9DEB);
+    if (temperature > target + tolerance) return const Color(0xFFE94949);
+    return const Color(0xFF22C55E);
   }
 
   String _formatDateTime(DateTime dateTime) {

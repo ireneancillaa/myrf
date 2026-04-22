@@ -46,6 +46,9 @@ class InfeedController extends GetxController {
   final penValuesByStage = List<List<double>>.generate(9, (_) => <double>[]).obs;
   final stageUpdatedAt = List<DateTime?>.filled(9, null).obs;
 
+  bool get isAllStagesEmpty =>
+      penValuesByStage.every((values) => values.isEmpty);
+
   StreamSubscription? _historySub;
 
   @override

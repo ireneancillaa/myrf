@@ -51,15 +51,11 @@ class QuickActionItem {
 class BroodingCardItem {
   const BroodingCardItem({
     required this.icon,
-    required this.iconColor,
     required this.value,
-    required this.valueColor,
     required this.label,
   });
 
   final IconData icon;
-  final Color iconColor;
   final String value;
-  final Color valueColor;
   final String label;
 }

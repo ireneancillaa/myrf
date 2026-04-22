@@ -4,7 +4,9 @@ import 'package:get/get.dart';
 import '../../controller/broiler_controller.dart';
 import '../../models/broiler_project_data.dart';
 import '../../controller/mortality_controller.dart';
-import 'mortality_input_page.dart';
+import 'depletion_input_page.dart';
+
+import '../../widgets/empty_state_widget.dart';
 
 class DepletionPage extends StatefulWidget {
   const DepletionPage({super.key});
@@ -83,21 +85,23 @@ class _DepletionPageState extends State<DepletionPage> {
           return const Center(child: Text('Please select a project first'));
         }
 
+        final entries = _mortalityController.entries;
+        if (entries.isEmpty) {
+          return const EmptyStateWidget(moduleName: 'Depletion');
+        }
+
         return SafeArea(
-          child: Obx(() {
-            final entries = _mortalityController.entries;
-            return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
-              itemCount: entries.length,
-              itemBuilder: (context, index) {
-                final item = entries[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: _DepletionCard(entry: item),
-                );
-              },
-            );
-          }),
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 110),
+            itemCount: entries.length,
+            itemBuilder: (context, index) {
+              final item = entries[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _DepletionCard(entry: item),
+              );
+            },
+          ),
         );
       }),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

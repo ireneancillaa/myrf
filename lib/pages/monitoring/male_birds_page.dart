@@ -7,6 +7,8 @@ import '../../models/broiler_project_data.dart';
 import '../../controller/male_birds_controller.dart';
 import 'male_birds_input_page.dart';
 
+import '../../widgets/empty_state_widget.dart';
+
 class MaleBirdsPage extends StatefulWidget {
   const MaleBirdsPage({super.key});
 
@@ -94,8 +96,7 @@ class _MaleBirdsPageState extends State<MaleBirdsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      return Scaffold(
+    return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -117,19 +118,24 @@ class _MaleBirdsPageState extends State<MaleBirdsPage> {
         ),
       ),
       body: SafeArea(
-        child: ListView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-          itemCount: _maleBirdsController.entries.length,
-          itemBuilder: (context, index) {
-            final item = _maleBirdsController.entries[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: _MaleBirdsCard(
-                entry: item,
-              ),
-            );
-          },
-        ),
+        child: Obx(() {
+          if (_maleBirdsController.entries.isEmpty) {
+            return const EmptyStateWidget(moduleName: 'Male Birds');
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            itemCount: _maleBirdsController.entries.length,
+            itemBuilder: (context, index) {
+              final item = _maleBirdsController.entries[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _MaleBirdsCard(
+                  entry: item,
+                ),
+              );
+            },
+          );
+        }),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Padding(
@@ -153,7 +159,6 @@ class _MaleBirdsPageState extends State<MaleBirdsPage> {
         ),
       ),
     );
-    });
   }
 }
 
