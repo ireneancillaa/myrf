@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_storage/firebase_storage.dart';
@@ -30,6 +31,7 @@ class SampleDocSection extends StatefulWidget {
   final Function(bool) onDistributionBluetoothChanged;
   final int dietReplication;
   final int totalPens;
+  final Function(bool)? onUploadingStatusChanged;
 
   const SampleDocSection({
     super.key,
@@ -54,6 +56,7 @@ class SampleDocSection extends StatefulWidget {
     required this.onDistributionBluetoothChanged,
     required this.dietReplication,
     required this.totalPens,
+    this.onUploadingStatusChanged,
   });
 
   @override
@@ -121,6 +124,70 @@ class _SampleDocSectionState extends State<SampleDocSection> {
   @override
   void didUpdateWidget(covariant SampleDocSection oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    // 1. Sync Bluetooth Settings
+    if (oldWidget.sampleInputBluetooth != widget.sampleInputBluetooth) {
+      setState(() => _sampleInputBluetooth = widget.sampleInputBluetooth);
+    }
+    if (oldWidget.distributionBluetooth != widget.distributionBluetooth) {
+      setState(() => _distributionBluetooth = widget.distributionBluetooth);
+    }
+
+    // 2. Sync Sample Groups and Bluetooth Flags (Weights state)
+    final oldGroupsSummary =
+        oldWidget.sampleGroups.map((g) => g.join(',')).join('|');
+    final newGroupsSummary =
+        widget.sampleGroups.map((g) => g.join(',')).join('|');
+    final oldFlagsSummary =
+        oldWidget.sampleBluetoothFlags.map((f) => f.join(',')).join('|');
+    final newFlagsSummary =
+        widget.sampleBluetoothFlags.map((f) => f.join(',')).join('|');
+
+    if (oldGroupsSummary != newGroupsSummary ||
+        oldFlagsSummary != newFlagsSummary) {
+      setState(() {
+        for (int i = 0; i < 3; i++) {
+          // Weights
+          _sampleDocWeights[i]
+            ..clear()
+            ..addAll(
+              i < widget.sampleGroups.length
+                  ? List<double>.from(widget.sampleGroups[i])
+                  : <double>[],
+            );
+
+          // Update timestamp if data just arrived
+          if (_sampleDocWeights[i].isNotEmpty && _sampleUpdatedAt[i] == null) {
+            _sampleUpdatedAt[i] = DateTime.now();
+          } else if (_sampleDocWeights[i].isEmpty) {
+            _sampleUpdatedAt[i] = null;
+          }
+
+          // Bluetooth Flags
+          _sampleDocBluetoothFlags[i]
+            ..clear()
+            ..addAll(
+              i < widget.sampleBluetoothFlags.length
+                  ? List<bool>.from(widget.sampleBluetoothFlags[i])
+                  : List<bool>.filled(_sampleDocWeights[i].length, false),
+            );
+
+          // Correct flag list length if mismatched
+          if (_sampleDocBluetoothFlags[i].length <
+              _sampleDocWeights[i].length) {
+            _sampleDocBluetoothFlags[i].addAll(
+              List<bool>.filled(
+                _sampleDocWeights[i].length -
+                    _sampleDocBluetoothFlags[i].length,
+                false,
+              ),
+            );
+          }
+        }
+      });
+    }
+
+    // 3. Sync Attachment URLs
     final oldUrls = oldWidget.initialAttachmentUrls
         .map((item) => item.trim())
         .where((item) => item.isNotEmpty)
@@ -130,22 +197,27 @@ class _SampleDocSectionState extends State<SampleDocSection> {
         .where((item) => item.isNotEmpty)
         .toList();
 
-    if (oldUrls.join('|') == newUrls.join('|')) return;
-
-    final hasLocalOrUploading = _attachments.any(
-      (item) => item.file != null || item.isUploading,
-    );
-    if (hasLocalOrUploading) return;
-
-    setState(() {
-      _attachments
-        ..clear()
-        ..addAll(
-          newUrls.isEmpty
-              ? [_AttachmentItem.empty()]
-              : newUrls.map((url) => _AttachmentItem.remote(url)),
-        );
-    });
+    if (oldUrls.join('|') != newUrls.join('|')) {
+      final hasLocalOrUploading = _attachments.any(
+        (item) => item.file != null || item.isUploading,
+      );
+      
+      // Only sync from parent if we don't have local unsaved changes
+      if (!hasLocalOrUploading) {
+        setState(() {
+          _attachments
+            ..clear()
+            ..addAll(
+              newUrls.isEmpty
+                  ? [_AttachmentItem.empty()]
+                  : newUrls.map((url) => _AttachmentItem.remote(url)),
+            );
+        });
+      } else {
+        // Log that we skipped sync to avoid data loss
+        debugPrint('SampleDocSection: Skipping sync from parent to avoid overwriting local uploads');
+      }
+    }
   }
 
   void _initializeAttachments() {
@@ -165,6 +237,15 @@ class _SampleDocSectionState extends State<SampleDocSection> {
         .map((item) => item.downloadUrl?.trim() ?? '')
         .where((item) => item.isNotEmpty)
         .toList();
+    
+    // Safety check: if we have attachments but urls is empty because all are still uploading,
+    // don't notify yet to avoid clearing the controller's state.
+    final hasActiveAttachments = _attachments.any((item) => item.hasPreview);
+    if (hasActiveAttachments && urls.isEmpty && _uploadingCount > 0) {
+      debugPrint('SampleDocSection: Delaying notification until uploads finish');
+      return;
+    }
+    
     widget.onAttachmentUrlsChanged(urls);
   }
 
@@ -182,71 +263,227 @@ class _SampleDocSectionState extends State<SampleDocSection> {
     );
   }
 
+  void _showImagePreview({
+    required String url,
+    required bool isLocal,
+    File? file,
+  }) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.9),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: InteractiveViewer(
+                maxScale: 5.0,
+                child: _buildImageWidget(
+                  url,
+                  isLocal: isLocal,
+                  file: file,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageWidget(
+    String url, {
+    required bool isLocal,
+    File? file,
+    required BoxFit fit,
+  }) {
+    if (isLocal && file != null) {
+      return Image.file(file, fit: fit);
+    }
+
+    if (url.startsWith('data:image')) {
+      try {
+        final base64Data = url.split(',').last;
+        return Image.memory(
+          base64Decode(base64Data),
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => const Center(
+            child: Icon(Icons.broken_image, color: Colors.grey),
+          ),
+        );
+      } catch (e) {
+        return const Center(
+          child: Icon(Icons.broken_image, color: Colors.grey),
+        );
+      }
+    }
+
+    return Image.network(
+      url,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) => const Center(
+        child: Icon(Icons.broken_image, color: Colors.grey),
+      ),
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        );
+      },
+    );
+  }
+
   Future<void> _pickAttachmentFromGallery(int index) async {
+    int targetIndex = index;
     try {
       final pickedImage = await _imagePicker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85,
+        imageQuality: 50, // Aggressive compression for Base64
+        maxWidth: 512,    // Limit resolution to stay under 1MB Firestore limit
+        maxHeight: 512,
       );
 
       if (pickedImage == null) return;
 
-      if (index < 0 || index >= _attachments.length) return;
+      if (index < 0) {
+        // If adding a new image via the Add button
+        if (_attachments.length >= 10) return;
+        
+        // If last item has a preview, we need a new slot
+        if (_attachments.isEmpty || _attachments.last.hasPreview) {
+          setState(() {
+            _attachments.add(_AttachmentItem.empty());
+          });
+        }
+        targetIndex = _attachments.length - 1;
+      }
+
+      if (targetIndex < 0 || targetIndex >= _attachments.length) return;
 
       setState(() {
-        _attachments[index] = _AttachmentItem(
+        _attachments[targetIndex] = _AttachmentItem(
           file: pickedImage,
-          downloadUrl: _attachments[index].downloadUrl,
+          downloadUrl: _attachments[targetIndex].downloadUrl,
           isUploading: true,
         );
       });
 
+      _notifyUploadingStatus(true);
       final uploadedUrl = await _uploadAttachmentToFirebase(pickedImage);
-      if (!mounted || index < 0 || index >= _attachments.length) return;
+      if (!mounted || targetIndex < 0 || targetIndex >= _attachments.length) {
+        _notifyUploadingStatus(false);
+        return;
+      }
 
       setState(() {
-        _attachments[index] = _AttachmentItem(
+        _attachments[targetIndex] = _AttachmentItem(
           file: pickedImage,
           downloadUrl: uploadedUrl,
           isUploading: false,
         );
       });
+      _notifyUploadingStatus(false);
       _notifyAttachmentUrlsChanged();
-    } catch (_) {
-      if (index >= 0 && index < _attachments.length) {
+    } catch (e) {
+      _notifyUploadingStatus(false);
+      
+      var errorMessage = 'Upload failed';
+      var errorCode = 'unknown';
+
+      if (e is FirebaseException) {
+        errorCode = e.code;
+        errorMessage = 'Upload failed: [${e.code}] ${e.message}';
+      } else {
+        errorMessage = 'Error: $e';
+      }
+
+      debugPrint('SampleDocSection: CRITICAL UPLOAD ERROR');
+      debugPrint(' - Code: $errorCode');
+      debugPrint(' - Message: $e');
+      debugPrint(' - Project ID: ${widget.projectId}');
+      
+      if (targetIndex >= 0 && targetIndex < _attachments.length) {
         setState(() {
-          _attachments[index] = _AttachmentItem(
-            file: _attachments[index].file,
-            downloadUrl: _attachments[index].downloadUrl,
+          _attachments[targetIndex] = _attachments[targetIndex].copyWith(
             isUploading: false,
           );
         });
       }
+      
+      _notifyAttachmentUrlsChanged();
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to open gallery. Please try again.'),
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: const Color(0xFFEF4444),
+          duration: const Duration(seconds: 10), // Longer duration for debugging
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
         ),
       );
     }
   }
 
+  int _uploadingCount = 0;
+  void _notifyUploadingStatus(bool isStarting) {
+    if (isStarting) {
+      _uploadingCount++;
+    } else {
+      _uploadingCount = (_uploadingCount - 1).clamp(0, 10);
+    }
+    widget.onUploadingStatusChanged?.call(_uploadingCount > 0);
+  }
+
   void _addAttachmentField() {
+    if (_attachments.length >= 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Maximum 10 attachments allowed'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
     setState(() {
       _attachments.add(_AttachmentItem.empty());
     });
   }
 
   Future<String> _uploadAttachmentToFirebase(XFile pickedImage) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final safeProjectId = (widget.projectId ?? 'unassigned').trim().isEmpty
-        ? 'unassigned'
-        : widget.projectId!.trim();
-    final storagePath = 'broiler_attachments/$safeProjectId/$now.jpg';
-    final ref = FirebaseStorage.instance.ref().child(storagePath);
-    final uploadTask = ref.putFile(File(pickedImage.path));
-    final snapshot = await uploadTask;
-    return snapshot.ref.getDownloadURL();
+    try {
+      final imageFile = File(pickedImage.path);
+      final bytes = await imageFile.readAsBytes();
+      
+      // Convert to Base64 String with Data URI prefix
+      final base64String = base64Encode(bytes);
+      final dataUri = 'data:image/jpeg;base64,$base64String';
+      
+      debugPrint('SampleDocSection: Image converted to Base64 (Size: ${bytes.length} bytes)');
+      
+      // Artificial delay to simulate processing but much faster than real upload
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      return dataUri;
+    } catch (e) {
+      debugPrint('SampleDocSection: Error converting to Base64: $e');
+      rethrow;
+    }
   }
 
   Future<bool> _confirmRemoveAttachmentField(int index) async {
@@ -363,6 +600,9 @@ class _SampleDocSectionState extends State<SampleDocSection> {
     setState(() {
       if (index < 0 || index >= _attachments.length) return;
       _attachments.removeAt(index);
+      if (_attachments.isEmpty) {
+        _attachments.add(_AttachmentItem.empty());
+      }
     });
     _notifyAttachmentUrlsChanged();
 
@@ -599,10 +839,12 @@ class _SampleDocSectionState extends State<SampleDocSection> {
               ),
             ),
             IconButton(
-              onPressed: _addAttachmentField,
-              icon: const Icon(
+              onPressed: _attachments.length < 10 ? _addAttachmentField : null,
+              icon: Icon(
                 Icons.add_circle_outline,
-                color: Color(0xFF22C55E),
+                color: _attachments.length < 10
+                    ? const Color(0xFF22C55E)
+                    : const Color(0xFF9CA3AF),
                 size: 28,
               ),
               tooltip: 'Add attachment',
@@ -621,121 +863,162 @@ class _SampleDocSectionState extends State<SampleDocSection> {
               bottom: index == _attachments.length - 1 ? 0 : 12,
             ),
             child: Dismissible(
-              key: ValueKey('attachment_box_$index'),
-              direction: index == 0
-                  ? DismissDirection.none
-                  : DismissDirection.endToStart,
-              confirmDismiss: index == 0
-                  ? null
-                  : (_) => _confirmRemoveAttachmentField(index),
+              key: ValueKey('attachment_box_${attachment.hashCode}_$index'),
+              direction: DismissDirection.endToStart,
+              confirmDismiss: (_) => _confirmRemoveAttachmentField(index),
               background: Container(
                 decoration: BoxDecoration(
-                  color: index == 0
-                      ? Colors.transparent
-                      : const Color(0xFFEF4444),
+                  color: const Color(0xFFEF4444),
                   borderRadius: BorderRadius.circular(borderRadius),
                 ),
                 alignment: Alignment.centerRight,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: index == 0
-                    ? const SizedBox.shrink()
-                    : const Icon(
-                        Icons.delete_outline,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-              ),
-              child: InkWell(
-                onTap: () => _pickAttachmentFromGallery(index),
-                borderRadius: BorderRadius.circular(borderRadius),
-                child: CustomPaint(
-                  painter: _DashedRoundedRectPainter(
-                    color: const Color(0xFFB8B8B8),
-                    strokeWidth: 1,
-                    dashWidth: 10,
-                    dashGap: 10,
-                    radius: borderRadius,
-                  ),
-                  child: Container(
-                    width: double.infinity,
-                    height: 230,
-                    padding: const EdgeInsets.all(16),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(borderRadius),
-                    ),
-                    child: !hasPreview
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.add_photo_alternate_outlined,
-                                size: 72,
-                                color: Color(0xFF6B7280),
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'Tap to upload from gallery',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF7A7A7A),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          )
-                        : ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                if (hasLocal)
-                                  Image.file(
-                                    File(attachment.file!.path),
-                                    fit: BoxFit.cover,
-                                  )
-                                else
-                                  Image.network(
-                                    attachment.downloadUrl!,
-                                    fit: BoxFit.cover,
-                                  ),
-                                if (attachment.isUploading)
-                                  Container(
-                                    color: const Color(0x77000000),
-                                    alignment: Alignment.center,
-                                    child: const SizedBox(
-                                      width: 28,
-                                      height: 28,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.8,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                Align(
-                                  alignment: Alignment.bottomCenter,
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
-                                    color: const Color(0x88000000),
-                                    child: const Text(
-                                      'Tap to change attachment',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                  ),
+                child: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.white,
+                  size: 28,
                 ),
+              ),
+              child: Stack(
+                children: [
+                  InkWell(
+                    onTap: !hasPreview
+                        ? () => _pickAttachmentFromGallery(index)
+                        : () => _showImagePreview(
+                              url: hasRemote ? attachment.downloadUrl! : '',
+                              isLocal: hasLocal,
+                              file: hasLocal ? File(attachment.file!.path) : null,
+                            ),
+                    borderRadius: BorderRadius.circular(borderRadius),
+                    child: CustomPaint(
+                      painter: _DashedRoundedRectPainter(
+                        color: const Color(0xFFB8B8B8),
+                        strokeWidth: 1,
+                        dashWidth: 10,
+                        dashGap: 10,
+                        radius: borderRadius,
+                      ),
+                      child: Container(
+                        width: double.infinity,
+                        height: 230,
+                        padding: const EdgeInsets.all(16),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(borderRadius),
+                        ),
+                        child: !hasPreview
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.add_photo_alternate_outlined,
+                                    size: 72,
+                                    color: Color(0xFF6B7280),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    'Tap to upload from gallery',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF7A7A7A),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    _buildImageWidget(
+                                      attachment.downloadUrl ?? '',
+                                      isLocal: hasLocal,
+                                      file: hasLocal
+                                          ? File(attachment.file!.path)
+                                          : null,
+                                      fit: BoxFit.cover,
+                                    ),
+                                    if (attachment.isUploading)
+                                      Container(
+                                        color: const Color(0x77000000),
+                                        alignment: Alignment.center,
+                                        child: const SizedBox(
+                                          width: 28,
+                                          height: 28,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.8,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    Align(
+                                      alignment: Alignment.bottomCenter,
+                                      child: Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 8,
+                                        ),
+                                        color: const Color(0x88000000),
+                                        child: Text(
+                                          attachment.isUploading
+                                              ? 'Uploading...'
+                                              : 'Tap to view fullscreen',
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                  if (hasPreview && !attachment.isUploading)
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: GestureDetector(
+                        onTap: () => _pickAttachmentFromGallery(index),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.4),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.edit,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: GestureDetector(
+                      onTap: () => _confirmRemoveAttachmentField(index),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.4),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -1145,10 +1428,28 @@ class _AttachmentItem {
   final String? downloadUrl;
   final bool isUploading;
 
+  bool get hasPreview => file != null || (downloadUrl != null && downloadUrl!.isNotEmpty);
+
+  _AttachmentItem copyWith({
+    XFile? file,
+    String? downloadUrl,
+    bool? isUploading,
+  }) {
+    return _AttachmentItem(
+      file: file ?? this.file,
+      downloadUrl: downloadUrl ?? this.downloadUrl,
+      isUploading: isUploading ?? this.isUploading,
+    );
+  }
+
   factory _AttachmentItem.empty() => const _AttachmentItem();
 
   factory _AttachmentItem.remote(String url) =>
       _AttachmentItem(downloadUrl: url.trim());
+
+  @override
+  String toString() =>
+      'AttachmentItem(file: ${file != null}, url: ${downloadUrl != null}, uploading: $isUploading)';
 }
 
 class _DashedRoundedRectPainter extends CustomPainter {

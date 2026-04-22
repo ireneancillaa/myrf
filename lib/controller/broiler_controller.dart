@@ -578,10 +578,22 @@ class BroilerController extends GetxController {
     projectDocDistributions[projectId] = List<Map<String, dynamic>>.from(
       docDistributions,
     );
-    projectAttachmentUrls[projectId] = attachmentUrls
+    
+    final normalizedAttachmentUrls = attachmentUrls
         .map((item) => item.trim())
         .where((item) => item.isNotEmpty)
         .toList();
+
+    // Defensive logic: prevent accidental data loss
+    final previousUrls = projectAttachmentUrls[projectId];
+    if (normalizedAttachmentUrls.isEmpty && (previousUrls?.isNotEmpty ?? false)) {
+      debugPrint('BroilerController: PROTECTED SYNC - Preserving ${previousUrls!.length} attachments for $projectId (prevented empty list overwrite).');
+    } else {
+      if (previousUrls != null && previousUrls.isNotEmpty && normalizedAttachmentUrls.isEmpty) {
+        debugPrint('BroilerController: INTENTIONAL CLEAR - Project $projectId attachments cleared.');
+      }
+      projectAttachmentUrls[projectId] = normalizedAttachmentUrls;
+    }
     projectSampleBluetoothInputs[projectId] = sampleInputBluetooth;
     projectDistributionBluetoothInputs[projectId] = distributionBluetooth;
     projectBluetoothInputs[projectId] =
@@ -600,6 +612,7 @@ class BroilerController extends GetxController {
         entry.key: Map<String, String>.from(entry.value),
     };
 
+    debugPrint('BroilerController: Stepper data updated for $projectId. Attachments: ${attachmentUrls.length}');
     _enqueueProjectSync(projectId);
     return Future<bool>.value(true);
   }
@@ -726,6 +739,59 @@ class BroilerController extends GetxController {
     selectedProjectName.value = projectName;
     _enqueueProjectSync(currentProjectId, showErrorSnackbar: true);
     Get.snackbar('Draft', 'Project saved to drafts');
+    return true;
+  }
+
+  Future<bool> saveProjectAsDraft() async {
+    final projectName = projectNameController.text.trim();
+    if (projectName.isEmpty) return false;
+
+    final replication = replicationController.text.trim();
+    final replicationNumber = (int.tryParse(replication) ?? 1).clamp(1, 9999);
+    final selectedId = selectedProjectId.value?.trim() ?? '';
+    final currentProjectId =
+        selectedId.isNotEmpty ? selectedId : _createLocalProjectId();
+
+    final data = BroilerProjectData(
+      projectId: currentProjectId,
+      projectName: projectName,
+      trialDate: trialDateController.text.trim(),
+      trialHouse: trialHouseController.text.trim(),
+      strain: strainController.text.trim(),
+      hatchery: hatcheryController.text.trim(),
+      breedingFarm: breedingFarmController.text.trim(),
+      boxBatchCode: boxBatchCodeController.text.trim(),
+      selector: selectorController.text.trim(),
+      docInDate: docInDateController.text.trim(),
+      docWeight: docWeightController.text.trim(),
+      weighing3Weeks: weighing3WeeksController.text.trim(),
+      weighing5Weeks: weighing5WeeksController.text.trim(),
+      numberOfBirds: numberOfBirdsController.text.trim(),
+      diet: dietController.text.trim(),
+      replication: replication,
+      dietReplication: replicationNumber,
+    );
+
+    final existingIndex = projects.indexWhere(
+      (item) => item.projectId == currentProjectId,
+    );
+    if (existingIndex >= 0) {
+      projects[existingIndex] = data;
+    } else {
+      projects.add(data);
+    }
+
+    final dietMappingController = Get.isRegistered<DietMappingController>()
+        ? Get.find<DietMappingController>()
+        : Get.put(DietMappingController(), permanent: true);
+    dietMappingController.syncFromValues(
+      diet: dietController.text.trim(),
+      replication: replication,
+    );
+
+    selectedProjectId.value = currentProjectId;
+    selectedProjectName.value = projectName;
+    _enqueueProjectSync(currentProjectId, showErrorSnackbar: false);
     return true;
   }
 

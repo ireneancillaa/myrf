@@ -565,7 +565,7 @@ class _MaleBirdsInputPageState extends State<MaleBirdsInputPage> {
                 child: Row(
                   children: [
                     Text(
-                      'Pen ${index + 1} (kg):',
+                      'Pen ${index + 1} (Male):',
                       style: TextStyle(
                         color: isActive
                             ? const Color(0xFF0A992E)

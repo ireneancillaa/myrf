@@ -566,6 +566,7 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
                 child: Row(
                   children: [
                     Text(
+                      // TODO: feed & bag, birds weight tambahin kg di pen
                       'Pen ${index + 1}:',
                       style: TextStyle(
                         color: isActive

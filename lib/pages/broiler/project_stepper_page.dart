@@ -36,6 +36,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
   late bool _isReadOnly;
   late bool _openedFromDraft;
   bool _showProjectInfoValidation = false;
+  bool _isUploadingAttachments = false;
   String? _projectId;
   String? _projectName;
   int _currentStep = 0;
@@ -111,7 +112,12 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
 
     final savedAttachmentUrls = controller.projectAttachmentUrls[_projectId!];
     if (savedAttachmentUrls != null) {
-      sampleDocController.setAttachmentUrls(savedAttachmentUrls);
+      // Protection: don't overwrite local photos with empty list if UI already has photos
+      if (savedAttachmentUrls.isNotEmpty || sampleDocController.attachmentUrls.isEmpty) {
+        sampleDocController.setAttachmentUrls(savedAttachmentUrls);
+      } else {
+        debugPrint('ProjectStepperPage: Preserving local photos (prevented empty override from controller)');
+      }
     }
 
     final savedBluetoothInput = controller.projectBluetoothInputs[_projectId!];
@@ -196,15 +202,22 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
     super.dispose();
   }
 
-  void _goToStep(int step) {
-    if (_isReadOnly) {
-      // Keep navigation available in read-only mode.
+  Future<void> _goToStep(int step) async {
+    if (!_isReadOnly) {
+      await _persistCurrentProjectProgress();
     }
+    
     setState(() {
       _currentStep = step;
     });
+    
     if (_projectId != null && _projectId!.isNotEmpty) {
       controller.updateLastOpenedStep(_projectId!, _currentStep);
+    }
+
+    // If going to the Sample Doc step (index 2), ensure the controller is up to date
+    if (step == 2 && _projectId != null) {
+      _applySavedStepperState();
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -217,13 +230,25 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
         if (didPop) return;
-        _persistCurrentProjectProgress();
 
-        if (mounted) {
-          Navigator.of(context).pop(result);
+        if (_isUploadingAttachments) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please wait for photo upload to finish'),
+              backgroundColor: Color(0xFFEF4444),
+            ),
+          );
+          return;
         }
+
+        // Ensure current data is persisted before popping
+        _persistCurrentProjectProgress().then((_) {
+          if (context.mounted) {
+            Navigator.of(context).pop(result);
+          }
+        });
       },
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -321,7 +346,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                         await controller.markDrafted(_projectId!, step: 1);
                       }
                       await _persistCurrentProjectProgress();
-                      _goToStep(1);
+                      await _goToStep(1);
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -345,12 +370,23 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                     child: SizedBox(
                       height: 50,
                       child: OutlinedButton(
-                        onPressed: () async {
-                          if (!_isReadOnly) {
-                            await _persistCurrentProjectProgress();
-                          }
-                          _goToStep(_currentStep - 1);
-                        },
+                        onPressed: _isUploadingAttachments
+                            ? () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Please wait for photo upload to finish',
+                                    ),
+                                    backgroundColor: Color(0xFFEF4444),
+                                  ),
+                                );
+                              }
+                            : () async {
+                            if (!_isReadOnly) {
+                              await _persistCurrentProjectProgress();
+                            }
+                            await _goToStep(_currentStep - 1);
+                          },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF22C55E),
                           side: const BorderSide(color: Color(0xFF22C55E)),
@@ -379,7 +415,23 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                             : (_currentStep == 2 &&
                                   (_isReadOnly || !_canFinishProject()))
                             ? null
+                            : _isUploadingAttachments
+                            ? () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Please wait for photo upload to finish',
+                                    ),
+                                    backgroundColor: Color(0xFFEF4444),
+                                  ),
+                                );
+                              }
                             : () async {
+                                if (!_isReadOnly) {
+                                  final isSaved =
+                                      await _persistCurrentProjectProgress();
+                                  if (!isSaved) return;
+                                }
                                 if (_currentStep < 2) {
                                   if (_isReadOnly) {
                                     _goToStep(_currentStep + 1);
@@ -393,7 +445,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                                     );
                                   }
                                   await _persistCurrentProjectProgress();
-                                  _goToStep(_currentStep + 1);
+                                  await _goToStep(_currentStep + 1);
                                 } else {
                                   if (_projectId == null ||
                                       _projectId!.isEmpty) {
@@ -465,37 +517,48 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
           boxHeaviestController: sampleDocController.boxHeaviestController,
           boxAverageController: sampleDocController.boxAverageController,
           boxLightestController: sampleDocController.boxLightestController,
-          docWeights: sampleDocController.docWeights,
+          docWeights: List<double>.from(sampleDocController.docWeights),
           onDocWeightsChanged: (weights) {
             sampleDocController.docWeights.assignAll(weights);
           },
-          sampleGroups: sampleDocController.sampleGroups,
+          sampleGroups: List<List<double>>.from(
+            sampleDocController.sampleGroups.map((e) => List<double>.from(e)),
+          ),
           onSampleGroupsChanged: (groups) {
             sampleDocController.setSampleGroups(groups);
             if (mounted) {
               setState(() {});
             }
           },
-          sampleBluetoothFlags: sampleDocController.sampleGroupBluetoothFlags,
+          sampleBluetoothFlags: List<List<bool>>.from(
+            sampleDocController.sampleGroupBluetoothFlags
+                .map((e) => List<bool>.from(e)),
+          ),
           onSampleBluetoothFlagsChanged: (flags) {
             sampleDocController.setSampleGroupBluetoothFlags(flags);
             if (mounted) {
               setState(() {});
             }
           },
-          docDistributions: sampleDocController.docDistributions,
+          docDistributions: List<Map<String, dynamic>>.from(
+            sampleDocController.docDistributions
+                .map((e) => Map<String, dynamic>.from(e)),
+          ),
           onDocDistributionsChanged: (distributions) {
             sampleDocController.setDocDistributions(distributions);
             if (mounted) {
               setState(() {});
             }
           },
-          initialAttachmentUrls: sampleDocController.attachmentUrls,
+          initialAttachmentUrls: List<String>.from(
+            sampleDocController.attachmentUrls,
+          ),
           projectId: _projectId,
           onAttachmentUrlsChanged: (urls) {
             sampleDocController.setAttachmentUrls(urls);
             if (mounted) {
               setState(() {});
+              _persistCurrentProjectProgress();
             }
           },
           sampleInputBluetooth: sampleDocController.sampleInputBluetooth.value,
@@ -515,6 +578,9 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
           },
           dietReplication: dietMappingController.dietReplication.value ?? 1,
           totalPens: sampleDocController.totalPens.value,
+          onUploadingStatusChanged: (isUploading) {
+            setState(() => _isUploadingAttachments = isUploading);
+          },
         );
       default:
         return BroilerProjectInformationSection(
@@ -588,11 +654,11 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
     return uniquePens.length == 42;
   }
 
-  Future<void> _persistCurrentProjectProgress() async {
-    if (_projectId == null || _projectId!.isEmpty) return;
+  Future<bool> _persistCurrentProjectProgress() async {
+    if (_projectId == null || _projectId!.isEmpty) return false;
 
     controller.updateLastOpenedStep(_projectId!, _currentStep);
-    await controller.saveStepperData(
+    return await controller.saveStepperData(
       projectId: _projectId!,
       sampleWeights: sampleDocController.docWeights,
       sampleGroups: sampleDocController.sampleGroups,

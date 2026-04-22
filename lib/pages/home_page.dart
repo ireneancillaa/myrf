@@ -30,20 +30,20 @@ class _HomePageState extends State<HomePage> {
 
   final List<QuickActionItem> _quickActions = const [
     QuickActionItem(
-      title: 'Weighing',
-      iconAsset: 'assets/body-weight.png',
-      iconColor: Color(0xFF22C55E),
-      iconBgColor: Color(0xFFE8F5EE),
-    ),
-    QuickActionItem(
       title: 'Infeed',
       iconAsset: 'assets/infeed.png',
       iconColor: Color(0xFF22C55E),
       iconBgColor: Color(0xFFE8F5EE),
     ),
     QuickActionItem(
-      title: 'Mortality',
+      title: 'Depletion',
       iconAsset: 'assets/chicken.png',
+      iconColor: Color(0xFF22C55E),
+      iconBgColor: Color(0xFFE8F5EE),
+    ),
+    QuickActionItem(
+      title: 'Weighing',
+      iconAsset: 'assets/body-weight.png',
       iconColor: Color(0xFF22C55E),
       iconBgColor: Color(0xFFE8F5EE),
     ),
@@ -661,14 +661,14 @@ class _HomePageState extends State<HomePage> {
     }
 
     switch (action.title) {
-      case 'Weighing':
-        onTap = () => navigateWithMessage(WeighingDoaPage(selectedFarmName: _selectedFarm));
-        break;
       case 'Infeed':
         onTap = () => navigateWithMessage(const InfeedPage());
         break;
-      case 'Mortality':
+      case 'Depletion':
         onTap = () => navigateWithMessage(const DepletionPage());
+        break;
+      case 'Weighing':
+        onTap = () => navigateWithMessage(WeighingDoaPage(selectedFarmName: _selectedFarm));
         break;
       case 'Male Birds':
         onTap = () => navigateWithMessage(const MaleBirdsPage());

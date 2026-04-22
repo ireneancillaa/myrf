@@ -132,7 +132,7 @@ class _BroodingPageState extends State<BroodingPage> {
                   Expanded(
                     child: _buildTemperatureCard(
                       title: 'Rear Area',
-                      value: '31.8°C',
+                      value: '26°C',
                       icon: Icons.thermostat,
                     ),
                   ),
