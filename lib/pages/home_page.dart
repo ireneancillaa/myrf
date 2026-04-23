@@ -10,7 +10,7 @@ import 'monitoring/infeed_page.dart';
 import 'monitoring/depletion_page.dart';
 import 'monitoring/feses_score_page.dart';
 import 'monitoring/brooding_page.dart';
-import 'monitoring/weighing_doa_page.dart';
+import 'monitoring/weighing_page.dart';
 import 'broiler_page.dart';
 import 'profile_page.dart';
 
@@ -645,7 +645,7 @@ class _HomePageState extends State<HomePage> {
         onTap = () => navigateWithMessage(const DepletionPage());
         break;
       case 'Weighing':
-        onTap = () => navigateWithMessage(WeighingDoaPage(selectedFarmName: _selectedFarm));
+        onTap = () => navigateWithMessage(WeighingPage(selectedFarmName: _selectedFarm));
         break;
       case 'Male Birds':
         onTap = () => navigateWithMessage(const MaleBirdsPage());

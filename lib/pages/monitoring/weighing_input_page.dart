@@ -378,36 +378,41 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
               _buildSectionTitle('Weight'),
               const SizedBox(height: 12),
               Obx(
-                () => Column(
-                  children: [
-                    _buildChecklistItem(
-                      title: 'Feed & Bag',
-                      value: _weighingController.feedAndBagValue.value,
-                      unit: '',
-                      onTap: () => _onChecklistTap('feedAndBag'),
+                () => SizedBox(
+                  height: 280, // Batas tinggi agar bisa di-scroll secara vertikal
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _buildChecklistItem(
+                          title: 'Feed & Bag',
+                          value: _weighingController.feedAndBagValue.value,
+                          unit: '',
+                          onTap: () => _onChecklistTap('feedAndBag'),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildChecklistItem(
+                          title: 'Last Birds',
+                          value: _weighingController.lastBirdsValue.value,
+                          unit: '',
+                          onTap: () => _onChecklistTap('lastBirds'),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildChecklistItem(
+                          title: 'Actual Birds',
+                          value: _weighingController.actualBirdsValue.value,
+                          unit: '',
+                          onTap: () => _onChecklistTap('actualBirds'),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildChecklistItem(
+                          title: 'Birds Weight',
+                          value: _weighingController.birdsWeightValue.value,
+                          unit: '',
+                          onTap: () => _onChecklistTap('birdsWeight'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                    _buildChecklistItem(
-                      title: 'Last Birds',
-                      value: _weighingController.lastBirdsValue.value,
-                      unit: '',
-                      onTap: () => _onChecklistTap('lastBirds'),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildChecklistItem(
-                      title: 'Actual Birds',
-                      value: _weighingController.actualBirdsValue.value,
-                      unit: '',
-                      onTap: () => _onChecklistTap('actualBirds'),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildChecklistItem(
-                      title: 'Birds Weight',
-                      value: _weighingController.birdsWeightValue.value,
-                      unit: '',
-                      onTap: () => _onChecklistTap('birdsWeight'),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],

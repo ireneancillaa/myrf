@@ -10,16 +10,16 @@ import '../../widgets/empty_state_widget.dart';
 const Color primaryGreen = Color(0xFF22C55E);
 const Color textPrimary = Color(0xFF111827);
 
-class WeighingDoaPage extends StatefulWidget {
-  const WeighingDoaPage({super.key, this.selectedFarmName});
+class WeighingPage extends StatefulWidget {
+  const WeighingPage({super.key, this.selectedFarmName});
 
   final String? selectedFarmName;
 
   @override
-  State<WeighingDoaPage> createState() => _WeighingDoaPageState();
+  State<WeighingPage> createState() => _WeighingPageState();
 }
 
-class _WeighingDoaPageState extends State<WeighingDoaPage> {
+class _WeighingPageState extends State<WeighingPage> {
   Widget _buildValueColumn(String label, String value) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -46,7 +46,7 @@ class _WeighingDoaPageState extends State<WeighingDoaPage> {
     return Container(width: 1, height: 14, color: const Color(0xFFD1D5DB));
   }
 
-  Widget _buildWeighingCard(record) {
+  Widget _buildWeighingCard(WeighingRecord record) {
     final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(record.recordedAt);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 2),
