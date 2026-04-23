@@ -80,4 +80,15 @@ class BroilerProjectData {
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  int get currentAge {
+    try {
+      final docIn = DateTime.tryParse(docInDate);
+      if (docIn == null) return 0;
+      final diff = DateTime.now().difference(docIn).inDays;
+      return diff >= 0 ? diff + 1 : 0;
+    } catch (_) {
+      return 0;
+    }
+  }
 }

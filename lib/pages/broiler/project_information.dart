@@ -678,50 +678,55 @@ class BroilerProjectInformationSection extends StatelessWidget {
     required VoidCallback onTap,
     bool isMandatory = false,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildFieldLabel(label, isMandatory: isMandatory),
-        const SizedBox(height: 6),
-        ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: _fieldHeight),
-          child: TextFormField(
-            readOnly: true,
-            controller: controller,
-            textAlignVertical: TextAlignVertical.center,
-            style: const TextStyle(
-              fontSize: _fieldTextSize,
-              color: Color(0xFF111827),
-              height: 1.0,
-            ),
-            decoration:
-                _fieldDecoration(
-                  hint: label,
-                  icon: icon,
-                  isMandatory: isMandatory,
-                ).copyWith(
-                  suffixIcon: const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 22,
-                    color: Color(0xFF6B7280),
+    return InkWell(
+      onTap: onTap,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildFieldLabel(label, isMandatory: isMandatory),
+          const SizedBox(height: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: _fieldHeight),
+            child: TextFormField(
+              readOnly: true,
+              controller: controller,
+              textAlignVertical: TextAlignVertical.center,
+              onTap: onTap, // Keep this for accessibility
+              style: const TextStyle(
+                fontSize: _fieldTextSize,
+                color: Color(0xFF111827),
+                height: 1.0,
+              ),
+              decoration:
+                  _fieldDecoration(
+                    hint: label,
+                    icon: icon,
+                    isMandatory: isMandatory,
+                  ).copyWith(
+                    suffixIcon: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 22,
+                      color: Color(0xFF6B7280),
+                    ),
+                    suffixIconConstraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
                   ),
-                  suffixIconConstraints: const BoxConstraints(
-                    minWidth: 28,
-                    minHeight: 28,
-                  ),
-                ),
-            validator: isMandatory
-                ? (value) {
-                    if ((value ?? '').trim().isEmpty) {
-                      return '$label is required';
+              validator: isMandatory
+                  ? (value) {
+                      if ((value ?? '').trim().isEmpty) {
+                        return '$label is required';
+                      }
+                      return null;
                     }
-                    return null;
-                  }
-                : null,
-            onTap: onTap,
+                  : null,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

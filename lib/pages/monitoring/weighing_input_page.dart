@@ -465,76 +465,80 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
     Color? iconColor,
     VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 2), // Spacing for underline
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Color(0xFF22C55E), width: 1.0),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Enlarged and vertically centered Icon Box
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: prefixAssetPath != null
-                ? (prefixAssetPath.endsWith('.svg')
-                      ? SvgPicture.asset(
-                          prefixAssetPath,
-                          width: 32,
-                          height: 32,
-                          fit: BoxFit.contain,
-                        )
-                      : Image.asset(
-                          prefixAssetPath,
-                          width: 32,
-                          height: 32,
-                          fit: BoxFit.contain,
-                        ))
-                : Icon(
-                    icon,
-                    color: iconColor ?? const Color(0xFF22C55E),
-                    size: 32,
-                  ),
+    return InkWell(
+      onTap: onTap,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.only(bottom: 2), // Spacing for underline
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Color(0xFF22C55E), width: 1.0),
           ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF858991),
-                  ),
-                ),
-                TextFormField(
-                  controller: controller,
-                  readOnly: readOnly,
-                  onTap: onTap,
-                  keyboardType: keyboardType,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF111111),
-                  ),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 6),
-                    border: InputBorder.none,
-                    hintText: hintText,
-                    hintStyle: const TextStyle(
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: prefixAssetPath != null
+                  ? (prefixAssetPath.endsWith('.svg')
+                        ? SvgPicture.asset(
+                            prefixAssetPath,
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.contain,
+                          )
+                        : Image.asset(
+                            prefixAssetPath,
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.contain,
+                          ))
+                  : Icon(
+                      icon,
+                      color: iconColor ?? const Color(0xFF22C55E),
+                      size: 32,
+                    ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF9CA3AF),
+                      color: Color(0xFF858991),
                     ),
                   ),
-                ),
-              ],
+                  TextFormField(
+                    controller: controller,
+                    readOnly: readOnly,
+                    onTap: onTap, // Keep this for keyboard accessibility
+                    keyboardType: keyboardType,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF111111),
+                    ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                      border: InputBorder.none,
+                      hintText: hintText,
+                      hintStyle: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF9CA3AF),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

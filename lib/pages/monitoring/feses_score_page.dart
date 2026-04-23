@@ -158,7 +158,7 @@ class _FesesScoreCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 width: 48,
@@ -185,7 +185,7 @@ class _FesesScoreCard extends StatelessWidget {
                       entry.penNumber,
                       style: const TextStyle(
                         color: Color(0xFF22C55E),
-                        fontSize: 17,
+                        fontSize: 18,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -212,33 +212,36 @@ class _FesesScoreCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(child: Center(child: _buildLabelValue('Age ', '20'))),
-              _verticalDivider(),
               Expanded(
-                child: Center(
-                  child: _buildLabelValue(
-                    'Feses ',
-                    _formatNumber(entry.fesesKg),
-                  ),
+                child: _MetricText(
+                  label: 'Age',
+                  value: '20',
+                  textAlign: TextAlign.left,
                 ),
               ),
-              _verticalDivider(),
+              const _MetricDivider(),
               Expanded(
-                child: Center(
-                  child: _buildLabelValue(
-                    'Cawan ',
-                    _formatNumber(entry.cawanKg),
-                  ),
+                child: _MetricText(
+                  label: 'Feses',
+                  value: _formatNumber(entry.fesesKg),
                 ),
               ),
-              _verticalDivider(),
+              const _MetricDivider(),
               Expanded(
-                child: Center(
-                  child: _buildLabelValue('Oven ', _formatNumber(entry.ovenKg)),
+                child: _MetricText(
+                  label: 'Cawan',
+                  value: _formatNumber(entry.cawanKg),
+                ),
+              ),
+              const _MetricDivider(),
+              Expanded(
+                child: _MetricText(
+                  label: 'Oven',
+                  value: _formatNumber(entry.ovenKg),
+                  textAlign: TextAlign.right,
                 ),
               ),
             ],
@@ -247,33 +250,58 @@ class _FesesScoreCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _verticalDivider() => const Padding(
-    padding: EdgeInsets.symmetric(horizontal: 8),
-    child: Text('|', style: TextStyle(color: Color(0xFF6B7280), fontSize: 16)),
-  );
+class _MetricText extends StatelessWidget {
+  const _MetricText({
+    required this.label,
+    required this.value,
+    this.textAlign = TextAlign.center,
+  });
 
-  Widget _buildLabelValue(String label, String value) {
-    return Row(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFF6B7280),
-            fontSize: 13,
-            fontWeight: FontWeight.w400,
+  final String label;
+  final String value;
+  final TextAlign textAlign;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        text: '$label ',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+        children: [
+          TextSpan(
+            text: value,
+            style: const TextStyle(
+              color: Color(0xFF111827),
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+      textAlign: textAlign,
+    );
+  }
+}
+
+class _MetricDivider extends StatelessWidget {
+  const _MetricDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 16,
+      child: Center(
+        child: Text(
+          '|',
+          style: TextStyle(
+            color: Color(0xFF7D7D7D),
+            fontSize: 18,
+            fontWeight: FontWeight.w300,
           ),
         ),
-        const SizedBox(width: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Color(0xFF111111),
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

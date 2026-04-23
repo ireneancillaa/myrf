@@ -592,6 +592,7 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
                       TextFormField(
                         controller: TextEditingController(text: value),
                         readOnly: true,
+                        onTap: onTap,
                         style: TextStyle(
                           color: value.isEmpty
                               ? const Color(0xFF9CA3AF)

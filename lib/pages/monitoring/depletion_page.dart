@@ -27,7 +27,7 @@ class _DepletionPageState extends State<DepletionPage> {
     _broilerController = Get.isRegistered<BroilerController>()
         ? Get.find<BroilerController>()
         : Get.put(BroilerController(), permanent: true);
-    
+
     _mortalityController = Get.isRegistered<MortalityController>()
         ? Get.find<MortalityController>()
         : Get.put(MortalityController(), permanent: true);
@@ -120,10 +120,7 @@ class _DepletionPageState extends State<DepletionPage> {
             icon: const Icon(Icons.add, size: 28),
             label: const Text(
               'Depletion',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -288,10 +285,7 @@ class _MetricText extends StatelessWidget {
     return Text.rich(
       TextSpan(
         text: '$label ',
-        style: const TextStyle(
-          fontSize: 13,
-          color: Color(0xFF6B7280),
-        ),
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
         children: [
           TextSpan(
             text: value,

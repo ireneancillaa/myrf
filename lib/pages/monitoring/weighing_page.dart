@@ -20,47 +20,20 @@ class WeighingPage extends StatefulWidget {
 }
 
 class _WeighingPageState extends State<WeighingPage> {
-  Widget _buildValueColumn(String label, String value) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF111827),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVerticalDivider() {
-    return Container(width: 1, height: 14, color: const Color(0xFFD1D5DB));
-  }
-
   Widget _buildWeighingCard(WeighingRecord record) {
-    final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(record.recordedAt);
+    final dateStr = DateFormat('dd MMM yyyy - HH:mm:ss').format(record.recordedAt);
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFDADDE2)),
       ),
-      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 width: 48,
@@ -72,8 +45,8 @@ class _WeighingPageState extends State<WeighingPage> {
                 child: Center(
                   child: Image.asset(
                     'assets/body-weight.png',
-                    width: 28,
-                    height: 28,
+                    width: 32,
+                    height: 32,
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -86,9 +59,9 @@ class _WeighingPageState extends State<WeighingPage> {
                     const Text(
                       'Weighing',
                       style: TextStyle(
-                        fontSize: 16,
+                        color: Color(0xFF22C55E),
+                        fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: primaryGreen,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -103,8 +76,8 @@ class _WeighingPageState extends State<WeighingPage> {
                         Text(
                           dateStr,
                           style: const TextStyle(
-                            fontSize: 13,
                             color: Color(0xFF4B5563),
+                            fontSize: 13,
                           ),
                         ),
                       ],
@@ -115,17 +88,37 @@ class _WeighingPageState extends State<WeighingPage> {
             ],
           ),
           const SizedBox(height: 16),
-          // Values Row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildValueColumn('Age', record.age),
-              _buildVerticalDivider(),
-              _buildValueColumn('Feed', record.feed),
-              _buildVerticalDivider(),
-              _buildValueColumn('Birds', record.birds),
-              _buildVerticalDivider(),
-              _buildValueColumn('Weight', record.weight),
+              Expanded(
+                child: _MetricText(
+                  label: 'Age',
+                  value: record.age,
+                  textAlign: TextAlign.left,
+                ),
+              ),
+              const _MetricDivider(),
+              Expanded(
+                child: _MetricText(
+                  label: 'Feed',
+                  value: record.feed,
+                ),
+              ),
+              const _MetricDivider(),
+              Expanded(
+                child: _MetricText(
+                  label: 'Birds',
+                  value: record.birds,
+                ),
+              ),
+              const _MetricDivider(),
+              Expanded(
+                child: _MetricText(
+                  label: 'Weight',
+                  value: record.weight,
+                  textAlign: TextAlign.right,
+                ),
+              ),
             ],
           ),
         ],
@@ -147,7 +140,7 @@ class _WeighingPageState extends State<WeighingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
@@ -329,6 +322,60 @@ class _WeighingPageState extends State<WeighingPage> {
         label: const Text(
           'Weighing',
           style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricText extends StatelessWidget {
+  const _MetricText({
+    required this.label,
+    required this.value,
+    this.textAlign = TextAlign.center,
+  });
+
+  final String label;
+  final String value;
+  final TextAlign textAlign;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        text: '$label ',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+        children: [
+          TextSpan(
+            text: value,
+            style: const TextStyle(
+              color: Color(0xFF111827),
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+      textAlign: textAlign,
+    );
+  }
+}
+
+class _MetricDivider extends StatelessWidget {
+  const _MetricDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 16,
+      child: Center(
+        child: Text(
+          '|',
+          style: TextStyle(
+            color: Color(0xFF7D7D7D),
+            fontSize: 18,
+            fontWeight: FontWeight.w300,
+          ),
         ),
       ),
     );

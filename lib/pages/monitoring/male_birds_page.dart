@@ -97,7 +97,7 @@ class _MaleBirdsPageState extends State<MaleBirdsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
@@ -264,24 +264,37 @@ class _MaleBirdsCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _ValueColumn(
-                label: 'Age',
-                value: entry.age,
-                textAlign: TextAlign.left,
+              Expanded(
+                flex: 20,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: _MetricText(
+                    label: 'Age',
+                    value: entry.age,
+                    textAlign: TextAlign.left,
+                  ),
+                ),
               ),
-              _VerticalDivider(),
-              _ValueColumn(
-                label: 'Male',
-                value: entry.male,
-                textAlign: TextAlign.center,
+              const _MetricDivider(),
+              Expanded(
+                flex: 18,
+                child: _MetricText(
+                  label: 'Male',
+                  value: entry.male,
+                ),
               ),
-              _VerticalDivider(),
-              _ValueColumn(
-                label: 'Female',
-                value: entry.female,
-                textAlign: TextAlign.right,
+              const _MetricDivider(),
+              Expanded(
+                flex: 30,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 0),
+                  child: _MetricText(
+                    label: 'Female',
+                    value: entry.female,
+                    textAlign: TextAlign.right,
+                  ),
+                ),
               ),
             ],
           ),
@@ -291,45 +304,56 @@ class _MaleBirdsCard extends StatelessWidget {
   }
 }
 
-
-class _ValueColumn extends StatelessWidget {
-  final String label;
-  final String value;
-  final TextAlign textAlign;
-
-  const _ValueColumn({
+class _MetricText extends StatelessWidget {
+  const _MetricText({
     required this.label,
     required this.value,
     this.textAlign = TextAlign.center,
   });
 
+  final String label;
+  final String value;
+  final TextAlign textAlign;
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF111827),
+    return Text.rich(
+      TextSpan(
+        text: '$label ',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+        children: [
+          TextSpan(
+            text: value,
+            style: const TextStyle(
+              color: Color(0xFF111827),
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
+      textAlign: textAlign,
     );
   }
 }
 
-class _VerticalDivider extends StatelessWidget {
+class _MetricDivider extends StatelessWidget {
+  const _MetricDivider();
+
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 14, color: const Color(0xFFD1D5DB));
+    return const SizedBox(
+      width: 16,
+      child: Center(
+        child: Text(
+          '|',
+          style: TextStyle(
+            color: Color(0xFF7D7D7D),
+            fontSize: 18,
+            fontWeight: FontWeight.w300,
+          ),
+        ),
+      ),
+    );
   }
 }

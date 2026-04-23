@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import '../../controller/broiler_controller.dart';
 import '../../controller/infeed_controller.dart';
+import '../../controller/weighing_controller.dart';
 import '../../models/broiler_project_data.dart';
+import '../../widgets/empty_state_widget.dart';
 import 'infeed_input_page.dart';
 
 class InfeedPage extends StatefulWidget {
@@ -15,10 +16,11 @@ class InfeedPage extends StatefulWidget {
 
 class _InfeedPageState extends State<InfeedPage> {
   static const Color _primaryGreen = Color(0xFF22C55E);
-  static const double _cardMinHeight = 70;
+  static const Color _textPrimary = Color(0xFF111827);
 
   late final BroilerController _controller;
   late final InfeedController _infeedController;
+  late final WeighingController _weighingController;
 
   @override
   void initState() {
@@ -26,15 +28,14 @@ class _InfeedPageState extends State<InfeedPage> {
     _controller = Get.isRegistered<BroilerController>()
         ? Get.find<BroilerController>()
         : Get.put(BroilerController(), permanent: true);
-        
+
     _infeedController = Get.isRegistered<InfeedController>()
         ? Get.find<InfeedController>()
         : Get.put(InfeedController(), permanent: true);
-  }
 
-  @override
-  void dispose() {
-    super.dispose();
+    _weighingController = Get.isRegistered<WeighingController>()
+        ? Get.find<WeighingController>()
+        : Get.put(WeighingController(), permanent: true);
   }
 
   BroilerProjectData? _currentProject() {
@@ -112,9 +113,9 @@ class _InfeedPageState extends State<InfeedPage> {
 
     final total = values.fold<double>(0, (sum, value) => sum + value);
     if (total % 1 == 0) {
-      return '${total.toInt()} kg';
+      return total.toInt().toString();
     }
-    return '${total.toStringAsFixed(2)} kg';
+    return total.toStringAsFixed(2);
   }
 
   String _formatTimestamp(DateTime value) {
@@ -165,6 +166,52 @@ class _InfeedPageState extends State<InfeedPage> {
     );
   }
 
+  Future<void> _showStagePicker() async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Select Stage',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: _textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: 9,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(_stageTitle(index)),
+                      subtitle: Text(_stageRange(index)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _openStageEditor(index);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -172,162 +219,230 @@ class _InfeedPageState extends State<InfeedPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-        foregroundColor: const Color(0xFF111827),
+        foregroundColor: _textPrimary,
         elevation: 0,
         centerTitle: false,
-        iconTheme: const IconThemeData(color: Color(0xFF111827)),
+        iconTheme: const IconThemeData(color: _textPrimary),
         shape: const Border(
           bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
         ),
         title: const Text(
           'Infeed',
           style: TextStyle(
-            color: Color(0xFF111827),
+            color: _textPrimary,
             fontSize: 22,
             fontWeight: FontWeight.w700,
           ),
         ),
       ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: Obx(() {
-          final project = _currentProject();
-          if (project == null) {
-            return const Center(child: Text('Please select a project first'));
-          }
+      body: Obx(() {
+        final project = _currentProject();
+        if (project == null) {
+          return const Center(child: Text('Please select a project first'));
+        }
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            children: [
-              _buildStageCard(0),
-              const SizedBox(height: 14),
-              _buildStageCard(1),
-              const SizedBox(height: 14),
-              _buildStageCard(2),
-              const SizedBox(height: 14),
-              _buildStageCard(3),
-              const SizedBox(height: 14),
-              _buildStageCard(4),
-              const SizedBox(height: 14),
-              _buildStageCard(5),
-              const SizedBox(height: 14),
-              _buildStageCard(6),
-              const SizedBox(height: 14),
-              _buildStageCard(7),
-              const SizedBox(height: 14),
-              _buildStageCard(8),
-            ],
-          );
-        }),
+        // Get indices of stages that have data
+        final stagesWithData = List.generate(
+          9,
+          (i) => i,
+        ).where((i) => _stageHasData(i)).toList();
+
+        if (stagesWithData.isEmpty) {
+          return const EmptyStateWidget(moduleName: 'Infeed');
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          itemCount: stagesWithData.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            return _buildStageCard(stagesWithData[index], project);
+          },
+        );
+      }),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: _primaryGreen,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        onPressed: _showStagePicker,
+        icon: const Icon(Icons.add, size: 28),
+        label: const Text(
+          'Infeed',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }
 
-  Widget _buildStageCard(int stageIndex) {
-    final hasData = _stageHasData(stageIndex);
-    final titleColor = hasData ? _primaryGreen : const Color(0xFF6F6F6F);
+  Widget _buildStageCard(int stageIndex, BroilerProjectData project) {
     final updatedAt = _infeedController.stageUpdatedAt[stageIndex];
     final updatedAtText = updatedAt == null ? '-' : _formatTimestamp(updatedAt);
-    final badgeValue = _formatPenTotal(stageIndex);
+    final feedTotal = _formatPenTotal(stageIndex);
+
+    // Get latest body weight from WeighingController
+    String bodyWeight = '-';
+    if (_weighingController.weighingHistory.isNotEmpty) {
+      final latest = _weighingController.weighingHistory.first;
+      bodyWeight = latest.weight;
+    }
 
     return InkWell(
       onTap: () => _openStageEditor(stageIndex),
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        constraints: const BoxConstraints(minHeight: _cardMinHeight),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: hasData ? _primaryGreen : const Color(0xFFE0E0E0),
-            width: hasData ? 1.4 : 1,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x18000000),
-              blurRadius: 4,
-              offset: Offset(0, 1),
-            ),
-          ],
+          border: Border.all(color: const Color(0xFFDADDE2)),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: hasData ? _primaryGreen : const Color(0xFF8A8A8A),
-                ),
-                color: hasData ? _primaryGreen : Colors.transparent,
-              ),
-              child: hasData
-                  ? const Icon(Icons.check, size: 16, color: Colors.white)
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _stageTitle(stageIndex),
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w500,
-                      color: titleColor,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE8F5EE),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Image.asset(
+                      'assets/infeed.png',
+                      width: 32,
+                      height: 32,
+                      fit: BoxFit.contain,
                     ),
                   ),
-                  Row(
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.schedule,
-                        size: 16,
-                        color: Colors.grey.shade600,
-                      ),
-                      const SizedBox(width: 6),
                       Text(
-                        updatedAtText,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
+                        _stageTitle(stageIndex),
+                        style: const TextStyle(
+                          color: Color(0xFF22C55E),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
                         ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.access_time,
+                            size: 14,
+                            color: Color(0xFF6B7280),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            updatedAtText,
+                            style: const TextStyle(
+                              color: Color(0xFF4B5563),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            _buildStageBadge(badgeValue, hasData: hasData),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  flex: 20,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: _MetricText(
+                      label: 'Age',
+                      value: project.currentAge.toString(),
+                      textAlign: TextAlign.left,
+                    ),
+                  ),
+                ),
+                const _MetricDivider(),
+                Expanded(
+                  flex: 18,
+                  child: _MetricText(label: 'Pen', value: feedTotal),
+                ),
+                const _MetricDivider(),
+                Expanded(
+                  flex: 30,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 0),
+                    child: _MetricText(
+                      label: 'Body Weight (g)',
+                      value: bodyWeight,
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildStageBadge(String value, {required bool hasData}) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 72, minHeight: 34),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: hasData ? const Color(0xFFECFDF3) : const Color(0xFFF6F6F6),
-        border: Border.all(
-          color: hasData ? const Color(0xFF86EFAC) : const Color(0xFFE0E0E0),
-        ),
-        borderRadius: BorderRadius.circular(999),
+class _MetricText extends StatelessWidget {
+  const _MetricText({
+    required this.label,
+    required this.value,
+    this.textAlign = TextAlign.center,
+  });
+
+  final String label;
+  final String value;
+  final TextAlign textAlign;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        text: '$label ',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+        children: [
+          TextSpan(
+            text: value,
+            style: const TextStyle(
+              color: Color(0xFF111827),
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
-      child: Text(
-        hasData ? value : '-',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: hasData ? _primaryGreen : const Color(0xFF6F6F6F),
-          fontWeight: FontWeight.w700,
-          fontSize: 14,
+      textAlign: textAlign,
+    );
+  }
+}
+
+class _MetricDivider extends StatelessWidget {
+  const _MetricDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 16,
+      child: Center(
+        child: Text(
+          '|',
+          style: TextStyle(
+            color: Color(0xFF7D7D7D),
+            fontSize: 18,
+            fontWeight: FontWeight.w300,
+          ),
         ),
       ),
     );
