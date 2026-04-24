@@ -157,6 +157,18 @@ class _WeighingPageState extends State<WeighingPage> {
             fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: IconButton(
+              onPressed: () {
+                // TODO: Implement PDF export
+              },
+              icon: const Icon(Icons.picture_as_pdf, color: textPrimary),
+              tooltip: 'Export PDF',
+            ),
+          ),
+        ],
       ),
       body: Obx(() {
         if (_weighingController.weighingHistory.isEmpty) {

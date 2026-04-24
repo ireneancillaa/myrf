@@ -149,6 +149,21 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
       initialDate: initialDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2035),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF22C55E),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF111827),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFF22C55E)),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (date != null) {

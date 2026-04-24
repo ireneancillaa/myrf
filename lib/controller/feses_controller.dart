@@ -1,6 +1,7 @@
-import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 
 import 'broiler_controller.dart';
 import '../services/monitoring_firestore_service.dart';
@@ -8,6 +9,7 @@ import '../services/monitoring_firestore_service.dart';
 class FesesScoreEntry {
   final String id;
   final String date;
+  final String age;
   final String penNumber;
   final double fesesKg;
   final double cawanKg;
@@ -18,6 +20,7 @@ class FesesScoreEntry {
   FesesScoreEntry({
     this.id = '',
     required this.date,
+    required this.age,
     required this.penNumber,
     required this.fesesKg,
     required this.cawanKg,
@@ -28,13 +31,14 @@ class FesesScoreEntry {
 
   factory FesesScoreEntry.fromJson(Map<String, dynamic> json) {
     return FesesScoreEntry(
-      id: json['id'] ?? '',
-      date: json['date'] ?? '',
-      penNumber: json['penNumber'] ?? '',
-      fesesKg: (json['fesesKg'] as num?)?.toDouble() ?? 0,
-      cawanKg: (json['cawanKg'] as num?)?.toDouble() ?? 0,
-      ovenKg: (json['ovenKg'] as num?)?.toDouble() ?? 0,
-      totalKg: (json['totalKg'] as num?)?.toDouble() ?? 0,
+      id: (json['id'] ?? '').toString(),
+      date: (json['date'] ?? '').toString(),
+      age: (json['age'] ?? '-').toString(),
+      penNumber: (json['penNumber'] ?? '').toString(),
+      fesesKg: (json['fesesKg'] as num?)?.toDouble() ?? 0.0,
+      cawanKg: (json['cawanKg'] as num?)?.toDouble() ?? 0.0,
+      ovenKg: (json['ovenKg'] as num?)?.toDouble() ?? 0.0,
+      totalKg: (json['totalKg'] as num?)?.toDouble() ?? 0.0,
       recordedAt: (json['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -42,6 +46,7 @@ class FesesScoreEntry {
   Map<String, dynamic> toJson() {
     return {
       'date': date,
+      'age': age,
       'penNumber': penNumber,
       'fesesKg': fesesKg,
       'cawanKg': cawanKg,
@@ -58,6 +63,9 @@ class FesesController extends GetxController {
   late final MonitoringFirestoreService _monitoringService;
   StreamSubscription? _historySub;
 
+  final dateController = TextEditingController();
+  final ageController = TextEditingController();
+
   @override
   void onInit() {
     super.onInit();
@@ -73,6 +81,14 @@ class FesesController extends GetxController {
       _listenToHistory(projectId);
     });
     _listenToHistory(_broilerController.selectedProjectId.value);
+  }
+
+  void initNewFesesScore() {
+    final now = DateTime.now();
+    final dayStr = now.day.toString().padLeft(2, '0');
+    final monthStr = now.month.toString().padLeft(2, '0');
+    dateController.text = '$dayStr/$monthStr/${now.year}';
+    ageController.clear();
   }
 
   void _listenToHistory(String? projectId) {
@@ -108,6 +124,8 @@ class FesesController extends GetxController {
   @override
   void onClose() {
     _historySub?.cancel();
+    dateController.dispose();
+    ageController.dispose();
     super.onClose();
   }
 }

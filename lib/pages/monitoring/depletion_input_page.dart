@@ -114,6 +114,21 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
       initialDate: initialDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2035),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: _primaryGreen,
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF111827),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(foregroundColor: _primaryGreen),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (date == null) return;

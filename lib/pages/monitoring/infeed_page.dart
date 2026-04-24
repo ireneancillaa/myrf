@@ -101,6 +101,18 @@ class _InfeedPageState extends State<InfeedPage> {
             fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: IconButton(
+              onPressed: () {
+                // TODO: Implement PDF export
+              },
+              icon: const Icon(Icons.picture_as_pdf, color: _textPrimary),
+              tooltip: 'Export PDF',
+            ),
+          ),
+        ],
       ),
       body: Obx(() {
         final project = _currentProject();
@@ -122,10 +134,10 @@ class _InfeedPageState extends State<InfeedPage> {
             final age = _calculateAge(infeed.dateStr, project);
 
             return Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0xFFE5E7EB)),
               ),
               child: Column(

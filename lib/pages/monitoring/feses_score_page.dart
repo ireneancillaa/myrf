@@ -48,12 +48,13 @@ class _FesesScorePageState extends State<FesesScorePage> {
   }
 
   Future<void> _openAddFesesScore() async {
-    final result = await Navigator.of(context).push<FesesScoreEntry>(
+    final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => const FesesScoreInputPage()),
     );
 
-    if (result == null) return;
-    _fesesController.addFesesScore(result);
+    if (result == true) {
+      // Data already added inside input page via controller
+    }
   }
 
   @override
@@ -78,6 +79,18 @@ class _FesesScorePageState extends State<FesesScorePage> {
             fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: IconButton(
+              onPressed: () {
+                // TODO: Implement PDF export
+              },
+              icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF111827)),
+              tooltip: 'Export PDF',
+            ),
+          ),
+        ],
       ),
       body: Obx(() {
         final project = _currentProject();
@@ -141,7 +154,7 @@ class _FesesScoreCard extends StatelessWidget {
     if (value % 1 == 0) {
       return value.toInt().toString();
     }
-    return value.toString();
+    return value.toStringAsFixed(3);
   }
 
   @override
@@ -182,7 +195,7 @@ class _FesesScoreCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      entry.penNumber,
+                      'Feses Score',
                       style: const TextStyle(
                         color: Color(0xFF22C55E),
                         fontSize: 18,
@@ -199,7 +212,7 @@ class _FesesScoreCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          entry.date,
+                          entry.date.isEmpty ? '-' : entry.date,
                           style: const TextStyle(
                             color: Color(0xFF4B5563),
                             fontSize: 13,
@@ -218,7 +231,7 @@ class _FesesScoreCard extends StatelessWidget {
               Expanded(
                 child: _MetricText(
                   label: 'Age',
-                  value: '20',
+                  value: entry.age,
                   textAlign: TextAlign.left,
                 ),
               ),
@@ -271,7 +284,7 @@ class _MetricText extends StatelessWidget {
         style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
         children: [
           TextSpan(
-            text: value,
+            text: value.isEmpty ? '-' : value,
             style: const TextStyle(
               color: Color(0xFF111827),
               fontSize: 13,

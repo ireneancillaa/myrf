@@ -126,6 +126,8 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
       return;
     }
 
+    if (!mounted) return;
+
     final selected = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -165,7 +167,7 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
                   const SizedBox(height: 14),
                   _buildScaleOptionTile(
                     label: 'Hanging Scale',
-                    icon: Icons.scale,
+                    imagePath: 'assets/hanging-scale.png',
                     onTap: () => Navigator.of(sheetContext).pop('hanging'),
                   ),
                   const SizedBox(height: 10),
@@ -227,7 +229,8 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
 
   Widget _buildScaleOptionTile({
     required String label,
-    required IconData icon,
+    IconData? icon,
+    String? imagePath,
     required VoidCallback onTap,
   }) {
     return Material(
@@ -251,7 +254,12 @@ class _SampleDocInputPageState extends State<SampleDocInputPage> {
                   color: Color(0xFFE8F5EE),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: const Color(0xFF22C55E), size: 20),
+                child: imagePath != null
+                    ? Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Image.asset(imagePath, fit: BoxFit.contain),
+                      )
+                    : Icon(icon, color: const Color(0xFF22C55E), size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(

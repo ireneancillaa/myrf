@@ -292,6 +292,8 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
       return;
     }
 
+    if (!mounted) return;
+
     final selected = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -331,7 +333,7 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
                   const SizedBox(height: 14),
                   _buildScaleOptionTile(
                     label: 'Hanging Scale',
-                    icon: Icons.scale,
+                    imagePath: 'assets/hanging-scale.png',
                     onTap: () => Navigator.of(sheetContext).pop('hanging'),
                   ),
                   const SizedBox(height: 10),
@@ -391,7 +393,8 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
 
   Widget _buildScaleOptionTile({
     required String label,
-    required IconData icon,
+    IconData? icon,
+    String? imagePath,
     required VoidCallback onTap,
   }) {
     return Material(
@@ -415,7 +418,12 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
                   color: Color(0xFFE8F5EE),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: const Color(0xFF22C55E), size: 20),
+                child: imagePath != null
+                    ? Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Image.asset(imagePath, fit: BoxFit.contain),
+                      )
+                    : Icon(icon, color: const Color(0xFF22C55E), size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -579,9 +587,6 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
             final row = GestureDetector(
               onTap: () => setState(() => _activeIndex = index),
               child: Container(
-                margin: EdgeInsets.only(
-                  bottom: index == _controllers.length - 1 ? 0 : 10,
-                ),
                 constraints: const BoxConstraints(
                   minHeight: _distributionFieldHeight,
                 ),
@@ -630,23 +635,25 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
               ),
             );
 
-            return Dismissible(
-              key: ValueKey(_controllers[index]),
-              direction: DismissDirection.endToStart,
-              background: Container(
-                margin: EdgeInsets.only(
-                  bottom: index == _controllers.length - 1 ? 0 : 10,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: const Icon(Icons.delete_outline, color: Colors.white),
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: index == _controllers.length - 1 ? 0 : 10,
               ),
-              confirmDismiss: (_) => _confirmDeleteField(index),
-              child: row,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Dismissible(
+                  key: ValueKey(_controllers[index]),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    decoration: const BoxDecoration(color: Color(0xFFEF4444)),
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: const Icon(Icons.delete_outline, color: Colors.white),
+                  ),
+                  confirmDismiss: (_) => _confirmDeleteField(index),
+                  child: row,
+                ),
+              ),
             );
           }),
         ),

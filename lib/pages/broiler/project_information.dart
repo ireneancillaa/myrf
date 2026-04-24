@@ -161,6 +161,23 @@ class BroilerProjectInformationSection extends StatelessWidget {
                   ),
                   firstDate: DateTime(2020),
                   lastDate: DateTime(2035),
+                  builder: (context, child) {
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: const ColorScheme.light(
+                          primary: const Color(0xFF22C55E),
+                          onPrimary: Colors.white,
+                          onSurface: const Color(0xFF111827),
+                        ),
+                        textButtonTheme: TextButtonThemeData(
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF22C55E),
+                          ),
+                        ),
+                      ),
+                      child: child!,
+                    );
+                  },
                 );
                 if (selected != null) {
                   controller.trialDateController.text = _formatDate(selected);
@@ -234,6 +251,23 @@ class BroilerProjectInformationSection extends StatelessWidget {
                   ),
                   firstDate: DateTime(2020),
                   lastDate: DateTime(2035),
+                  builder: (context, child) {
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: const ColorScheme.light(
+                          primary: const Color(0xFF22C55E),
+                          onPrimary: Colors.white,
+                          onSurface: const Color(0xFF111827),
+                        ),
+                        textButtonTheme: TextButtonThemeData(
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF22C55E),
+                          ),
+                        ),
+                      ),
+                      child: child!,
+                    );
+                  },
                 );
                 if (selected != null) {
                   controller.docInDateController.text = _formatDate(selected);

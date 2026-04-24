@@ -113,10 +113,13 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
     final savedAttachmentUrls = controller.projectAttachmentUrls[_projectId!];
     if (savedAttachmentUrls != null) {
       // Protection: don't overwrite local photos with empty list if UI already has photos
-      if (savedAttachmentUrls.isNotEmpty || sampleDocController.attachmentUrls.isEmpty) {
+      if (savedAttachmentUrls.isNotEmpty ||
+          sampleDocController.attachmentUrls.isEmpty) {
         sampleDocController.setAttachmentUrls(savedAttachmentUrls);
       } else {
-        debugPrint('ProjectStepperPage: Preserving local photos (prevented empty override from controller)');
+        debugPrint(
+          'ProjectStepperPage: Preserving local photos (prevented empty override from controller)',
+        );
       }
     }
 
@@ -206,11 +209,11 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
     if (!_isReadOnly) {
       await _persistCurrentProjectProgress();
     }
-    
+
     setState(() {
       _currentStep = step;
     });
-    
+
     if (_projectId != null && _projectId!.isNotEmpty) {
       controller.updateLastOpenedStep(_projectId!, _currentStep);
     }
@@ -272,6 +275,26 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
               fontWeight: FontWeight.w700,
             ),
           ),
+          actions: [
+            if (_projectId != null &&
+                (controller.statusFor(_projectId!) ==
+                        BroilerWorkflowStatus.inProgress ||
+                    controller.statusFor(_projectId!) ==
+                        BroilerWorkflowStatus.completed))
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: IconButton(
+                  onPressed: () {
+                    // TODO: Implement PDF export for project
+                  },
+                  icon: const Icon(
+                    Icons.picture_as_pdf,
+                    color: Color(0xFF111827),
+                  ),
+                  tooltip: 'Export PDF',
+                ),
+              ),
+          ],
         ),
         bottomNavigationBar: _buildBottomActionBar(),
         body: SafeArea(
@@ -382,11 +405,11 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                                 );
                               }
                             : () async {
-                            if (!_isReadOnly) {
-                              await _persistCurrentProjectProgress();
-                            }
-                            await _goToStep(_currentStep - 1);
-                          },
+                                if (!_isReadOnly) {
+                                  await _persistCurrentProjectProgress();
+                                }
+                                await _goToStep(_currentStep - 1);
+                              },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF22C55E),
                           side: const BorderSide(color: Color(0xFF22C55E)),
@@ -531,8 +554,9 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
             }
           },
           sampleBluetoothFlags: List<List<bool>>.from(
-            sampleDocController.sampleGroupBluetoothFlags
-                .map((e) => List<bool>.from(e)),
+            sampleDocController.sampleGroupBluetoothFlags.map(
+              (e) => List<bool>.from(e),
+            ),
           ),
           onSampleBluetoothFlagsChanged: (flags) {
             sampleDocController.setSampleGroupBluetoothFlags(flags);
@@ -541,8 +565,9 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
             }
           },
           docDistributions: List<Map<String, dynamic>>.from(
-            sampleDocController.docDistributions
-                .map((e) => Map<String, dynamic>.from(e)),
+            sampleDocController.docDistributions.map(
+              (e) => Map<String, dynamic>.from(e),
+            ),
           ),
           onDocDistributionsChanged: (distributions) {
             sampleDocController.setDocDistributions(distributions);

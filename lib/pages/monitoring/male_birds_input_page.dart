@@ -22,7 +22,6 @@ class _MaleBirdsInputPageState extends State<MaleBirdsInputPage> {
 
   DateTime _selectedDate = DateTime.now();
   List<double> _maleValues = [];
-  List<double> _femaleValues = [];
   bool _isLoading = false;
 
   @override
@@ -94,7 +93,7 @@ class _MaleBirdsInputPageState extends State<MaleBirdsInputPage> {
   }
 
   Future<void> _save() async {
-    if (_maleValues.isEmpty && _femaleValues.isEmpty) {
+    if (_maleValues.isEmpty) {
       Get.snackbar(
         'Error',
         'Please input at least one bird weight',

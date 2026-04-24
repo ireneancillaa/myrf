@@ -19,6 +19,7 @@ class _BroilerPageState extends State<BroilerPage> {
   DateTime? _filterFromDate;
   DateTime? _filterToDate;
   _DateFilterOption? _selectedFilterOption;
+  BroilerWorkflowStatus? _statusFilter; // null = All
 
   @override
   void initState() {
@@ -64,6 +65,7 @@ class _BroilerPageState extends State<BroilerPage> {
             behavior: HitTestBehavior.translucent,
             onTap: () => FocusScope.of(context).unfocus(),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -121,6 +123,35 @@ class _BroilerPageState extends State<BroilerPage> {
                     ],
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildStatusChip('All', null),
+                        const SizedBox(width: 8),
+                        _buildStatusChip(
+                          'Drafted',
+                          BroilerWorkflowStatus.drafted,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildStatusChip(
+                          'In Progress',
+                          BroilerWorkflowStatus.inProgress,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildStatusChip(
+                          'Completed',
+                          BroilerWorkflowStatus.completed,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 Expanded(
                   child: Obx(() {
                     final keyword = _searchController.text.trim().toLowerCase();
@@ -130,7 +161,15 @@ class _BroilerPageState extends State<BroilerPage> {
                               keyword.isEmpty ||
                               item.projectName.toLowerCase().contains(keyword);
                           final matchDate = _matchesDateFilter(item.trialDate);
-                          return matchKeyword && matchDate;
+
+                          final itemStatus = _controller.statusFor(
+                            item.projectId,
+                          );
+                          final matchStatus =
+                              _statusFilter == null ||
+                              itemStatus == _statusFilter;
+
+                          return matchKeyword && matchDate && matchStatus;
                         }).toList()..sort((a, b) {
                           final aStatus = _controller.statusFor(a.projectId);
                           final bStatus = _controller.statusFor(b.projectId);
@@ -438,7 +477,37 @@ class _BroilerPageState extends State<BroilerPage> {
     return from;
   }
 
-  bool _matchesDateFilter(String trialDate) {
+  Widget _buildStatusChip(String label, BroilerWorkflowStatus? status) {
+    final isSelected = _statusFilter == status;
+    return GestureDetector(
+      onTap: () => setState(() => _statusFilter = status),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFEAF4EA) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF22C55E)
+                : const Color(0xFFE5E7EB),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected
+                ? const Color(0xFF22C55E)
+                : const Color(0xFF6B7280),
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _matchesDateFilter(String? trialDate) {
     if (_filterFromDate == null && _filterToDate == null) return true;
 
     final projectDate = _parseTrialDate(trialDate);
@@ -452,7 +521,8 @@ class _BroilerPageState extends State<BroilerPage> {
         !projectDate.isAfter(DateTime(end.year, end.month, end.day));
   }
 
-  DateTime? _parseTrialDate(String value) {
+  DateTime? _parseTrialDate(String? value) {
+    if (value == null || value.isEmpty) return null;
     final parts = value.split('/');
     if (parts.length != 3) return null;
     final day = int.tryParse(parts[0]);
@@ -518,6 +588,23 @@ class _BroilerPageState extends State<BroilerPage> {
                 initialDate: tempFrom ?? today,
                 firstDate: DateTime(2020),
                 lastDate: DateTime(2035),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(
+                        primary: Color(0xFF22C55E),
+                        onPrimary: Colors.white,
+                        onSurface: Color(0xFF111827),
+                      ),
+                      textButtonTheme: TextButtonThemeData(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Color(0xFF22C55E),
+                        ),
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
               );
               if (selected != null) {
                 setSheetState(() {
@@ -540,6 +627,23 @@ class _BroilerPageState extends State<BroilerPage> {
                 initialDate: tempTo ?? tempFrom ?? today,
                 firstDate: DateTime(2020),
                 lastDate: DateTime(2035),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(
+                        primary: const Color(0xFF22C55E),
+                        onPrimary: Colors.white,
+                        onSurface: const Color(0xFF111827),
+                      ),
+                      textButtonTheme: TextButtonThemeData(
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF22C55E),
+                        ),
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
               );
               if (selected != null) {
                 setSheetState(() {

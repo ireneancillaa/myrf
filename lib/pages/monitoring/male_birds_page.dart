@@ -3,8 +3,6 @@ import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:myrf/pages/monitoring/male_birds_input_page.dart';
 
-import '../../controller/broiler_controller.dart';
-import '../../models/broiler_project_data.dart';
 import '../../controller/male_birds_controller.dart';
 
 import '../../widgets/empty_state_widget.dart';
@@ -19,41 +17,20 @@ class MaleBirdsPage extends StatefulWidget {
 class _MaleBirdsPageState extends State<MaleBirdsPage> {
   static const Color _primaryGreen = Color(0xFF22C55E);
 
-  late final BroilerController _broilerController;
   late final MaleBirdsController _maleBirdsController;
 
   @override
   void initState() {
     super.initState();
-    _broilerController = Get.isRegistered<BroilerController>()
-        ? Get.find<BroilerController>()
-        : Get.put(BroilerController(), permanent: true);
-        
     _maleBirdsController = Get.isRegistered<MaleBirdsController>()
         ? Get.find<MaleBirdsController>()
         : Get.put(MaleBirdsController(), permanent: true);
   }
 
-  BroilerProjectData? _currentProject() {
-    final selectedName = _broilerController.selectedProjectName.value;
-    if (selectedName == null || selectedName.trim().isEmpty) {
-      return null;
-    }
-
-    for (final project in _broilerController.projects) {
-      if (project.projectName == selectedName) {
-        return project;
-      } 
-    }
-    return null;
-  }
-
   Future<void> _openAddMaleBirds() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const MaleBirdsInputPage(),
-      ),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const MaleBirdsInputPage()));
   }
 
   Future<bool> _confirmDelete(MaleBirdsEntry entry) async {
@@ -185,6 +162,18 @@ class _MaleBirdsPageState extends State<MaleBirdsPage> {
             fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: IconButton(
+              onPressed: () {
+                // TODO: Implement PDF export
+              },
+              icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF111827)),
+              tooltip: 'Export PDF',
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Obx(() {
@@ -199,7 +188,11 @@ class _MaleBirdsPageState extends State<MaleBirdsPage> {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 14),
                 child: Dismissible(
-                  key: ValueKey(item.id.isEmpty ? item.recordedAt.toIso8601String() : item.id),
+                  key: ValueKey(
+                    item.id.isEmpty
+                        ? item.recordedAt.toIso8601String()
+                        : item.id,
+                  ),
                   direction: DismissDirection.endToStart,
                   confirmDismiss: (_) => _confirmDelete(item),
                   onDismissed: (_) {
@@ -212,11 +205,13 @@ class _MaleBirdsPageState extends State<MaleBirdsPage> {
                       color: const Color(0xFFEF4444),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.delete, color: Colors.white, size: 28),
+                    child: const Icon(
+                      Icons.delete,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                   ),
-                  child: _MaleBirdsCard(
-                    entry: item,
-                  ),
+                  child: _MaleBirdsCard(entry: item),
                 ),
               );
             },
@@ -365,10 +360,7 @@ class _MaleBirdsCard extends StatelessWidget {
               const _MetricDivider(),
               Expanded(
                 flex: 18,
-                child: _MetricText(
-                  label: 'Male',
-                  value: entry.male,
-                ),
+                child: _MetricText(label: 'Male', value: entry.male),
               ),
               const _MetricDivider(),
               Expanded(

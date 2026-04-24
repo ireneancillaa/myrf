@@ -78,6 +78,18 @@ class _DepletionPageState extends State<DepletionPage> {
             fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: IconButton(
+              onPressed: () {
+                // TODO: Implement PDF export
+              },
+              icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF111827)),
+              tooltip: 'Export PDF',
+            ),
+          ),
+        ],
       ),
       body: Obx(() {
         final project = _currentProject();

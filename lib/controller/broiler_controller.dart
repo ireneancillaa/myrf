@@ -10,7 +10,7 @@ import '../services/broiler_firestore_service.dart';
 import '../services/config_firestore_service.dart';
 import '../services/monitoring_firestore_service.dart';
 
-enum BroilerWorkflowStatus { drafted, inProgress }
+enum BroilerWorkflowStatus { drafted, inProgress, completed }
 
 class BroilerController extends GetxController {
   final projectNameController = TextEditingController();
