@@ -1,27 +1,33 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-class WeighingCalculatorPage extends StatefulWidget {
-  const WeighingCalculatorPage({
+class InfeedCalculatorPage extends StatefulWidget {
+  const InfeedCalculatorPage({
     super.key,
-    required this.calcType,
+    required this.stageTitle,
+    required this.stageGroup,
+    required this.stageRange,
     this.initialDate = '',
     this.initialValues = const <double>[],
   });
 
-  final String calcType; // feedAndBag, lastBirds, actualBirds, birdsWeight
+  final String stageTitle;
+  final String stageGroup;
+  final String stageRange;
   final String initialDate;
   final List<double> initialValues;
 
   @override
-  State<WeighingCalculatorPage> createState() => _WeighingCalculatorPageState();
+  State<InfeedCalculatorPage> createState() => _InfeedCalculatorPageState();
 }
 
-class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
+class _InfeedCalculatorPageState extends State<InfeedCalculatorPage> {
   static const double _calculatorButtonHeight = 72;
   static const double _distributionFieldHeight = 50;
+
   final ScrollController _listScrollController = ScrollController();
   final List<TextEditingController> _controllers = [];
   int _activeIndex = 0;
@@ -29,19 +35,12 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.calcType == 'boxWeight') {
-      // 0: start pen, 1: end pen, 2: box count, 3: box weight
-      for (int i = 0; i < 4; i++) {
-        _controllers.add(TextEditingController());
-      }
-      _activeIndex = 0;
-      return;
-    }
     if (widget.initialValues.isEmpty) {
       _controllers.add(TextEditingController());
       _activeIndex = 0;
       return;
     }
+
     for (final value in widget.initialValues) {
       final isWhole = value % 1 == 0;
       _controllers.add(
@@ -66,6 +65,7 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
   void _appendToActive(String value) {
     final controller = _controllers[_activeIndex];
     var current = controller.text;
+
     if (value == '.') {
       if (current.contains('.')) return;
       if (current.isEmpty) current = '0';
@@ -73,6 +73,7 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
       setState(() {});
       return;
     }
+
     controller.text = '$current$value';
     setState(() {});
   }
@@ -263,24 +264,7 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
     return parsed.toStringAsFixed(2);
   }
 
-  String _saveButtonLabel() => 'Save ${_pageTitle()}';
-
-  String _pageTitle() {
-    switch (widget.calcType) {
-      case 'feedAndBag':
-        return 'Feed & Bag';
-      case 'lastBirds':
-        return 'Last Birds';
-      case 'actualBirds':
-        return 'Actual Birds';
-      case 'birdsWeight':
-        return 'Birds Weight';
-      case 'boxWeight':
-        return 'Box Weight';
-      default:
-        return 'Calculator';
-    }
-  }
+  String _saveButtonLabel() => 'Save ${widget.stageTitle}';
 
   Future<void> _showScaleSelectionModal() async {
     final blockedMessage = await _bluetoothBlockedMessage();
@@ -291,6 +275,8 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
       ).showSnackBar(SnackBar(content: Text(blockedMessage)));
       return;
     }
+
+    if (!mounted) return;
 
     final selected = await showModalBottomSheet<String>(
       context: context,
@@ -437,56 +423,35 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
   }
 
   void _save() {
-    if (widget.calcType == 'boxWeight') {
-      final start = _controllers[0].text.trim();
-      final end = _controllers[1].text.trim();
-      final count = int.tryParse(_controllers[2].text.trim()) ?? 0;
-      final weight = double.tryParse(_controllers[3].text.trim()) ?? 0.0;
-
-      if (start.isEmpty || end.isEmpty || count == 0 || weight == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please fill all fields correctly'),
-            backgroundColor: Color(0xFFEF4444),
-          ),
-        );
-        return;
-      }
-
-      Navigator.of(context).pop({
-        'title': 'Pen $start - $end',
-        'count': count,
-        'weight': weight,
-      });
-      return;
-    }
-
     final values = <double>[];
-    final pens = <String>[];
     for (final controller in _controllers) {
       final text = controller.text.trim();
       if (text.isEmpty) continue;
       final parsed = double.tryParse(text);
       if (parsed != null && parsed > 0) {
         values.add(parsed);
-        pens.add(
-          parsed % 1 == 0 ? parsed.toInt().toString() : parsed.toString(),
-        );
       }
     }
 
-    Navigator.of(
-      context,
-    ).pop({'date': widget.initialDate, 'values': values, 'pens': pens});
+    if (values.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please input at least one value'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).pop({
+      'date': widget.initialDate,
+      'values': values,
+      'pens': values.map((value) => value.toString()).toList(),
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    // final hasInput = _controllers.any((c) {
-    //   final t = c.text.trim();
-    //   final n = double.tryParse(t);
-    //   return t.isNotEmpty && n != null && n > 0;
-    // });
     return Scaffold(
       backgroundColor: const Color(0xFFE7E7E7),
       appBar: AppBar(
@@ -506,7 +471,7 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
           bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
         ),
         title: Text(
-          _pageTitle(),
+          widget.stageTitle,
           style: const TextStyle(
             color: Color(0xFF111827),
             fontSize: 22,
@@ -553,9 +518,6 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
   }
 
   Widget _buildPenListPanel() {
-    if (widget.calcType == 'boxWeight') {
-      return _buildBoxWeightInputPanel();
-    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
@@ -603,9 +565,7 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
                 child: Row(
                   children: [
                     Text(
-                      (widget.calcType == 'feedAndBag' || widget.calcType == 'birdsWeight')
-                        ? 'Pen ${index + 1} (kg):'
-                        : 'Pen ${index + 1}:',
+                      'Pen ${index + 1} (kg):',
                       style: TextStyle(
                         color: isActive
                             ? const Color(0xFF0A992E)
@@ -654,83 +614,9 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
     );
   }
 
-  Widget _buildBoxWeightInputPanel() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF6F6F6),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Pen Range',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: _buildBoxInputField(0, 'From')),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-              ),
-              Expanded(child: _buildBoxInputField(1, 'To')),
-            ],
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Details',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 10),
-          _buildBoxInputField(2, 'Box Count'),
-          const SizedBox(height: 12),
-          _buildBoxInputField(3, 'Box Weight (kg)'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBoxInputField(int index, String label) {
-    final isActive = index == _activeIndex;
-    return GestureDetector(
-      onTap: () => setState(() => _activeIndex = index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFEAF4EA) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isActive ? const Color(0xFF22C55E) : const Color(0xFFE0E0E0),
-            width: isActive ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? const Color(0xFF22C55E) : Colors.grey[600],
-                fontSize: 15,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              _controllers[index].text.isEmpty ? '-' : _controllers[index].text,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildKeypad() {
-    final isActiveFilled =
-        _controllers.isNotEmpty &&
-        _controllers[_activeIndex].text.trim().isNotEmpty;
+    final isActiveFieldEmpty =
+        _controllers.isEmpty || _controllers[_activeIndex].text.trim().isEmpty;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -781,15 +667,7 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
           ),
           _PadButtonSpec.icon(
             Icons.skip_next_rounded,
-            onTap: (widget.calcType == 'boxWeight')
-                ? (isActiveFilled
-                    ? () {
-                        setState(() {
-                          _activeIndex = (_activeIndex + 1) % 4;
-                        });
-                      }
-                    : null)
-                : (isActiveFilled ? _addPen : null),
+            onTap: isActiveFieldEmpty ? null : _addPen,
           ),
         ]),
         const SizedBox(height: 10),

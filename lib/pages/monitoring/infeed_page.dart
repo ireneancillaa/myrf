@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controller/broiler_controller.dart';
 import '../../controller/infeed_controller.dart';
-import '../../controller/weighing_controller.dart';
+import 'package:intl/intl.dart';
 import '../../models/broiler_project_data.dart';
 import '../../widgets/empty_state_widget.dart';
 import 'infeed_input_page.dart';
@@ -20,7 +20,6 @@ class _InfeedPageState extends State<InfeedPage> {
 
   late final BroilerController _controller;
   late final InfeedController _infeedController;
-  late final WeighingController _weighingController;
 
   @override
   void initState() {
@@ -32,10 +31,6 @@ class _InfeedPageState extends State<InfeedPage> {
     _infeedController = Get.isRegistered<InfeedController>()
         ? Get.find<InfeedController>()
         : Get.put(InfeedController(), permanent: true);
-
-    _weighingController = Get.isRegistered<WeighingController>()
-        ? Get.find<WeighingController>()
-        : Get.put(WeighingController(), permanent: true);
   }
 
   BroilerProjectData? _currentProject() {
@@ -51,166 +46,38 @@ class _InfeedPageState extends State<InfeedPage> {
     }
     return null;
   }
-
-  String _stageTitle(int stageIndex) {
-    switch (stageIndex) {
-      case 0:
-        return 'Pre Starter 1';
-      case 1:
-        return 'Pre Starter 2';
-      case 2:
-        return 'Starter 1';
-      case 3:
-        return 'Starter 2';
-      case 4:
-        return 'Starter 3';
-      case 5:
-        return 'Finisher 1';
-      case 6:
-        return 'Finisher 2';
-      case 7:
-        return 'Finisher 3';
-      default:
-        return 'Finisher 4';
-    }
-  }
-
-  String _stageGroup(int stageIndex) {
-    switch (stageIndex) {
-      case 0:
-      case 1:
-        return 'Pre Starter';
-      case 2:
-      case 3:
-      case 4:
-        return 'Starter';
-      default:
-        return 'Finisher';
-    }
-  }
-
-  String _stageRange(int stageIndex) {
-    switch (stageIndex) {
-      case 0:
-      case 1:
-        return '0-10 days';
-      case 2:
-      case 3:
-      case 4:
-        return '11-21 days';
-      default:
-        return '22-45 days';
-    }
-  }
-
-  bool _stageHasData(int stageIndex) {
-    return _infeedController.penValuesByStage[stageIndex].isNotEmpty;
-  }
-
-  String _formatPenTotal(int stageIndex) {
-    final values = _infeedController.penValuesByStage[stageIndex];
-    if (values.isEmpty) return '-';
-
-    final total = values.fold<double>(0, (sum, value) => sum + value);
-    if (total % 1 == 0) {
-      return total.toInt().toString();
-    }
-    return total.toStringAsFixed(2);
-  }
-
-  String _formatTimestamp(DateTime value) {
-    const monthNames = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final day = value.day.toString().padLeft(2, '0');
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-    final second = value.second.toString().padLeft(2, '0');
-    return '$day ${monthNames[value.month - 1]} ${value.year} - $hour:$minute:$second';
-  }
-
-  Future<void> _openStageEditor(int stageIndex) async {
-    final result = await Navigator.of(context).push<Map<String, dynamic>>(
-      MaterialPageRoute(
-        builder: (_) => InfeedInputPage(
-          stageTitle: _stageTitle(stageIndex),
-          stageGroup: _stageGroup(stageIndex),
-          stageRange: _stageRange(stageIndex),
-          initialDate: _infeedController.dateControllers[stageIndex].text,
-          initialValues: _infeedController.penValuesByStage[stageIndex],
-        ),
-      ),
-    );
-
-    if (result == null) return;
-
-    final values = (result['values'] as List<dynamic>? ?? const <dynamic>[])
-        .map((value) => (value as num).toDouble())
-        .toList();
-
-    _infeedController.saveStage(
-      stageIndex,
-      (result['date'] ?? '').toString(),
-      values,
-    );
-  }
-
-  Future<void> _showStagePicker() async {
-    await showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Select Stage',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: _textPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: 9,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(_stageTitle(index)),
-                      subtitle: Text(_stageRange(index)),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.pop(context);
-                        _openStageEditor(index);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+  String _calculateAge(String dateStr, BroilerProjectData? project) {
+    if (project == null) return '-';
+    try {
+      final inputDate = DateFormat('dd/MM/yyyy').parse(dateStr);
+      final docInParts = project.docInDate.split('/');
+      if (docInParts.length == 3) {
+        final docInDate = DateTime(
+          int.parse(docInParts[2]),
+          int.parse(docInParts[1]),
+          int.parse(docInParts[0]),
         );
-      },
-    );
+        final diff = inputDate.difference(docInDate).inDays;
+        return (diff + 1).toString();
+      }
+    } catch (e) {
+      // ignore
+    }
+    return '-';
   }
+
+
+  String _formatTimestamp(DateTime? date) {
+    if (date == null) return '-';
+    return DateFormat('dd MMM yyyy - HH:mm:ss').format(date);
+  }
+
+  String _formatWeight(double weight) {
+    if (weight == 0) return '-';
+    final formatter = NumberFormat('#,##0.##########');
+    return formatter.format(weight);
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -241,22 +108,102 @@ class _InfeedPageState extends State<InfeedPage> {
           return const Center(child: Text('Please select a project first'));
         }
 
-        // Get indices of stages that have data
-        final stagesWithData = List.generate(
-          9,
-          (i) => i,
-        ).where((i) => _stageHasData(i)).toList();
-
-        if (stagesWithData.isEmpty) {
+        // Tampilkan empty state jika belum ada data infeed
+        if (_infeedController.infeedList.isEmpty) {
           return const EmptyStateWidget(moduleName: 'Infeed');
         }
-
+        // Tampilkan list data infeed
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-          itemCount: stagesWithData.length,
+          itemCount: _infeedController.infeedList.length,
           separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
-            return _buildStageCard(stagesWithData[index], project);
+            final infeed = _infeedController.infeedList[index];
+            final age = _calculateAge(infeed.dateStr, project);
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEAF8EE),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Image.asset(
+                            'assets/infeed.png',
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              infeed.stageName,
+                              style: const TextStyle(
+                                color: _primaryGreen,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.access_time,
+                                  size: 14,
+                                  color: Color(0xFF6B7280),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatTimestamp(infeed.updatedAt),
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7280),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _MetricText(
+                        label: 'Age',
+                        value: age,
+                        textAlign: TextAlign.left,
+                      ),
+                      const _MetricDivider(),
+                      _MetricText(
+                        label: 'Infeed Weight',
+                        value: _formatWeight(infeed.weight),
+                        textAlign: TextAlign.left,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
           },
         );
       }),
@@ -265,130 +212,14 @@ class _InfeedPageState extends State<InfeedPage> {
         foregroundColor: Colors.white,
         elevation: 2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        onPressed: _showStagePicker,
+        onPressed: () {
+          _infeedController.resetData();
+          Get.to(() => const InfeedInputPage());
+        },
         icon: const Icon(Icons.add, size: 28),
         label: const Text(
           'Infeed',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStageCard(int stageIndex, BroilerProjectData project) {
-    final updatedAt = _infeedController.stageUpdatedAt[stageIndex];
-    final updatedAtText = updatedAt == null ? '-' : _formatTimestamp(updatedAt);
-    final feedTotal = _formatPenTotal(stageIndex);
-
-    // Get latest body weight from WeighingController
-    String bodyWeight = '-';
-    if (_weighingController.weighingHistory.isNotEmpty) {
-      final latest = _weighingController.weighingHistory.first;
-      bodyWeight = latest.weight;
-    }
-
-    return InkWell(
-      onTap: () => _openStageEditor(stageIndex),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFDADDE2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE8F5EE),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Image.asset(
-                      'assets/infeed.png',
-                      width: 32,
-                      height: 32,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _stageTitle(stageIndex),
-                        style: const TextStyle(
-                          color: Color(0xFF22C55E),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.access_time,
-                            size: 14,
-                            color: Color(0xFF6B7280),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            updatedAtText,
-                            style: const TextStyle(
-                              color: Color(0xFF4B5563),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  flex: 20,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: _MetricText(
-                      label: 'Age',
-                      value: project.currentAge.toString(),
-                      textAlign: TextAlign.left,
-                    ),
-                  ),
-                ),
-                const _MetricDivider(),
-                Expanded(
-                  flex: 18,
-                  child: _MetricText(label: 'Pen', value: feedTotal),
-                ),
-                const _MetricDivider(),
-                Expanded(
-                  flex: 30,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 0),
-                    child: _MetricText(
-                      label: 'Body Weight (g)',
-                      value: bodyWeight,
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ),
       ),
     );
@@ -434,7 +265,7 @@ class _MetricDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const SizedBox(
-      width: 16,
+      width: 50,
       child: Center(
         child: Text(
           '|',
@@ -448,3 +279,4 @@ class _MetricDivider extends StatelessWidget {
     );
   }
 }
+

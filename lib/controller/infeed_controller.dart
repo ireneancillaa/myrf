@@ -7,12 +7,14 @@ import '../services/monitoring_firestore_service.dart';
 
 class InfeedStageData {
   final int stageIndex;
+  final String stageName;
   final String dateStr;
   final List<double> penValues;
   final DateTime? updatedAt;
 
   InfeedStageData({
     required this.stageIndex,
+    required this.stageName,
     required this.dateStr,
     required this.penValues,
     this.updatedAt,
@@ -21,6 +23,7 @@ class InfeedStageData {
   factory InfeedStageData.fromJson(Map<String, dynamic> json, int index) {
     return InfeedStageData(
       stageIndex: index,
+      stageName: json['stageName'] ?? '',
       dateStr: json['dateStr'] ?? '',
       penValues: (json['penValues'] as List?)
               ?.map((e) => e is num ? e.toDouble() : double.tryParse('$e') ?? 0)
@@ -32,10 +35,13 @@ class InfeedStageData {
 
   Map<String, dynamic> toJson() {
     return {
+      'stageName': stageName,
       'dateStr': dateStr,
       'penValues': penValues,
     };
   }
+
+  double get weight => penValues.fold(0, (sum, val) => sum + val);
 }
 
 class InfeedController extends GetxController {
@@ -43,11 +49,28 @@ class InfeedController extends GetxController {
   late final MonitoringFirestoreService _monitoringService;
 
   final dateControllers = List.generate(9, (_) => TextEditingController());
+  final stageNames = List<String>.filled(9, '').obs;
   final penValuesByStage = List<List<double>>.generate(9, (_) => <double>[]).obs;
   final stageUpdatedAt = List<DateTime?>.filled(9, null).obs;
 
   bool get isAllStagesEmpty =>
       penValuesByStage.every((values) => values.isEmpty);
+
+  List<InfeedStageData> get infeedList {
+    final list = <InfeedStageData>[];
+    for (var i = 0; i < 9; i++) {
+      if (penValuesByStage[i].isNotEmpty) {
+        list.add(InfeedStageData(
+          stageIndex: i,
+          stageName: stageNames[i],
+          dateStr: dateControllers[i].text,
+          penValues: penValuesByStage[i],
+          updatedAt: stageUpdatedAt[i],
+        ));
+      }
+    }
+    return list;
+  }
 
   StreamSubscription? _historySub;
 
@@ -85,6 +108,7 @@ class InfeedController extends GetxController {
           if (index != null && index >= 0 && index < 9) {
             final stageData = InfeedStageData.fromJson(record, index);
             dateControllers[index].text = stageData.dateStr;
+            stageNames[index] = stageData.stageName;
             penValuesByStage[index] = stageData.penValues;
             stageUpdatedAt[index] = stageData.updatedAt;
           }
@@ -96,12 +120,22 @@ class InfeedController extends GetxController {
   void _clearData() {
     for (var i = 0; i < 9; i++) {
       dateControllers[i].clear();
+      stageNames[i] = '';
       penValuesByStage[i] = <double>[];
       stageUpdatedAt[i] = null;
     }
   }
 
-  Future<void> saveStage(int stageIndex, String dateStr, List<double> values) async {
+  void resetData() {
+    _clearData();
+  }
+
+  Future<void> saveStage({
+    required int stageIndex,
+    required String stageName,
+    required String dateStr,
+    required List<double> values,
+  }) async {
     final projectId = _broilerController.selectedProjectId.value;
     if (projectId == null || projectId.trim().isEmpty) {
       Get.snackbar('Error', 'No active project selected.');
@@ -109,11 +143,13 @@ class InfeedController extends GetxController {
     }
 
     dateControllers[stageIndex].text = dateStr;
+    stageNames[stageIndex] = stageName;
     penValuesByStage[stageIndex] = List<double>.from(values);
     stageUpdatedAt[stageIndex] = DateTime.now();
 
     final stageData = InfeedStageData(
       stageIndex: stageIndex,
+      stageName: stageName,
       dateStr: dateStr,
       penValues: values,
       updatedAt: DateTime.now(),

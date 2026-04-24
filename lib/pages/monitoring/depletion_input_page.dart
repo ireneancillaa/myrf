@@ -5,7 +5,6 @@ import 'package:get/get.dart';
 import '../../controller/broiler_controller.dart';
 import '../../controller/mortality_controller.dart';
 
-
 class MortalityInputPage extends StatefulWidget {
   const MortalityInputPage({super.key});
 
@@ -18,7 +17,7 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
   static const Color _textColor = Color(0xFF111111);
   static const String _depletionIconAsset = 'assets/chicken.png';
   static const String _genderIconAsset = 'assets/gender.svg';
-  static const String _ageIconAsset = 'assets/chicken.png';
+  static const String _ageIconAsset = 'assets/age.png';
   static const String _bodyWeightIconAsset = 'assets/body-weight.png';
   static const String _remarksIconAsset = 'assets/remarks.png';
   static const double _buttonTextSize = 16;
@@ -44,7 +43,9 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
   @override
   void initState() {
     super.initState();
+    _dateController.text = _formatDate(DateTime.now());
     _dateController.addListener(_updateAgeFromDate);
+    _updateAgeFromDate();
   }
 
   @override
@@ -316,28 +317,28 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
 
   void _submit() {
     bool hasError = false;
-    
+
     if ((_selectedType ?? '').isEmpty) {
       _typeError = 'Please select type';
       hasError = true;
     } else {
       _typeError = null;
     }
-    
+
     if ((_selectedGender ?? '').isEmpty) {
       _genderError = 'Please select gender';
       hasError = true;
     } else {
       _genderError = null;
     }
-    
+
     if (_dateController.text.trim().isEmpty) {
       _dateError = 'Please select a date';
       hasError = true;
     } else {
       _dateError = null;
     }
-    
+
     if (_penNumberController.text.trim().isEmpty) {
       _penNumberError = 'Please enter pen number';
       hasError = true;
@@ -350,14 +351,14 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
         _penNumberError = null;
       }
     }
-    
+
     if (_bodyWeightController.text.trim().isEmpty) {
       _bodyWeightError = 'Please enter body weight';
       hasError = true;
     } else {
       _bodyWeightError = null;
     }
-    
+
     if (_ageController.text.trim().isEmpty) {
       _ageError = 'Please enter age';
       hasError = true;
@@ -393,13 +394,12 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
         surfaceTintColor: Colors.white,
         foregroundColor: const Color(0xFF111827),
         elevation: 0,
-        centerTitle: true,
         iconTheme: const IconThemeData(color: Color(0xFF111827)),
         shape: const Border(
           bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
         ),
         title: const Text(
-          ' New Depletion',
+          'New Depletion',
           style: TextStyle(
             color: Color(0xFF111827),
             fontSize: 22,
@@ -419,24 +419,6 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        _buildUnderlineSelectField(
-                          label: 'Depletion Type',
-                          value: _selectedType ?? '',
-                          prefixAssetPath: _depletionIconAsset,
-                          onTap: _pickType,
-                          useCommonFieldStyle: true,
-                          errorText: _typeError,
-                        ),
-                        const SizedBox(height: 18),
-                        _buildUnderlineSelectField(
-                          label: 'Gender',
-                          value: _selectedGender ?? '',
-                          prefixAssetPath: _genderIconAsset,
-                          onTap: _pickGender,
-                          useCommonFieldStyle: true,
-                          errorText: _genderError,
-                        ),
-                        const SizedBox(height: 18),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -466,6 +448,24 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
                           ],
                         ),
                         const SizedBox(height: 18),
+                        _buildUnderlineSelectField(
+                          label: 'Depletion Type',
+                          value: _selectedType ?? '',
+                          prefixAssetPath: _depletionIconAsset,
+                          onTap: _pickType,
+                          useCommonFieldStyle: true,
+                          errorText: _typeError,
+                        ),
+                        const SizedBox(height: 18),
+                        _buildUnderlineSelectField(
+                          label: 'Gender',
+                          value: _selectedGender ?? '',
+                          prefixAssetPath: _genderIconAsset,
+                          onTap: _pickGender,
+                          useCommonFieldStyle: true,
+                          errorText: _genderError,
+                        ),
+                        const SizedBox(height: 18),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -489,7 +489,9 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
                                 prefixAssetPath: _bodyWeightIconAsset,
                                 errorText: _bodyWeightError,
                                 onChanged: (_) {
-                                  if (_bodyWeightError != null) setState(() => _bodyWeightError = null);
+                                  if (_bodyWeightError != null) {
+                                    setState(() => _bodyWeightError = null);
+                                  }
                                 },
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
@@ -568,8 +570,10 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: errorText != null ? const Color(0xFFEF4444) : _primaryGreen, 
-                  width: 1.0
+                  color: errorText != null
+                      ? const Color(0xFFEF4444)
+                      : _primaryGreen,
+                  width: 1.0,
                 ),
               ),
             ),
@@ -604,7 +608,9 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
                         ),
                         decoration: InputDecoration(
                           isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 6,
+                          ),
                           border: InputBorder.none,
                           hintText: label,
                           hintStyle: const TextStyle(
@@ -631,10 +637,7 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
             padding: const EdgeInsets.only(top: 6, left: 44),
             child: Text(
               errorText,
-              style: const TextStyle(
-                color: Color(0xFFEF4444),
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12),
             ),
           ),
       ],
@@ -670,8 +673,10 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: errorText != null ? const Color(0xFFEF4444) : _primaryGreen, 
-                width: 1.0
+                color: errorText != null
+                    ? const Color(0xFFEF4444)
+                    : _primaryGreen,
+                width: 1.0,
               ),
             ),
           ),
@@ -728,10 +733,7 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
             padding: const EdgeInsets.only(top: 6, left: 44),
             child: Text(
               errorText,
-              style: const TextStyle(
-                color: Color(0xFFEF4444),
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12),
             ),
           ),
       ],

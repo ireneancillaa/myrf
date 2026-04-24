@@ -1,0 +1,30 @@
+Analyzing myrf...                                               
+
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/pages/broiler/diet_pen_mapping.dart:277:65 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/pages/broiler/doc_distribution_input_page.dart:131:7 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/pages/broiler/sample_doc_input_page.dart:130:7 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/pages/broiler_page.dart:315:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/pages/monitoring/brooding_page.dart:80:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/pages/monitoring/brooding_page.dart:82:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/pages/monitoring/brooding_page.dart:96:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/pages/monitoring/brooding_page.dart:253:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/pages/monitoring/brooding_page.dart:264:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/pages/monitoring/brooding_page.dart:344:39 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/pages/monitoring/feses_score_calculator_page.dart:143:7 • use_build_context_synchronously
+   info • Parameter 'key' could be a super parameter • lib/pages/monitoring/infeed_input_page.dart:6:9 • use_super_parameters
+warning • The value of the field '_primaryGreen' isn't used • lib/pages/monitoring/infeed_input_page.dart:8:22 • unused_field
+warning • The value of the field '_textPrimary' isn't used • lib/pages/monitoring/infeed_input_page.dart:9:22 • unused_field
+  error • Undefined name '_weighingController' • lib/pages/monitoring/infeed_page.dart:35:5 • undefined_identifier
+warning • The declaration '_formatTimestamp' isn't referenced • lib/pages/monitoring/infeed_page.dart:54:10 • unused_element
+  error • The getter 'infeedList' isn't defined for the type 'InfeedController' • lib/pages/monitoring/infeed_page.dart:106:31 • undefined_getter
+  error • The getter 'infeedList' isn't defined for the type 'InfeedController' • lib/pages/monitoring/infeed_page.dart:112:40 • undefined_getter
+  error • The getter 'infeedList' isn't defined for the type 'InfeedController' • lib/pages/monitoring/infeed_page.dart:115:46 • undefined_getter
+warning • The declaration '_MetricText' isn't referenced • lib/pages/monitoring/infeed_page.dart:162:7 • unused_element
+warning • A value for optional parameter 'textAlign' isn't ever given • lib/pages/monitoring/infeed_page.dart:166:10 • unused_element_parameter
+warning • The declaration '_MetricDivider' isn't referenced • lib/pages/monitoring/infeed_page.dart:195:7 • unused_element
+   info • Don't use 'BuildContext's across async gaps • lib/pages/monitoring/weighing_calculator_page.dart:286:7 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/pages/profile_page.dart:88:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/pages/profile_page.dart:227:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/pages/profile_page.dart:272:44 • deprecated_member_use
+
+26 issues found. (ran in 4.6s)

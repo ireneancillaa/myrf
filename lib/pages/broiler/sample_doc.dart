@@ -270,7 +270,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
   }) {
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.9),
+      barrierColor: Colors.black.withValues(alpha: 0.9),
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
@@ -350,18 +350,16 @@ class _SampleDocSectionState extends State<SampleDocSection> {
     try {
       final pickedImage = await _imagePicker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 50, // Aggressive compression for Base64
-        maxWidth: 512,    // Limit resolution to stay under 1MB Firestore limit
+        imageQuality: 20,
+        maxWidth: 512,
         maxHeight: 512,
       );
 
       if (pickedImage == null) return;
 
       if (index < 0) {
-        // If adding a new image via the Add button
         if (_attachments.length >= 10) return;
-        
-        // If last item has a preview, we need a new slot
+
         if (_attachments.isEmpty || _attachments.last.hasPreview) {
           setState(() {
             _attachments.add(_AttachmentItem.empty());
@@ -988,7 +986,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.4),
+                            color: Colors.black.withValues(alpha: 0.4),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -1007,7 +1005,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.4),
+                          color: Colors.black.withValues(alpha: 0.4),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -1358,9 +1356,9 @@ class _SampleDocSectionState extends State<SampleDocSection> {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -1381,7 +1379,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: color.withOpacity(0.22)),
+              border: Border.all(color: color.withValues(alpha: 0.22)),
             ),
             child: TextFormField(
               controller: controller,
@@ -1405,7 +1403,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
                 contentPadding: EdgeInsets.zero,
                 hintText: '0.00',
                 hintStyle: TextStyle(
-                  color: color.withOpacity(0.35),
+                  color: color.withValues(alpha: 0.35),
                   fontSize: 34 / 2,
                 ),
               ),

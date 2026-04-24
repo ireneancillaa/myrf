@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -95,6 +96,28 @@ class MaleBirdsController extends GetxController {
       moduleName: 'male_birds',
       data: entry.toJson(),
     );
+  }
+
+  Future<void> deleteMaleBirds(String recordId) async {
+    final projectId = _broilerController.selectedProjectId.value;
+    if (projectId == null || projectId.trim().isEmpty || recordId.isEmpty) {
+      return;
+    }
+
+    final success = await _monitoringService.deleteRecord(
+      projectId: projectId,
+      moduleName: 'male_birds',
+      recordId: recordId,
+    );
+
+    if (!success) {
+      Get.snackbar(
+        'Error',
+        'Failed to delete record from server',
+        backgroundColor: const Color(0xFFEF4444),
+        colorText: Colors.white,
+      );
+    }
   }
 
   @override

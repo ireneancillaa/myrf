@@ -6,6 +6,30 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'broiler_controller.dart';
 import '../services/monitoring_firestore_service.dart';
 
+class BoxWeight {
+  final String title;
+  final int count;
+  final double weight;
+
+  BoxWeight({required this.title, required this.count, required this.weight});
+
+  factory BoxWeight.fromJson(Map<String, dynamic> json) {
+    return BoxWeight(
+      title: json['title'] ?? '',
+      count: json['count'] ?? 0,
+      weight: (json['weight'] ?? 0.0).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'count': count,
+      'weight': weight,
+    };
+  }
+}
+
 class WeighingRecord {
   final String id;
   final String dateStr;
@@ -16,6 +40,7 @@ class WeighingRecord {
   final List<String>? birdsPens;
   final String weight;
   final List<String>? weightPens;
+  final List<BoxWeight>? boxWeights;
   final DateTime recordedAt;
 
   WeighingRecord({
@@ -28,6 +53,7 @@ class WeighingRecord {
     this.birdsPens,
     required this.weight,
     this.weightPens,
+    this.boxWeights,
     required this.recordedAt,
   });
 
@@ -42,6 +68,9 @@ class WeighingRecord {
       birdsPens: (json['birdsPens'] as List?)?.map((e) => e.toString()).toList(),
       weight: json['weight'] ?? '-',
       weightPens: (json['weightPens'] as List?)?.map((e) => e.toString()).toList(),
+      boxWeights: (json['boxWeights'] as List?)
+          ?.map((e) => BoxWeight.fromJson(e as Map<String, dynamic>))
+          .toList(),
       recordedAt: (json['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -56,6 +85,7 @@ class WeighingRecord {
       'birdsPens': birdsPens,
       'weight': weight,
       'weightPens': weightPens,
+      'boxWeights': boxWeights?.map((e) => e.toJson()).toList(),
     };
   }
 }
@@ -70,11 +100,7 @@ class WeighingController extends GetxController {
   final dateController = TextEditingController();
   final ageController = TextEditingController();
 
-  final box1Controller = TextEditingController();
-  final weight1Controller = TextEditingController();
-
-  final box2Controller = TextEditingController();
-  final weight2Controller = TextEditingController();
+  final boxWeights = <BoxWeight>[].obs;
 
   final feedAndBagValue = RxnString();
   final feedAndBagPens = RxList<String>();
@@ -125,10 +151,7 @@ class WeighingController extends GetxController {
     dateController.text = '$dayStr/$monthStr/${now.year}';
 
     ageController.clear();
-    box1Controller.clear();
-    weight1Controller.clear();
-    box2Controller.clear();
-    weight2Controller.clear();
+    boxWeights.clear();
     feedAndBagValue.value = null;
     feedAndBagPens.clear();
     lastBirdsValue.value = null;
@@ -155,6 +178,7 @@ class WeighingController extends GetxController {
       birdsPens: lastBirdsPens.isNotEmpty ? List<String>.from(lastBirdsPens) : null,
       weight: birdsWeightValue.value ?? '-',
       weightPens: birdsWeightPens.isNotEmpty ? List<String>.from(birdsWeightPens) : null,
+      boxWeights: boxWeights.isNotEmpty ? List<BoxWeight>.from(boxWeights) : null,
       recordedAt: DateTime.now(),
     );
 
@@ -170,10 +194,6 @@ class WeighingController extends GetxController {
     _historySub?.cancel();
     dateController.dispose();
     ageController.dispose();
-    box1Controller.dispose();
-    weight1Controller.dispose();
-    box2Controller.dispose();
-    weight2Controller.dispose();
     super.onClose();
   }
 }

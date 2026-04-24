@@ -313,10 +313,19 @@ class _WeighingPageState extends State<WeighingPage> {
         ),
         onPressed: () async {
           _weighingController.initNewWeighing();
-          await Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const WeighingInputPage()));
-          // Tidak perlu setState/refresh, Obx akan otomatis update jika weighingHistory berubah
+          final result = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(builder: (_) => const WeighingInputPage()),
+          );
+
+          if (result == true) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Weighing record saved successfully'),
+                backgroundColor: Color(0xFF22C55E),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
         },
         icon: const Icon(Icons.add),
         label: const Text(

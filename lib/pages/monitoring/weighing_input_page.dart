@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
@@ -127,7 +128,7 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
       setState(() {
         _isSubmitting = false;
       });
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
     }
   }
 
@@ -252,6 +253,24 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
     }
   }
 
+  void _onAddBoxTap() async {
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => const WeighingCalculatorPage(calcType: 'boxWeight'),
+      ),
+    );
+
+    if (result != null) {
+      final title = result['title'] as String;
+      final count = result['count'] as int;
+      final weight = result['weight'] as double;
+
+      _weighingController.boxWeights.add(
+        BoxWeight(title: title, count: count, weight: weight),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -281,8 +300,6 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSectionTitle('Date'),
-              const SizedBox(height: 12),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -300,7 +317,7 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
                   Expanded(
                     child: _buildUnderlineField(
                       icon: Icons.pets,
-                      prefixAssetPath: 'assets/chicken.png',
+                      prefixAssetPath: 'assets/age.png',
                       iconColor: const Color(0xFF6B7280),
                       label: 'Age',
                       hintText: 'Age',
@@ -313,106 +330,56 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
               ),
               const SizedBox(height: 24),
 
-              _buildSectionTitle('For Pen 1 - 21'),
+              _buildSectionTitle('Box Weight'),
               const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _buildUnderlineField(
-                      icon: Icons.grid_view_rounded,
-                      label: 'Pen Number',
-                      hintText: 'Box',
-                      controller: _weighingController.box1Controller,
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: _buildUnderlineField(
-                      icon: Icons.monitor_weight_outlined,
-                      prefixAssetPath: 'assets/body-weight.png',
-                      label: 'Body Weight (kg)',
-                      hintText: 'Weight (kg)',
-                      controller: _weighingController.weight1Controller,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+              Obx(
+                () => Column(
+                  children: [
+                    ..._weighingController.boxWeights.map(
+                      (box) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildBoxCard(box),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              _buildSectionTitle('For Pen 22 - 42'),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _buildUnderlineField(
-                      icon: Icons.grid_view_rounded,
-                      label: 'Pen Number',
-                      hintText: 'Box',
-                      controller: _weighingController.box2Controller,
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Expanded(
-                    child: _buildUnderlineField(
-                      icon: Icons.monitor_weight_outlined,
-                      prefixAssetPath: 'assets/body-weight.png',
-                      label: 'Body Weight (kg)',
-                      hintText: 'Weight (kg)',
-                      controller: _weighingController.weight2Controller,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                    ),
-                  ),
-                ],
+                    _buildAddBoxButton(),
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
 
               _buildSectionTitle('Weight'),
               const SizedBox(height: 12),
               Obx(
-                () => SizedBox(
-                  height: 280, // Batas tinggi agar bisa di-scroll secara vertikal
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        _buildChecklistItem(
-                          title: 'Feed & Bag',
-                          value: _weighingController.feedAndBagValue.value,
-                          unit: '',
-                          onTap: () => _onChecklistTap('feedAndBag'),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildChecklistItem(
-                          title: 'Last Birds',
-                          value: _weighingController.lastBirdsValue.value,
-                          unit: '',
-                          onTap: () => _onChecklistTap('lastBirds'),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildChecklistItem(
-                          title: 'Actual Birds',
-                          value: _weighingController.actualBirdsValue.value,
-                          unit: '',
-                          onTap: () => _onChecklistTap('actualBirds'),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildChecklistItem(
-                          title: 'Birds Weight',
-                          value: _weighingController.birdsWeightValue.value,
-                          unit: '',
-                          onTap: () => _onChecklistTap('birdsWeight'),
-                        ),
-                      ],
+                () => Column(
+                  children: [
+                    _buildChecklistItem(
+                      title: 'Feed & Bag',
+                      value: _weighingController.feedAndBagValue.value,
+                      unit: 'kg',
+                      onTap: () => _onChecklistTap('feedAndBag'),
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    _buildChecklistItem(
+                      title: 'Last Birds',
+                      value: _weighingController.lastBirdsValue.value,
+                      unit: '',
+                      onTap: () => _onChecklistTap('lastBirds'),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildChecklistItem(
+                      title: 'Actual Birds',
+                      value: _weighingController.actualBirdsValue.value,
+                      unit: '',
+                      onTap: () => _onChecklistTap('actualBirds'),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildChecklistItem(
+                      title: 'Birds Weight',
+                      value: _weighingController.birdsWeightValue.value,
+                      unit: 'kg',
+                      onTap: () => _onChecklistTap('birdsWeight'),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -656,4 +623,164 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
       ),
     );
   }
+
+  Widget _buildBoxCard(BoxWeight box) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF3),
+              shape: BoxShape.circle,
+            ),
+            padding: const EdgeInsets.all(8),
+            child: Image.asset('assets/box.png', fit: BoxFit.contain),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  box.title,
+                  style: const TextStyle(
+                    color: _primaryGreen,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      'Box ',
+                      style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                    ),
+                    Text(
+                      '${box.count}',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 1,
+                      height: 12,
+                      color: const Color(0xFF7D7D7D),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Box Weight (kg) ',
+                      style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                    ),
+                    Text(
+                      '${box.weight % 1 == 0 ? box.weight.toInt() : box.weight}',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddBoxButton() {
+    return InkWell(
+      onTap: _onAddBoxTap,
+      borderRadius: BorderRadius.circular(10),
+      child: CustomPaint(
+        painter: _DashedBorderPainter(
+          color: _primaryGreen,
+          strokeWidth: 1.2,
+          gap: 5,
+        ),
+        child: Container(
+          width: double.infinity,
+          height: 52,
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.add, color: _primaryGreen, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Add Box',
+                style: TextStyle(
+                  color: _primaryGreen,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double gap;
+
+  _DashedBorderPainter({
+    required this.color,
+    this.strokeWidth = 1.2,
+    this.gap = 4.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final Path path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+          const Radius.circular(10),
+        ),
+      );
+
+    for (final PathMetric pathMetric in path.computeMetrics()) {
+      double distance = 0.0;
+      while (distance < pathMetric.length) {
+        canvas.drawPath(
+          pathMetric.extractPath(distance, distance + gap),
+          paint,
+        );
+        distance += gap * 2;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

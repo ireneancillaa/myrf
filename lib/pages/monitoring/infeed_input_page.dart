@@ -1,766 +1,568 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import '../../controller/broiler_controller.dart';
+import '../../controller/infeed_controller.dart';
+import 'infeed_calculator_page.dart';
 
 class InfeedInputPage extends StatefulWidget {
-  const InfeedInputPage({
-    super.key,
-    required this.stageTitle,
-    required this.stageGroup,
-    required this.stageRange,
-    this.initialDate = '',
-    this.initialValues = const <double>[],
-  });
-
-  final String stageTitle;
-  final String stageGroup;
-  final String stageRange;
-  final String initialDate;
-  final List<double> initialValues;
+  const InfeedInputPage({super.key});
 
   @override
   State<InfeedInputPage> createState() => _InfeedInputPageState();
 }
 
 class _InfeedInputPageState extends State<InfeedInputPage> {
-  static const double _calculatorButtonHeight = 72;
-  static const double _distributionFieldHeight = 50;
+  static const Color _primaryGreen = Color(0xFF22C55E);
+  static const Color _textPrimary = Color(0xFF111827);
 
-  final ScrollController _listScrollController = ScrollController();
-  final List<TextEditingController> _controllers = [];
-  int _activeIndex = 0;
+  late final BroilerController _broilerController;
+  late final InfeedController _infeedController;
+
+  int _selectedStageIndex = 1;
+  DateTime _selectedDate = DateTime.now();
+  List<double> _penValues = [];
+  bool _isLoading = false;
+
+  String get _dynamicStageName {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selected = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+
+    if (selected.isAtSameMomentAs(today)) {
+      return 'Starter';
+    } else if (selected.isBefore(today)) {
+      return 'Pre Starter';
+    }
+    return 'Starter';
+  }
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialValues.isEmpty) {
-      _controllers.add(TextEditingController());
-      _activeIndex = 0;
-      return;
-    }
+    _broilerController = Get.find<BroilerController>();
+    _infeedController = Get.find<InfeedController>();
 
-    for (final value in widget.initialValues) {
-      final isWhole = value % 1 == 0;
-      _controllers.add(
-        TextEditingController(
-          text: isWhole ? value.toInt().toString() : value.toString(),
-        ),
-      );
-    }
-    _activeIndex = _controllers.length - 1;
-    _scrollToBottom();
+    // Initialize with existing data if available for the default stage
+    _loadStageData(0);
   }
 
-  @override
-  void dispose() {
-    for (final controller in _controllers) {
-      controller.dispose();
-    }
-    _listScrollController.dispose();
-    super.dispose();
-  }
-
-  void _appendToActive(String value) {
-    final controller = _controllers[_activeIndex];
-    var current = controller.text;
-
-    if (value == '.') {
-      if (current.contains('.')) return;
-      if (current.isEmpty) current = '0';
-      controller.text = '$current.';
-      setState(() {});
-      return;
-    }
-
-    controller.text = '$current$value';
-    setState(() {});
-  }
-
-  void _removeLastChar() {
-    final controller = _controllers[_activeIndex];
-    if (controller.text.isEmpty) return;
-    controller.text = controller.text.substring(0, controller.text.length - 1);
-    setState(() {});
-  }
-
-  void _clearActiveField() {
-    _controllers[_activeIndex].clear();
-    setState(() {});
-  }
-
-  void _addPen() {
+  void _loadStageData(int index) {
     setState(() {
-      _controllers.add(TextEditingController());
-      _activeIndex = _controllers.length - 1;
-    });
-    _scrollToBottom();
-  }
+      _selectedStageIndex = index;
+      final dateStr = _infeedController.dateControllers[index].text;
 
-  Future<bool> _confirmDeleteField(int index) async {
-    final confirmed =
-        await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) {
-            return Dialog(
-              backgroundColor: Colors.transparent,
-              insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x22000000),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFEE2E2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.delete_outline,
-                        color: Color(0xFFDC2626),
-                        size: 30,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Delete Field?',
-                      style: TextStyle(
-                        color: Color(0xFF111827),
-                        fontSize: 21,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Pen ${index + 1} will be deleted. Continue?',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 15,
-                        height: 1.35,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(false),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFFD1D5DB)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              foregroundColor: const Color(0xFF374151),
-                            ),
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(true),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFEF4444),
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            child: const Text(
-                              'Delete',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ) ??
-        false;
-
-    if (!confirmed) return false;
-
-    if (_controllers.length == 1) {
-      setState(() {
-        _controllers.first.clear();
-        _activeIndex = 0;
-      });
-      return false;
-    }
-
-    setState(() {
-      _controllers.removeAt(index);
-      if (_activeIndex == index) {
-        _activeIndex = index >= _controllers.length
-            ? _controllers.length - 1
-            : index;
-      } else if (_activeIndex > index) {
-        _activeIndex -= 1;
-      }
-    });
-    _scrollToActive();
-    return true;
-  }
-
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_listScrollController.hasClients) return;
-      _listScrollController.animateTo(
-        _listScrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-      );
-    });
-  }
-
-  void _scrollToActive() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_listScrollController.hasClients) return;
-      const itemExtent = _distributionFieldHeight + 10;
-      final offset = _activeIndex * itemExtent;
-      _listScrollController.animateTo(
-        offset,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-      );
-    });
-  }
-
-  String _formatWeight(String text) {
-    final parsed = double.tryParse(text.trim());
-    if (parsed == null) return '-';
-    if (parsed % 1 == 0) {
-      return parsed.toInt().toStringAsFixed(0);
-    }
-    return parsed.toStringAsFixed(2);
-  }
-
-  String _saveButtonLabel() => 'Save ${widget.stageTitle}';
-
-  Future<void> _showScaleSelectionModal() async {
-    final blockedMessage = await _bluetoothBlockedMessage();
-    if (blockedMessage != null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(blockedMessage)));
-      return;
-    }
-
-    if (!mounted) return;
-
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 42,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE5E7EB),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Select Scale Type',
-                    style: TextStyle(
-                      color: Color(0xFF111827),
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _buildScaleOptionTile(
-                    label: 'Hanging Scale',
-                    icon: Icons.scale,
-                    onTap: () => Navigator.of(sheetContext).pop('hanging'),
-                  ),
-                  const SizedBox(height: 10),
-                  _buildScaleOptionTile(
-                    label: 'Bench Scale',
-                    icon: Icons.monitor_weight_outlined,
-                    onTap: () => Navigator.of(sheetContext).pop('bench'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
-    if (selected == null || !mounted) return;
-
-    final message = selected == 'hanging'
-        ? 'Hanging Scale selected'
-        : 'Bench Scale selected';
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<String?> _bluetoothBlockedMessage() async {
-    try {
-      if (Platform.isAndroid) {
-        final permissionStatuses = await <Permission>[
-          Permission.bluetoothConnect,
-          Permission.bluetoothScan,
-        ].request();
-        final hasDeniedPermission = permissionStatuses.values.any(
-          (status) =>
-              status.isDenied ||
-              status.isPermanentlyDenied ||
-              status.isRestricted,
-        );
-        if (hasDeniedPermission) {
-          return 'Bluetooth permission has not been granted. Please allow Bluetooth access.';
+      // Hanya update _selectedDate jika data yang dimuat memiliki tanggal yang valid
+      // dan kita tidak sedang dalam proses mengganti tanggal secara manual
+      if (dateStr.isNotEmpty) {
+        try {
+          _selectedDate = DateFormat('dd/MM/yyyy').parse(dateStr);
+        } catch (e) {
+          // Keep current _selectedDate if parse fails
         }
       }
 
-      final state = await FlutterBluePlus.adapterState
-          .where((item) => item != BluetoothAdapterState.unknown)
-          .first;
-      if (state != BluetoothAdapterState.on) {
-        return 'Bluetooth is still off. Please turn on Bluetooth first.';
-      }
+      _penValues = List<double>.from(_infeedController.penValuesByStage[index]);
+    });
+  }
 
-      return null;
-    } catch (_) {
-      return 'Bluetooth status could not be read. Please try again shortly.';
+  double get _totalWeight => _penValues.fold(0, (sum, val) => sum + val);
+
+  String _formatDate(DateTime date) => DateFormat('dd/MM/yyyy').format(date);
+
+  Future<void> _selectDate() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate.isBefore(yesterday)
+          ? yesterday
+          : (_selectedDate.isAfter(today) ? today : _selectedDate),
+      firstDate: yesterday,
+      lastDate: today,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: _primaryGreen,
+              onPrimary: Colors.white,
+              onSurface: _textPrimary,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(foregroundColor: _primaryGreen),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        // 1. Update tanggal pilihan user
+        _selectedDate = picked;
+
+        // 2. Tentukan stage index: 0 (H-1), 1 (Hari ini)
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final selected = DateTime(picked.year, picked.month, picked.day);
+        final newIndex = selected.isAtSameMomentAs(today) ? 1 : 0;
+
+        _selectedStageIndex = newIndex;
+
+        // 3. Muat hanya nilai pakan (penValues) untuk stage tersebut tanpa menimpa tanggal
+        _penValues = List<double>.from(
+          _infeedController.penValuesByStage[newIndex],
+        );
+      });
     }
   }
 
-  Widget _buildScaleOptionTile({
-    required String label,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: const Color(0xFFF9FAFB),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE8F5EE),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: const Color(0xFF22C55E), size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFF1F2937),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(0xFF9CA3AF)),
-            ],
-          ),
+  Future<void> _onChecklistTap() async {
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => InfeedCalculatorPage(
+          stageTitle: _dynamicStageName,
+          stageGroup: 'Infeed',
+          stageRange: '-',
+          initialDate: _formatDate(_selectedDate),
+          initialValues: _penValues,
         ),
       ),
     );
+
+    if (result != null && result['values'] is List) {
+      setState(() {
+        _penValues = (result['values'] as List).cast<double>();
+      });
+    }
   }
 
-  void _save() {
-    final values = <double>[];
-    for (final controller in _controllers) {
-      final text = controller.text.trim();
-      if (text.isEmpty) continue;
-      final parsed = double.tryParse(text);
-      if (parsed != null && parsed > 0) {
-        values.add(parsed);
-      }
-    }
+  String _formatTotal(double total) {
+    if (total == 0) return '-';
+    if (total % 1 == 0) return total.toInt().toString();
+    return total.toStringAsFixed(2);
+  }
 
-    if (values.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please input at least one value'),
-          backgroundColor: Color(0xFFEF4444),
-        ),
+  Future<void> _save() async {
+    if (_penValues.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'Please input infeed weight first',
+        backgroundColor: Colors.red.withOpacity(0.1),
+        colorText: Colors.red,
       );
       return;
     }
 
-    Navigator.of(context).pop({
-      'date': widget.initialDate,
-      'values': values,
-      'pens': values.map((value) => value.toString()).toList(),
-    });
+    setState(() => _isLoading = true);
+
+    try {
+      await _infeedController.saveStage(
+        stageIndex: _selectedStageIndex,
+        stageName: _dynamicStageName,
+        dateStr: _formatDate(_selectedDate),
+        values: _penValues,
+      );
+
+      Get.back();
+
+      // Tampilkan snackbar SETELAH kembali ke halaman sebelumnya agar tidak ikut tertutup
+      Get.snackbar(
+        'Success',
+        'Infeed data saved successfully',
+        backgroundColor: const Color(0xFFDCFCE7),
+        colorText: const Color(0xFF15803D),
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 2),
+        margin: const EdgeInsets.all(12),
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to save data: $e',
+        backgroundColor: const Color(0xFFFEE2E2),
+        colorText: const Color(0xFFB91C1C),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  int get _calculatedAge {
+    final docInStr = _broilerController.docInDateController.text;
+    if (docInStr.isEmpty) return 1;
+    try {
+      final docInParts = docInStr.split('/');
+      if (docInParts.length == 3) {
+        final docInDate = DateTime(
+          int.parse(docInParts[2]),
+          int.parse(docInParts[1]),
+          int.parse(docInParts[0]),
+        );
+        final d1 = DateTime(
+          _selectedDate.year,
+          _selectedDate.month,
+          _selectedDate.day,
+        );
+        final d2 = DateTime(docInDate.year, docInDate.month, docInDate.day);
+        final age = d1.difference(d2).inDays + 1;
+        return age > 0 ? age : 1;
+      }
+    } catch (_) {}
+    return 1;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFE7E7E7),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        foregroundColor: const Color(0xFF111827),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF111827)),
-        actions: [
-          IconButton(
-            onPressed: _showScaleSelectionModal,
-            icon: const Icon(Icons.bluetooth, color: Color(0xFF111827)),
-            tooltip: 'Bluetooth',
-          ),
-        ],
-        shape: const Border(
-          bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+        surfaceTintColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: _textPrimary),
+          onPressed: () => Get.back(),
         ),
-        title: Text(
-          widget.stageTitle,
-          style: const TextStyle(
-            color: Color(0xFF111827),
+        title: const Text(
+          'New Infeed',
+          style: TextStyle(
+            color: _textPrimary,
             fontSize: 22,
             fontWeight: FontWeight.w700,
           ),
         ),
+        centerTitle: false,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: const Color(0xFFE5E7EB), height: 1),
+        ),
       ),
-      body: SafeArea(
+      body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _buildPenListPanel()),
-              const SizedBox(height: 10),
-              _buildKeypad(),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                height: 58,
-                child: ElevatedButton(
-                  onPressed: _save,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF22C55E),
-                    foregroundColor: Colors.white,
-                    elevation: 1,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Date
+                  Expanded(
+                    child: _buildUnderlineField(
+                      icon: Icons.calendar_month,
+                      label: 'Date',
+                      hintText: 'Date',
+                      controller: TextEditingController(
+                        text: _formatDate(_selectedDate),
+                      ),
+                      readOnly: true,
+                      onTap: _selectDate,
                     ),
                   ),
-                  child: Text(
-                    _saveButtonLabel(),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+                  const SizedBox(width: 24),
+                  // Age
+                  Expanded(
+                    child: _buildUnderlineField(
+                      icon: Icons.pets,
+                      prefixAssetPath: 'assets/age.png',
+                      label: 'Age',
+                      hintText: 'Age',
+                      controller: TextEditingController(
+                        text: '$_calculatedAge',
+                      ),
+                      readOnly: true,
                     ),
                   ),
-                ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _buildUnderlineField(
+                icon: Icons.person,
+                label: 'Stages',
+                hintText: 'Select Stage',
+                controller: TextEditingController(text: _dynamicStageName),
+                readOnly: true,
+              ),
+              const SizedBox(height: 32),
+
+              // Infeed Weight Section
+              _buildSectionTitle('Infeed Weight'),
+              const SizedBox(height: 16),
+
+              // Infeed Card
+              _buildChecklistItem(
+                title: 'Infeed',
+                value: _totalWeight > 0 ? _formatTotal(_totalWeight) : null,
+                unit: 'kg',
+                onTap: _onChecklistTap,
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildPenListPanel() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF6F6F6),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        controller: _listScrollController,
-        child: Column(
-          children: List.generate(_controllers.length, (index) {
-            final isActive = index == _activeIndex;
-            final row = GestureDetector(
-              onTap: () => setState(() => _activeIndex = index),
-              child: Container(
-                margin: EdgeInsets.only(
-                  bottom: index == _controllers.length - 1 ? 0 : 10,
-                ),
-                constraints: const BoxConstraints(
-                  minHeight: _distributionFieldHeight,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? const Color(0xFFEAF4EA)
-                      : const Color(0xFFF6F6F6),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryGreen,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isActive
-                        ? const Color(0xFF22C55E)
-                        : const Color(0xFFBDBDBD),
-                  ),
                 ),
-                child: Row(
-                  children: [
-                    Text(
-                      'Pen ${index + 1} (kg):',
-                      style: TextStyle(
-                        color: isActive
-                            ? const Color(0xFF0A992E)
-                            : const Color(0xFF404040),
-                        fontSize: 19,
-                        fontWeight: FontWeight.w500,
+                elevation: 0,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
                       ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      _formatWeight(_controllers[index].text),
+                    )
+                  : const Text(
+                      'Save Infeed',
                       style: TextStyle(
-                        color: isActive
-                            ? const Color(0xFF0A992E)
-                            : const Color(0xFF353535),
-                        fontSize: 20,
+                        fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ],
-                ),
-              ),
-            );
-
-            return Dismissible(
-              key: ValueKey(_controllers[index]),
-              direction: DismissDirection.endToStart,
-              background: Container(
-                margin: EdgeInsets.only(
-                  bottom: index == _controllers.length - 1 ? 0 : 10,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: const Icon(Icons.delete_outline, color: Colors.white),
-              ),
-              confirmDismiss: (_) => _confirmDeleteField(index),
-              child: row,
-            );
-          }),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildKeypad() {
-    final isActiveFieldEmpty =
-        _controllers.isEmpty || _controllers[_activeIndex].text.trim().isEmpty;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildKeypadRow([
-          _PadButtonSpec.text(
-            '7',
-            onTap: () => setState(() => _appendToActive('7')),
-          ),
-          _PadButtonSpec.text(
-            '8',
-            onTap: () => setState(() => _appendToActive('8')),
-          ),
-          _PadButtonSpec.text(
-            '9',
-            onTap: () => setState(() => _appendToActive('9')),
-          ),
-          _PadButtonSpec.icon(Icons.backspace_outlined, onTap: _removeLastChar),
-        ]),
-        const SizedBox(height: 10),
-        _buildKeypadRow([
-          _PadButtonSpec.text(
-            '4',
-            onTap: () => setState(() => _appendToActive('4')),
-          ),
-          _PadButtonSpec.text(
-            '5',
-            onTap: () => setState(() => _appendToActive('5')),
-          ),
-          _PadButtonSpec.text(
-            '6',
-            onTap: () => setState(() => _appendToActive('6')),
-          ),
-          const _PadButtonSpec._(label: ''),
-        ]),
-        const SizedBox(height: 10),
-        _buildKeypadRow([
-          _PadButtonSpec.text(
-            '1',
-            onTap: () => setState(() => _appendToActive('1')),
-          ),
-          _PadButtonSpec.text(
-            '2',
-            onTap: () => setState(() => _appendToActive('2')),
-          ),
-          _PadButtonSpec.text(
-            '3',
-            onTap: () => setState(() => _appendToActive('3')),
-          ),
-          _PadButtonSpec.icon(
-            Icons.skip_next_rounded,
-            onTap: isActiveFieldEmpty ? null : _addPen,
-          ),
-        ]),
-        const SizedBox(height: 10),
-        _buildKeypadRow([
-          const _PadButtonSpec._(label: ''),
-          _PadButtonSpec.text(
-            '0',
-            onTap: () => setState(() => _appendToActive('0')),
-          ),
-          _PadButtonSpec.text(
-            '.',
-            onTap: () => setState(() => _appendToActive('.')),
-          ),
-          _PadButtonSpec.icon(Icons.refresh_rounded, onTap: _clearActiveField),
-        ]),
-      ],
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: _primaryGreen,
+      ),
     );
   }
 
-  Widget _buildKeypadRow(List<_PadButtonSpec> specs) {
-    return Row(
-      children: List.generate(specs.length * 2 - 1, (index) {
-        if (index.isOdd) {
-          return const SizedBox(width: 10);
-        }
-        final spec = specs[index ~/ 2];
-        return Expanded(
-          child: _PadButton(spec: spec, height: _calculatorButtonHeight),
-        );
-      }),
-    );
-  }
-}
-
-class _PadButtonSpec {
-  const _PadButtonSpec._({
-    this.label,
-    this.icon,
-    this.onTap,
-    this.isAction = false,
-  });
-
-  const _PadButtonSpec.text(String label, {required VoidCallback? onTap})
-    : this._(label: label, onTap: onTap);
-
-  const _PadButtonSpec.icon(IconData icon, {required VoidCallback? onTap})
-    : this._(icon: icon, onTap: onTap, isAction: true);
-
-  final String? label;
-  final IconData? icon;
-  final VoidCallback? onTap;
-  final bool isAction;
-}
-
-class _PadButton extends StatelessWidget {
-  const _PadButton({required this.spec, required this.height});
-
-  final _PadButtonSpec spec;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDisabled = spec.onTap == null;
-    final bgColor = spec.isAction
-        ? (isDisabled ? const Color(0xFFE5E7EB) : const Color(0xFF22C55E))
-        : const Color(0xFFF6F6F6);
-    final borderColor = spec.isAction
-        ? (isDisabled ? const Color(0xFFD1D5DB) : const Color(0xFF22C55E))
-        : const Color(0xFFE0E0E0);
-    return GestureDetector(
-      onTap: spec.onTap,
+  Widget _buildUnderlineField({
+    IconData? icon,
+    String? prefixAssetPath,
+    required String label,
+    required String hintText,
+    required TextEditingController controller,
+    bool readOnly = false,
+    TextInputType? keyboardType,
+    Color? iconColor,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
       child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor),
+        padding: const EdgeInsets.only(bottom: 2), // Spacing for underline
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: Color(0xFF22C55E),
+              width: 0.8,
+              strokeAlign: BorderSide.strokeAlignInside,
+            ),
+          ),
         ),
-        alignment: Alignment.center,
-        child: spec.icon != null
-            ? Icon(
-                spec.icon,
-                color: isDisabled ? const Color(0xFF9CA3AF) : Colors.white,
-                size: 30,
-              )
-            : Text(
-                spec.label!,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF222222),
-                ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: prefixAssetPath != null
+                  ? (prefixAssetPath.endsWith('.svg')
+                        ? SvgPicture.asset(
+                            prefixAssetPath,
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.contain,
+                          )
+                        : Image.asset(
+                            prefixAssetPath,
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.contain,
+                          ))
+                  : Icon(
+                      icon,
+                      color: iconColor ?? const Color(0xFF22C55E),
+                      size: 32,
+                    ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF858991),
+                    ),
+                  ),
+                  TextFormField(
+                    controller: controller,
+                    readOnly: readOnly,
+                    onTap: onTap, // Keep this for keyboard accessibility
+                    keyboardType: keyboardType,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF111111),
+                    ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      hintText: hintText,
+                      hintStyle: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF9CA3AF),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChecklistItem({
+    required String title,
+    required String? value,
+    required String unit,
+    required VoidCallback onTap,
+  }) {
+    final hasValue = value != null && value.trim().isNotEmpty && value != '-';
+    final nowStr = DateFormat('dd MMM yyyy - HH:mm:ss').format(DateTime.now());
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 70),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: hasValue ? _primaryGreen : const Color(0xFFE0E0E0),
+            width: hasValue ? 1.4 : 1,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x18000000),
+              blurRadius: 4,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: hasValue ? _primaryGreen : const Color(0xFF8A8A8A),
+                ),
+                color: hasValue ? _primaryGreen : Colors.transparent,
+              ),
+              child: hasValue
+                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w500,
+                      color: hasValue ? _primaryGreen : const Color(0xFF6F6F6F),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.schedule,
+                        size: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        hasValue ? nowStr : '-',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            _buildChecklistBadge(
+              hasValue ? '$value $unit'.trim() : '-',
+              hasValue: hasValue,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChecklistBadge(String value, {required bool hasValue}) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 72, minHeight: 34),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: hasValue ? const Color(0xFFECFDF3) : const Color(0xFFF6F6F6),
+        border: Border.all(
+          color: hasValue ? const Color(0xFF86EFAC) : const Color(0xFFE0E0E0),
+        ),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        value,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: hasValue ? _primaryGreen : const Color(0xFF6F6F6F),
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+        ),
       ),
     );
   }
