@@ -58,22 +58,22 @@ class _BroodingPageState extends State<BroodingPage> {
           return const Center(child: Text('Please select a project first'));
         }
 
-        final contextName = hasProject ? selectedProject : selectedFarmName;
+        // final contextName = hasProject ? selectedProject : selectedFarmName;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                contextName,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF6B7280),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 10),
+              // Text(
+              //   contextName,
+              //   style: const TextStyle(
+              //     fontSize: 14,
+              //     color: Color(0xFF6B7280),
+              //     fontWeight: FontWeight.w600,
+              //   ),
+              // ),
+              // const SizedBox(height: 10),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(

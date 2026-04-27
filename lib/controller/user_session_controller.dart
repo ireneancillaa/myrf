@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 
 class UserSessionController extends GetxController {
   final userIdentifier = ''.obs;
+  final userId = ''.obs; // Document ID dari Firestore users collection
 
   String get displayName {
     final value = userIdentifier.value.trim();
@@ -21,11 +22,13 @@ class UserSessionController extends GetxController {
     return value.isEmpty ? '-' : value;
   }
 
-  void setLoginIdentifier(String value) {
-    userIdentifier.value = value.trim();
+  void setSession({required String identifier, required String id}) {
+    userIdentifier.value = identifier.trim();
+    userId.value = id.trim();
   }
 
   void clear() {
     userIdentifier.value = '';
+    userId.value = '';
   }
 }

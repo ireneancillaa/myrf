@@ -72,6 +72,20 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
     }
 
     _setupFormListeners();
+
+    // Watch for ID migration (local -> firestore)
+    ever(controller.selectedProjectId, (newId) {
+      if (newId != null && newId.isNotEmpty && newId != _projectId) {
+        if (_projectId?.startsWith('local_') ?? false) {
+          debugPrint(
+            'ProjectStepperPage: Migrating local ID $_projectId to $newId',
+          );
+          setState(() {
+            _projectId = newId;
+          });
+        }
+      }
+    });
   }
 
   void _applySavedStepperState() {

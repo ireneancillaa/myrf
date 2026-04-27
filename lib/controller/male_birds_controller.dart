@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'broiler_controller.dart';
+import 'user_session_controller.dart';
 import '../services/monitoring_firestore_service.dart';
 
 class MaleBirdsEntry {
@@ -30,17 +31,13 @@ class MaleBirdsEntry {
       age: json['age'] ?? '-',
       male: json['male'] ?? '-',
       female: json['female'] ?? '-',
-      recordedAt: (json['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      recordedAt:
+          (json['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'date': date,
-      'age': age,
-      'male': male,
-      'female': female,
-    };
+    return {'date': date, 'age': age, 'male': male, 'female': female};
   }
 }
 
@@ -49,6 +46,7 @@ class MaleBirdsController extends GetxController {
 
   late final BroilerController _broilerController;
   late final MonitoringFirestoreService _monitoringService;
+  late final UserSessionController _sessionController;
   StreamSubscription? _historySub;
 
   @override
@@ -61,6 +59,10 @@ class MaleBirdsController extends GetxController {
     _monitoringService = Get.isRegistered<MonitoringFirestoreService>()
         ? Get.find<MonitoringFirestoreService>()
         : Get.put(MonitoringFirestoreService(), permanent: true);
+
+    _sessionController = Get.isRegistered<UserSessionController>()
+        ? Get.find<UserSessionController>()
+        : Get.put(UserSessionController(), permanent: true);
 
     ever(_broilerController.selectedProjectId, (String? projectId) {
       _listenToHistory(projectId);
@@ -75,13 +77,20 @@ class MaleBirdsController extends GetxController {
       return;
     }
 
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return;
+
     _historySub = _monitoringService
-        .watchRecords(projectId: projectId, moduleName: 'male_birds')
+        .watchRecords(
+          userId: userId,
+          projectId: projectId,
+          moduleName: 'male_birds',
+        )
         .listen((records) {
-      entries.assignAll(
-        records.map((r) => MaleBirdsEntry.fromJson(r)).toList(),
-      );
-    });
+          entries.assignAll(
+            records.map((r) => MaleBirdsEntry.fromJson(r)).toList(),
+          );
+        });
   }
 
   Future<void> addMaleBirds(MaleBirdsEntry entry) async {
@@ -91,7 +100,14 @@ class MaleBirdsController extends GetxController {
       return;
     }
 
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) {
+      Get.snackbar('Error', 'User session not found.');
+      return;
+    }
+
     await _monitoringService.addRecord(
+      userId: userId,
       projectId: projectId,
       moduleName: 'male_birds',
       data: entry.toJson(),
@@ -104,7 +120,11 @@ class MaleBirdsController extends GetxController {
       return;
     }
 
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return;
+
     final success = await _monitoringService.deleteRecord(
+      userId: userId,
       projectId: projectId,
       moduleName: 'male_birds',
       recordId: recordId,

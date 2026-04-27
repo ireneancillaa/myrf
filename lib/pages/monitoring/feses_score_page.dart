@@ -27,7 +27,7 @@ class _FesesScorePageState extends State<FesesScorePage> {
     _broilerController = Get.isRegistered<BroilerController>()
         ? Get.find<BroilerController>()
         : Get.put(BroilerController(), permanent: true);
-        
+
     _fesesController = Get.isRegistered<FesesController>()
         ? Get.find<FesesController>()
         : Get.put(FesesController(), permanent: true);
@@ -133,10 +133,7 @@ class _FesesScorePageState extends State<FesesScorePage> {
             icon: const Icon(Icons.add, size: 28),
             label: const Text(
               'Feses Score',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -155,6 +152,34 @@ class _FesesScoreCard extends StatelessWidget {
       return value.toInt().toString();
     }
     return value.toStringAsFixed(3);
+  }
+
+  String _formatDateTime(String value) {
+    DateTime? dt;
+    try {
+      dt = DateTime.parse(value);
+    } catch (_) {
+      return value;
+    }
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final day = dt.day.toString().padLeft(2, '0');
+    final hour = dt.hour.toString().padLeft(2, '0');
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final second = dt.second.toString().padLeft(2, '0');
+    return '$day ${monthNames[dt.month - 1]} ${dt.year} - $hour:$minute:$second';
   }
 
   @override
@@ -212,7 +237,9 @@ class _FesesScoreCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          entry.date.isEmpty ? '-' : entry.date,
+                          entry.date.isEmpty
+                              ? '-'
+                              : _formatDateTime(entry.date),
                           style: const TextStyle(
                             color: Color(0xFF4B5563),
                             fontSize: 13,

@@ -18,6 +18,11 @@ class BroilerProjectData {
     required this.replication,
     required this.dietReplication,
     this.updatedAt,
+    this.frontTemp,
+    this.middleTemp,
+    this.rearTemp,
+    this.minTemp,
+    this.maxTemp,
   });
 
   final String projectId;
@@ -39,6 +44,13 @@ class BroilerProjectData {
   final int? dietReplication;
   final DateTime? updatedAt;
 
+  // Temperature monitoring fields
+  final String? frontTemp;
+  final String? middleTemp;
+  final String? rearTemp;
+  final double? minTemp;
+  final double? maxTemp;
+
   BroilerProjectData copyWith({
     String? projectId,
     String? projectName,
@@ -58,6 +70,11 @@ class BroilerProjectData {
     String? replication,
     int? dietReplication,
     DateTime? updatedAt,
+    String? frontTemp,
+    String? middleTemp,
+    String? rearTemp,
+    double? minTemp,
+    double? maxTemp,
   }) {
     return BroilerProjectData(
       projectId: projectId ?? this.projectId,
@@ -78,6 +95,11 @@ class BroilerProjectData {
       replication: replication ?? this.replication,
       dietReplication: dietReplication ?? this.dietReplication,
       updatedAt: updatedAt ?? this.updatedAt,
+      frontTemp: frontTemp ?? this.frontTemp,
+      middleTemp: middleTemp ?? this.middleTemp,
+      rearTemp: rearTemp ?? this.rearTemp,
+      minTemp: minTemp ?? this.minTemp,
+      maxTemp: maxTemp ?? this.maxTemp,
     );
   }
 

@@ -44,30 +44,40 @@ class BroilerProjectInformationSection extends StatelessWidget {
             const SizedBox(height: 16),
 
             // 1. Project Name / Chick Cycle (string, freetext, mandatory)
-            _buildTextField(
-              controller: controller.projectNameController,
-              label: 'Project Name / Chick Cycle',
-              hint: 'Project Name / Chick Cycle',
-              icon: Icons.autorenew_rounded,
-              isMandatory: true,
-              customValidator: (value) {
-                final name = (value ?? '').trim();
-                if (name.isEmpty) return null;
-
-                final currentProjectId = controller.selectedProjectId.value
-                    ?.trim();
-                final hasDuplicate = controller.hasDuplicateDraftedProjectName(
-                  projectName: name,
-                  excludeProjectId: currentProjectId,
-                );
-
-                if (hasDuplicate) {
-                  return 'Project name already used by another Drafted project';
-                }
-                return null;
-              },
-              minLines: 1,
-              maxLines: 2,
+            // 1. Project Name / Chick Cycle (string, freetext, mandatory)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTextField(
+                  controller: controller.projectNameController,
+                  label: 'Project Name / Chick Cycle',
+                  hint: 'Project Name / Chick Cycle',
+                  icon: Icons.autorenew_rounded,
+                  isMandatory: true,
+                  customValidator: (value) {
+                    final name = (value ?? '').trim();
+                    if (name.isEmpty) return null;
+                    return null;
+                  },
+                  minLines: 1,
+                  maxLines: 2,
+                ),
+                Obx(() {
+                  final warning = controller.projectNameWarning.value;
+                  if (warning == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 2),
+                    child: Text(
+                      warning,
+                      style: const TextStyle(
+                        color: Color(0xFFEF4444), // Red error color
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -165,9 +175,9 @@ class BroilerProjectInformationSection extends StatelessWidget {
                     return Theme(
                       data: Theme.of(context).copyWith(
                         colorScheme: const ColorScheme.light(
-                          primary: const Color(0xFF22C55E),
+                          primary: Color(0xFF22C55E),
                           onPrimary: Colors.white,
-                          onSurface: const Color(0xFF111827),
+                          onSurface: Color(0xFF111827),
                         ),
                         textButtonTheme: TextButtonThemeData(
                           style: TextButton.styleFrom(
@@ -255,9 +265,9 @@ class BroilerProjectInformationSection extends StatelessWidget {
                     return Theme(
                       data: Theme.of(context).copyWith(
                         colorScheme: const ColorScheme.light(
-                          primary: const Color(0xFF22C55E),
+                          primary: Color(0xFF22C55E),
                           onPrimary: Colors.white,
-                          onSurface: const Color(0xFF111827),
+                          onSurface: Color(0xFF111827),
                         ),
                         textButtonTheme: TextButtonThemeData(
                           style: TextButton.styleFrom(

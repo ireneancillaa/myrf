@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 
 import 'broiler_controller.dart';
+import 'user_session_controller.dart';
 import '../services/monitoring_firestore_service.dart';
 
 class FesesScoreEntry {
@@ -39,7 +40,8 @@ class FesesScoreEntry {
       cawanKg: (json['cawanKg'] as num?)?.toDouble() ?? 0.0,
       ovenKg: (json['ovenKg'] as num?)?.toDouble() ?? 0.0,
       totalKg: (json['totalKg'] as num?)?.toDouble() ?? 0.0,
-      recordedAt: (json['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      recordedAt:
+          (json['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
@@ -61,6 +63,7 @@ class FesesController extends GetxController {
 
   late final BroilerController _broilerController;
   late final MonitoringFirestoreService _monitoringService;
+  late final UserSessionController _sessionController;
   StreamSubscription? _historySub;
 
   final dateController = TextEditingController();
@@ -76,6 +79,10 @@ class FesesController extends GetxController {
     _monitoringService = Get.isRegistered<MonitoringFirestoreService>()
         ? Get.find<MonitoringFirestoreService>()
         : Get.put(MonitoringFirestoreService(), permanent: true);
+
+    _sessionController = Get.isRegistered<UserSessionController>()
+        ? Get.find<UserSessionController>()
+        : Get.put(UserSessionController(), permanent: true);
 
     ever(_broilerController.selectedProjectId, (String? projectId) {
       _listenToHistory(projectId);
@@ -98,13 +105,16 @@ class FesesController extends GetxController {
       return;
     }
 
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return;
+
     _historySub = _monitoringService
-        .watchRecords(projectId: projectId, moduleName: 'feses')
+        .watchRecords(userId: userId, projectId: projectId, moduleName: 'feses')
         .listen((records) {
-      entries.assignAll(
-        records.map((r) => FesesScoreEntry.fromJson(r)).toList(),
-      );
-    });
+          entries.assignAll(
+            records.map((r) => FesesScoreEntry.fromJson(r)).toList(),
+          );
+        });
   }
 
   Future<void> addFesesScore(FesesScoreEntry entry) async {
@@ -114,7 +124,14 @@ class FesesController extends GetxController {
       return;
     }
 
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) {
+      Get.snackbar('Error', 'User session not found.');
+      return;
+    }
+
     await _monitoringService.addRecord(
+      userId: userId,
       projectId: projectId,
       moduleName: 'feses',
       data: entry.toJson(),

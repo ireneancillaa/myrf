@@ -631,9 +631,9 @@ class _BroilerPageState extends State<BroilerPage> {
                   return Theme(
                     data: Theme.of(context).copyWith(
                       colorScheme: const ColorScheme.light(
-                        primary: const Color(0xFF22C55E),
+                        primary: Color(0xFF22C55E),
                         onPrimary: Colors.white,
-                        onSurface: const Color(0xFF111827),
+                        onSurface: Color(0xFF111827),
                       ),
                       textButtonTheme: TextButtonThemeData(
                         style: TextButton.styleFrom(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'broiler_controller.dart';
+import 'user_session_controller.dart';
 import '../services/monitoring_firestore_service.dart';
 
 class InfeedStageData {
@@ -25,7 +26,8 @@ class InfeedStageData {
       stageIndex: index,
       stageName: json['stageName'] ?? '',
       dateStr: json['dateStr'] ?? '',
-      penValues: (json['penValues'] as List?)
+      penValues:
+          (json['penValues'] as List?)
               ?.map((e) => e is num ? e.toDouble() : double.tryParse('$e') ?? 0)
               .toList() ??
           <double>[],
@@ -34,11 +36,7 @@ class InfeedStageData {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'stageName': stageName,
-      'dateStr': dateStr,
-      'penValues': penValues,
-    };
+    return {'stageName': stageName, 'dateStr': dateStr, 'penValues': penValues};
   }
 
   double get weight => penValues.fold(0, (sum, val) => sum + val);
@@ -47,10 +45,14 @@ class InfeedStageData {
 class InfeedController extends GetxController {
   late final BroilerController _broilerController;
   late final MonitoringFirestoreService _monitoringService;
+  late final UserSessionController _sessionController;
 
   final dateControllers = List.generate(9, (_) => TextEditingController());
   final stageNames = List<String>.filled(9, '').obs;
-  final penValuesByStage = List<List<double>>.generate(9, (_) => <double>[]).obs;
+  final penValuesByStage = List<List<double>>.generate(
+    9,
+    (_) => <double>[],
+  ).obs;
   final stageUpdatedAt = List<DateTime?>.filled(9, null).obs;
 
   bool get isAllStagesEmpty =>
@@ -60,13 +62,15 @@ class InfeedController extends GetxController {
     final list = <InfeedStageData>[];
     for (var i = 0; i < 9; i++) {
       if (penValuesByStage[i].isNotEmpty) {
-        list.add(InfeedStageData(
-          stageIndex: i,
-          stageName: stageNames[i],
-          dateStr: dateControllers[i].text,
-          penValues: penValuesByStage[i],
-          updatedAt: stageUpdatedAt[i],
-        ));
+        list.add(
+          InfeedStageData(
+            stageIndex: i,
+            stageName: stageNames[i],
+            dateStr: dateControllers[i].text,
+            penValues: penValuesByStage[i],
+            updatedAt: stageUpdatedAt[i],
+          ),
+        );
       }
     }
     return list;
@@ -85,6 +89,10 @@ class InfeedController extends GetxController {
         ? Get.find<MonitoringFirestoreService>()
         : Get.put(MonitoringFirestoreService(), permanent: true);
 
+    _sessionController = Get.isRegistered<UserSessionController>()
+        ? Get.find<UserSessionController>()
+        : Get.put(UserSessionController(), permanent: true);
+
     ever(_broilerController.selectedProjectId, (String? projectId) {
       _listenToHistory(projectId);
     });
@@ -98,23 +106,30 @@ class InfeedController extends GetxController {
       return;
     }
 
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return;
+
     _historySub = _monitoringService
-        .watchRecords(projectId: projectId, moduleName: 'infeed')
+        .watchRecords(
+          userId: userId,
+          projectId: projectId,
+          moduleName: 'infeed',
+        )
         .listen((records) {
-      for (final record in records) {
-        final id = record['id'] as String;
-        if (id.startsWith('stage_')) {
-          final index = int.tryParse(id.replaceFirst('stage_', ''));
-          if (index != null && index >= 0 && index < 9) {
-            final stageData = InfeedStageData.fromJson(record, index);
-            dateControllers[index].text = stageData.dateStr;
-            stageNames[index] = stageData.stageName;
-            penValuesByStage[index] = stageData.penValues;
-            stageUpdatedAt[index] = stageData.updatedAt;
+          for (final record in records) {
+            final id = record['id'] as String;
+            if (id.startsWith('stage_')) {
+              final index = int.tryParse(id.replaceFirst('stage_', ''));
+              if (index != null && index >= 0 && index < 9) {
+                final stageData = InfeedStageData.fromJson(record, index);
+                dateControllers[index].text = stageData.dateStr;
+                stageNames[index] = stageData.stageName;
+                penValuesByStage[index] = stageData.penValues;
+                stageUpdatedAt[index] = stageData.updatedAt;
+              }
+            }
           }
-        }
-      }
-    });
+        });
   }
 
   void _clearData() {
@@ -155,7 +170,14 @@ class InfeedController extends GetxController {
       updatedAt: DateTime.now(),
     );
 
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) {
+      Get.snackbar('Error', 'User session not found.');
+      return;
+    }
+
     await _monitoringService.setRecord(
+      userId: userId,
       projectId: projectId,
       moduleName: 'infeed',
       recordId: 'stage_$stageIndex',

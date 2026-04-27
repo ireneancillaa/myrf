@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'broiler_controller.dart';
+import 'user_session_controller.dart';
 import '../services/monitoring_firestore_service.dart';
 
 class BoxWeight {
@@ -22,11 +23,7 @@ class BoxWeight {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'title': title,
-      'count': count,
-      'weight': weight,
-    };
+    return {'title': title, 'count': count, 'weight': weight};
   }
 }
 
@@ -65,13 +62,18 @@ class WeighingRecord {
       feed: json['feed'] ?? '-',
       feedPens: (json['feedPens'] as List?)?.map((e) => e.toString()).toList(),
       birds: json['birds'] ?? '-',
-      birdsPens: (json['birdsPens'] as List?)?.map((e) => e.toString()).toList(),
+      birdsPens: (json['birdsPens'] as List?)
+          ?.map((e) => e.toString())
+          .toList(),
       weight: json['weight'] ?? '-',
-      weightPens: (json['weightPens'] as List?)?.map((e) => e.toString()).toList(),
+      weightPens: (json['weightPens'] as List?)
+          ?.map((e) => e.toString())
+          .toList(),
       boxWeights: (json['boxWeights'] as List?)
           ?.map((e) => BoxWeight.fromJson(e as Map<String, dynamic>))
           .toList(),
-      recordedAt: (json['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      recordedAt:
+          (json['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
@@ -95,6 +97,7 @@ class WeighingController extends GetxController {
 
   late final BroilerController _broilerController;
   late final MonitoringFirestoreService _monitoringService;
+  late final UserSessionController _sessionController;
   StreamSubscription? _historySub;
 
   final dateController = TextEditingController();
@@ -122,6 +125,10 @@ class WeighingController extends GetxController {
         ? Get.find<MonitoringFirestoreService>()
         : Get.put(MonitoringFirestoreService(), permanent: true);
 
+    _sessionController = Get.isRegistered<UserSessionController>()
+        ? Get.find<UserSessionController>()
+        : Get.put(UserSessionController(), permanent: true);
+
     ever(_broilerController.selectedProjectId, (String? projectId) {
       _listenToHistory(projectId);
     });
@@ -135,13 +142,20 @@ class WeighingController extends GetxController {
       return;
     }
 
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return;
+
     _historySub = _monitoringService
-        .watchRecords(projectId: projectId, moduleName: 'weighing')
+        .watchRecords(
+          userId: userId,
+          projectId: projectId,
+          moduleName: 'weighing',
+        )
         .listen((records) {
-      weighingHistory.assignAll(
-        records.map((r) => WeighingRecord.fromJson(r)).toList(),
-      );
-    });
+          weighingHistory.assignAll(
+            records.map((r) => WeighingRecord.fromJson(r)).toList(),
+          );
+        });
   }
 
   void initNewWeighing() {
@@ -173,16 +187,31 @@ class WeighingController extends GetxController {
       dateStr: dateController.text,
       age: ageController.text.isNotEmpty ? ageController.text : '-',
       feed: feedAndBagValue.value ?? '-',
-      feedPens: feedAndBagPens.isNotEmpty ? List<String>.from(feedAndBagPens) : null,
+      feedPens: feedAndBagPens.isNotEmpty
+          ? List<String>.from(feedAndBagPens)
+          : null,
       birds: lastBirdsValue.value ?? '-',
-      birdsPens: lastBirdsPens.isNotEmpty ? List<String>.from(lastBirdsPens) : null,
+      birdsPens: lastBirdsPens.isNotEmpty
+          ? List<String>.from(lastBirdsPens)
+          : null,
       weight: birdsWeightValue.value ?? '-',
-      weightPens: birdsWeightPens.isNotEmpty ? List<String>.from(birdsWeightPens) : null,
-      boxWeights: boxWeights.isNotEmpty ? List<BoxWeight>.from(boxWeights) : null,
+      weightPens: birdsWeightPens.isNotEmpty
+          ? List<String>.from(birdsWeightPens)
+          : null,
+      boxWeights: boxWeights.isNotEmpty
+          ? List<BoxWeight>.from(boxWeights)
+          : null,
       recordedAt: DateTime.now(),
     );
 
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) {
+      Get.snackbar('Error', 'User session not found.');
+      return;
+    }
+
     await _monitoringService.addRecord(
+      userId: userId,
       projectId: projectId,
       moduleName: 'weighing',
       data: record.toJson(),

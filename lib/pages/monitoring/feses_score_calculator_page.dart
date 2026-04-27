@@ -458,7 +458,7 @@ class _FesesScoreCalculatorPageState extends State<FesesScoreCalculatorPage> {
                   child: Row(
                     children: [
                       Text(
-                        _isKodeCawan ? 'Kode Cawan ${index + 1}:' : 'Pen ${index + 1} (kg):',
+                        _isKodeCawan ? 'Kode Cawan ${index + 1}:' : 'Pen ${index + 1} (g):',
                         style: TextStyle(
                           color: isActive ? const Color(0xFF0A992E) : const Color(0xFF404040),
                           fontSize: 19,

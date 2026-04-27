@@ -8,12 +8,13 @@ import '../models/broiler_project_data.dart';
 import '../models/temperature_standard.dart';
 import '../services/broiler_firestore_service.dart';
 import '../services/config_firestore_service.dart';
-import '../services/monitoring_firestore_service.dart';
+import 'user_session_controller.dart';
 
 enum BroilerWorkflowStatus { drafted, inProgress, completed }
 
 class BroilerController extends GetxController {
   final projectNameController = TextEditingController();
+  final projectNameWarning = RxnString();
   final trialDateController = TextEditingController();
   final trialHouseController = TextEditingController();
   final strainController = TextEditingController();
@@ -62,11 +63,12 @@ class BroilerController extends GetxController {
   VoidCallback? _onStatusChangeCallback;
   late final BroilerFirestoreService _firestoreService;
   late final ConfigFirestoreService _configService;
-  late final MonitoringFirestoreService _monitoringService;
+  late final UserSessionController _sessionController;
   StreamSubscription<Map<String, String>>? _statusSubscription;
-  StreamSubscription<List<Map<String, dynamic>>>? _monitoringSubscription;
   StreamSubscription<List<BroilerProjectData>>? _projectsSubscription;
   final Map<String, Future<void>> _projectSyncQueue = <String, Future<void>>{};
+  final Map<String, String> _migratedIdMap =
+      <String, String>{}; // localId -> firestoreId
 
   @override
   void onInit() {
@@ -77,74 +79,68 @@ class BroilerController extends GetxController {
     _configService = Get.isRegistered<ConfigFirestoreService>()
         ? Get.find<ConfigFirestoreService>()
         : Get.put(ConfigFirestoreService(), permanent: true);
-    _monitoringService = Get.isRegistered<MonitoringFirestoreService>()
-        ? Get.find<MonitoringFirestoreService>()
-        : Get.put(MonitoringFirestoreService(), permanent: true);
+    _sessionController = Get.isRegistered<UserSessionController>()
+        ? Get.find<UserSessionController>()
+        : Get.put(UserSessionController(), permanent: true);
 
+    projectNameController.addListener(_validateProjectName);
     docInDateController.addListener(updateCurrentAgeAndStandard);
 
-    _bindFirestoreStreams();
+    ever(_sessionController.userId, (userId) {
+      if (userId.isNotEmpty) {
+        _bindFirestoreStreams();
+      } else {
+        _statusSubscription?.cancel();
+        _projectsSubscription?.cancel();
+        projects.clear();
+        projectStatuses.clear();
+      }
+    });
+
+    // Handle case where userId is already set when controller is initialized
+    if (_sessionController.userId.isNotEmpty) {
+      debugPrint(
+        'BroilerController: userId already present on init: ${_sessionController.userId}',
+      );
+      _bindFirestoreStreams();
+    } else {
+      debugPrint('BroilerController: userId is empty on init');
+    }
 
     ever(selectedProjectId, (_) => _listenToTemperatureRecords());
   }
 
   void _listenToTemperatureRecords() {
-    _monitoringSubscription?.cancel();
     final projectId = selectedProjectId.value;
-    if (projectId == null || projectId.isEmpty) return;
+    if (projectId == null || projectId.isEmpty) {
+      _clearTemperatureValues();
+      return;
+    }
 
-    _monitoringSubscription = _monitoringService
-        .watchRecords(projectId: projectId, moduleName: 'brooding')
-        .listen((records) {
-      if (records.isEmpty) {
-        frontTemp.value = '-';
-        middleTemp.value = '-';
-        rearTemp.value = '-';
-        minTempStat.value = 0.0;
-        maxTempStat.value = 0.0;
-        return;
-      }
+    final project = projects.firstWhereOrNull((p) => p.projectId == projectId);
+    if (project == null) {
+      _clearTemperatureValues();
+      return;
+    }
 
-      // Assume records are ordered by created_at descending
-      final latest = records.first;
-      
-      final fLatest = latest['front_temp'];
-      final mLatest = latest['middle_temp'];
-      final rLatest = latest['rear_temp'];
+    frontTemp.value = project.frontTemp != null
+        ? '${project.frontTemp}°C'
+        : '-';
+    middleTemp.value = project.middleTemp != null
+        ? '${project.middleTemp}°C'
+        : '-';
+    rearTemp.value = project.rearTemp != null ? '${project.rearTemp}°C' : '-';
 
-      frontTemp.value = fLatest != null ? '$fLatest°C' : '-';
-      middleTemp.value = mLatest != null ? '$mLatest°C' : '-';
-      rearTemp.value = rLatest != null ? '$rLatest°C' : '-';
+    minTempStat.value = project.minTemp ?? 0.0;
+    maxTempStat.value = project.maxTemp ?? 0.0;
+  }
 
-      // Statistics might come from a specific summary or calculated from all records
-      // For now, let's assume they are in the latest record or we calculate them
-      double min = 100.0;
-      double max = 0.0;
-
-      for (final record in records) {
-        final f = (record['front_temp'] ?? 0).toDouble();
-        final m = (record['middle_temp'] ?? 0).toDouble();
-        final r = (record['rear_temp'] ?? 0).toDouble();
-        
-        if (f > 0) {
-          if (f < min) min = f;
-          if (f > max) max = f;
-        }
-        if (m > 0) {
-          if (m < min) min = m;
-          if (m > max) max = m;
-        }
-        if (r > 0) {
-          if (r < min) min = r;
-          if (r > max) max = r;
-        }
-      }
-
-      if (max > 0) {
-        minTempStat.value = min;
-        maxTempStat.value = max;
-      }
-    });
+  void _clearTemperatureValues() {
+    frontTemp.value = '-';
+    middleTemp.value = '-';
+    rearTemp.value = '-';
+    minTempStat.value = 0.0;
+    maxTempStat.value = 0.0;
   }
 
   List<String> get projectNames =>
@@ -226,6 +222,26 @@ class BroilerController extends GetxController {
     }
   }
 
+  void _validateProjectName() {
+    final name = projectNameController.text.trim();
+    if (name.isEmpty) {
+      projectNameWarning.value = null;
+      return;
+    }
+
+    final hasDuplicate = hasDuplicateDraftedProjectName(
+      projectName: name,
+      excludeProjectId: selectedProjectId.value,
+    );
+
+    if (hasDuplicate) {
+      projectNameWarning.value =
+          'Project name already exists in Drafted status.';
+    } else {
+      projectNameWarning.value = null;
+    }
+  }
+
   Future<void> _fetchTemperatureStandard(int age) async {
     final standard = await _configService.getTemperatureStandard(age);
     currentTemperatureStandard.value = standard;
@@ -299,24 +315,34 @@ class BroilerController extends GetxController {
   }
 
   void _bindFirestoreStreams() {
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) {
+      debugPrint('BroilerController: userId is empty, skipping streams');
+      return;
+    }
+
+    debugPrint('BroilerController: Watching data for userId: $userId');
+    debugPrint('BroilerController: Path: users/$userId/broiler_records');
+
     _statusSubscription?.cancel();
     _projectsSubscription?.cancel();
 
-    _projectsSubscription = _firestoreService.watchProjects().listen((
+    _projectsSubscription = _firestoreService.watchProjects(userId).listen((
       remoteProjects,
     ) {
       projects.assignAll(remoteProjects);
+      _listenToTemperatureRecords(); // Update temperature when projects list changes
     });
 
-    _statusSubscription = _firestoreService.watchProjectStatuses().listen((
-      remoteStatuses,
-    ) {
-      final mapped = <String, BroilerWorkflowStatus>{
-        for (final entry in remoteStatuses.entries)
-          entry.key: _statusFromFirestore(entry.value),
-      };
-      projectStatuses.assignAll(mapped);
-    });
+    _statusSubscription = _firestoreService.watchProjectStatuses(userId).listen(
+      (remoteStatuses) {
+        final mapped = <String, BroilerWorkflowStatus>{
+          for (final entry in remoteStatuses.entries)
+            entry.key: _statusFromFirestore(entry.value),
+        };
+        projectStatuses.assignAll(mapped);
+      },
+    );
   }
 
   String _createLocalProjectId() {
@@ -346,13 +372,25 @@ class BroilerController extends GetxController {
   }
 
   Future<bool> _syncProjectToFirestore(String projectId) async {
+    // Check if this ID was migrated
+    final actualProjectId = _migratedIdMap[projectId] ?? projectId;
+
     final data = projects.firstWhereOrNull(
-      (item) => item.projectId == projectId,
+      (item) => item.projectId == actualProjectId,
     );
-    if (data == null) return false;
+    if (data == null) {
+      debugPrint(
+        'BroilerController: Sync aborted - project $actualProjectId not found in list (original search: $projectId)',
+      );
+      return false;
+    }
+
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return false;
 
     try {
       final savedProjectId = await _firestoreService.upsertProjectRecord(
+        userId: userId,
         projectId: data.projectId,
         data: data,
         status: _statusToFirestore(statusFor(data.projectId)),
@@ -405,6 +443,11 @@ class BroilerController extends GetxController {
       );
 
       if (savedProjectId != data.projectId) {
+        debugPrint(
+          'BroilerController: Migrating project ID from ${data.projectId} to $savedProjectId',
+        );
+        _migratedIdMap[data.projectId] = savedProjectId;
+
         final index = projects.indexWhere(
           (item) => item.projectId == projectId,
         );
@@ -577,8 +620,12 @@ class BroilerController extends GetxController {
   }
 
   Future<void> hydrateStepperDataFromFirestore(String projectId) async {
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return;
+
     try {
       final record = await _firestoreService.getProjectRecord(
+        userId: userId,
         projectId: projectId,
       );
       if (record == null) return;
@@ -643,20 +690,22 @@ class BroilerController extends GetxController {
   }
 
   Future<void> markDrafted(String projectId, {int step = 1}) {
-    projectStatuses[projectId] = BroilerWorkflowStatus.drafted;
+    final actualId = _migratedIdMap[projectId] ?? projectId;
+    projectStatuses[actualId] = BroilerWorkflowStatus.drafted;
     projectStatuses.refresh();
-    updateLastOpenedStep(projectId, step);
-    _enqueueProjectSync(projectId);
+    updateLastOpenedStep(actualId, step);
+    _enqueueProjectSync(actualId);
     return Future<void>.value();
   }
 
   Future<void> markInProgress(String projectId) {
-    projectStatuses[projectId] = BroilerWorkflowStatus.inProgress;
+    final actualId = _migratedIdMap[projectId] ?? projectId;
+    projectStatuses[actualId] = BroilerWorkflowStatus.inProgress;
     projectStatuses.refresh();
     projects.refresh();
     _notifyStatusChange();
-    updateLastOpenedStep(projectId, 2);
-    _enqueueProjectSync(projectId);
+    updateLastOpenedStep(actualId, 2);
+    _enqueueProjectSync(actualId);
     return Future<void>.value();
   }
 
@@ -695,7 +744,7 @@ class BroilerController extends GetxController {
     projectDocDistributions[projectId] = List<Map<String, dynamic>>.from(
       docDistributions,
     );
-    
+
     final normalizedAttachmentUrls = attachmentUrls
         .map((item) => item.trim())
         .where((item) => item.isNotEmpty)
@@ -703,11 +752,18 @@ class BroilerController extends GetxController {
 
     // Defensive logic: prevent accidental data loss
     final previousUrls = projectAttachmentUrls[projectId];
-    if (normalizedAttachmentUrls.isEmpty && (previousUrls?.isNotEmpty ?? false)) {
-      debugPrint('BroilerController: PROTECTED SYNC - Preserving ${previousUrls!.length} attachments for $projectId (prevented empty list overwrite).');
+    if (normalizedAttachmentUrls.isEmpty &&
+        (previousUrls?.isNotEmpty ?? false)) {
+      debugPrint(
+        'BroilerController: PROTECTED SYNC - Preserving ${previousUrls!.length} attachments for $projectId (prevented empty list overwrite).',
+      );
     } else {
-      if (previousUrls != null && previousUrls.isNotEmpty && normalizedAttachmentUrls.isEmpty) {
-        debugPrint('BroilerController: INTENTIONAL CLEAR - Project $projectId attachments cleared.');
+      if (previousUrls != null &&
+          previousUrls.isNotEmpty &&
+          normalizedAttachmentUrls.isEmpty) {
+        debugPrint(
+          'BroilerController: INTENTIONAL CLEAR - Project $projectId attachments cleared.',
+        );
       }
       projectAttachmentUrls[projectId] = normalizedAttachmentUrls;
     }
@@ -729,7 +785,9 @@ class BroilerController extends GetxController {
         entry.key: Map<String, String>.from(entry.value),
     };
 
-    debugPrint('BroilerController: Stepper data updated for $projectId. Attachments: ${attachmentUrls.length}');
+    debugPrint(
+      'BroilerController: Stepper data updated for $projectId. Attachments: ${attachmentUrls.length}',
+    );
     _enqueueProjectSync(projectId);
     return Future<bool>.value(true);
   }
@@ -807,13 +865,11 @@ class BroilerController extends GetxController {
       projectName: projectName,
       excludeProjectId: currentProjectId,
     )) {
-      Get.defaultDialog(
-        title: 'Duplicate Project Name',
-        middleText:
-            'Project name already exists in Drafted status. Use a different name.',
-        textConfirm: 'OK',
-        confirmTextColor: Colors.white,
-        buttonColor: const Color(0xFF22C55E),
+      Get.snackbar(
+        'Duplicate Name',
+        'Project name already exists in Drafted status.',
+        backgroundColor: const Color(0xFFEF4444),
+        colorText: Colors.white,
       );
       return false;
     }
@@ -866,8 +922,9 @@ class BroilerController extends GetxController {
     final replication = replicationController.text.trim();
     final replicationNumber = (int.tryParse(replication) ?? 1).clamp(1, 9999);
     final selectedId = selectedProjectId.value?.trim() ?? '';
-    final currentProjectId =
-        selectedId.isNotEmpty ? selectedId : _createLocalProjectId();
+    final currentProjectId = selectedId.isNotEmpty
+        ? selectedId
+        : _createLocalProjectId();
 
     final data = BroilerProjectData(
       projectId: currentProjectId,
@@ -888,6 +945,13 @@ class BroilerController extends GetxController {
       replication: replication,
       dietReplication: replicationNumber,
     );
+
+    if (hasDuplicateDraftedProjectName(
+      projectName: projectName,
+      excludeProjectId: currentProjectId,
+    )) {
+      return false;
+    }
 
     final existingIndex = projects.indexWhere(
       (item) => item.projectId == currentProjectId,
@@ -917,8 +981,14 @@ class BroilerController extends GetxController {
       return false;
     }
 
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return false;
+
     try {
-      await _firestoreService.deleteProjectRecord(projectId: projectId);
+      await _firestoreService.deleteProjectRecord(
+        userId: userId,
+        projectId: projectId,
+      );
     } catch (error) {
       debugPrint('Failed to delete project $projectId: $error');
       Get.snackbar('Delete Failed', 'Project could not be deleted');

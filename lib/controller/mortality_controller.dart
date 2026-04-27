@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'broiler_controller.dart';
+import 'user_session_controller.dart';
 import '../services/monitoring_firestore_service.dart';
 
 class DepletionEntry {
@@ -38,7 +39,8 @@ class DepletionEntry {
       penNumber: json['penNumber'] ?? '-',
       bodyWeight: json['bodyWeight'] ?? '-',
       remarks: json['remarks'],
-      recordedAt: (json['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      recordedAt:
+          (json['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
@@ -60,6 +62,7 @@ class MortalityController extends GetxController {
 
   late final BroilerController _broilerController;
   late final MonitoringFirestoreService _monitoringService;
+  late final UserSessionController _sessionController;
   StreamSubscription? _historySub;
 
   @override
@@ -72,6 +75,10 @@ class MortalityController extends GetxController {
     _monitoringService = Get.isRegistered<MonitoringFirestoreService>()
         ? Get.find<MonitoringFirestoreService>()
         : Get.put(MonitoringFirestoreService(), permanent: true);
+
+    _sessionController = Get.isRegistered<UserSessionController>()
+        ? Get.find<UserSessionController>()
+        : Get.put(UserSessionController(), permanent: true);
 
     ever(_broilerController.selectedProjectId, (String? projectId) {
       _listenToHistory(projectId);
@@ -86,13 +93,20 @@ class MortalityController extends GetxController {
       return;
     }
 
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return;
+
     _historySub = _monitoringService
-        .watchRecords(projectId: projectId, moduleName: 'mortality')
+        .watchRecords(
+          userId: userId,
+          projectId: projectId,
+          moduleName: 'mortality',
+        )
         .listen((records) {
-      entries.assignAll(
-        records.map((r) => DepletionEntry.fromJson(r)).toList(),
-      );
-    });
+          entries.assignAll(
+            records.map((r) => DepletionEntry.fromJson(r)).toList(),
+          );
+        });
   }
 
   Future<void> addDepletion(DepletionEntry entry) async {
@@ -102,7 +116,14 @@ class MortalityController extends GetxController {
       return;
     }
 
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) {
+      Get.snackbar('Error', 'User session not found.');
+      return;
+    }
+
     await _monitoringService.addRecord(
+      userId: userId,
       projectId: projectId,
       moduleName: 'mortality',
       data: entry.toJson(),

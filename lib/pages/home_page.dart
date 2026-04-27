@@ -426,7 +426,9 @@ class _HomePageState extends State<HomePage> {
     );
     final numberOfBirds = _birdCountValue();
     final diet = _displayValue(_broilerController.dietController.text);
-    final replication = _displayValue(_broilerController.replicationController.text);
+    final replication = _displayValue(
+      _broilerController.replicationController.text,
+    );
 
     return Container(
       width: double.infinity,
@@ -442,17 +444,20 @@ class _HomePageState extends State<HomePage> {
           Obx(() {
             _broilerController.projectStatuses.toString();
             final farmOptions = _buildFarmOptions();
-            final selectedValue = farmOptions.contains(_selectedFarm)
+            final inProgressNames = _broilerController.inProgressProjectNames;
+
+            // Ensure we are showing an In Progress project if available
+            final selectedValue = inProgressNames.contains(_selectedFarm)
                 ? _selectedFarm
-                : farmOptions.first;
+                : (inProgressNames.isNotEmpty
+                      ? inProgressNames.first
+                      : farmOptions.first);
 
             if (_selectedFarm != selectedValue) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
                 setState(() => _selectedFarm = selectedValue);
-                if (_broilerController.inProgressProjectNames.contains(
-                  selectedValue,
-                )) {
+                if (inProgressNames.contains(selectedValue)) {
                   _broilerController.selectProjectByName(selectedValue);
                 }
               });
@@ -645,7 +650,8 @@ class _HomePageState extends State<HomePage> {
         onTap = () => navigateWithMessage(const DepletionPage());
         break;
       case 'Weighing':
-        onTap = () => navigateWithMessage(WeighingPage(selectedFarmName: _selectedFarm));
+        onTap = () =>
+            navigateWithMessage(WeighingPage(selectedFarmName: _selectedFarm));
         break;
       case 'Male Birds':
         onTap = () => navigateWithMessage(const MaleBirdsPage());

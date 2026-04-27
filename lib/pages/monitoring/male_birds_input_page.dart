@@ -125,7 +125,14 @@ class _MaleBirdsInputPageState extends State<MaleBirdsInputPage> {
           numberOfBirds - (currentTotalMale + newMaleValue);
 
       final entry = MaleBirdsEntry(
-        date: _formatDate(_selectedDate),
+        date: DateTime(
+          _selectedDate.year,
+          _selectedDate.month,
+          _selectedDate.day,
+          DateTime.now().hour,
+          DateTime.now().minute,
+          DateTime.now().second,
+        ).toIso8601String(),
         age: _calculatedAge.toString(),
         male: _totalMaleWeight > 0 ? _formatTotal(_totalMaleWeight) : '-',
         female: calculatedFemale.toString(),

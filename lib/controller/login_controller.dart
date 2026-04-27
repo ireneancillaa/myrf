@@ -1,13 +1,16 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import 'user_session_controller.dart';
 
 class LoginController extends GetxController {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final obscurePassword = true.obs;
+  final isLoading = false.obs;
+
   late final UserSessionController _sessionController;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void onInit() {
@@ -21,17 +24,36 @@ class LoginController extends GetxController {
     obscurePassword.value = !obscurePassword.value;
   }
 
-  void login() {
-    final emailOrId = emailController.text.trim();
+  Future<void> login() async {
+    final email = emailController.text.trim();
     final password = passwordController.text;
 
-    if (emailOrId.isEmpty || password.isEmpty) {
-      Get.snackbar('Login Failed', 'Email/ID and password are required');
+    if (email.isEmpty || password.isEmpty) {
+      Get.snackbar('Login Failed', 'Email and password are required');
       return;
     }
 
-    _sessionController.setLoginIdentifier(emailOrId);
-    Get.offAllNamed('/home');
+    isLoading.value = true;
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .where('password', isEqualTo: password)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final userDoc = querySnapshot.docs.first;
+        _sessionController.setSession(identifier: email, id: userDoc.id);
+        Get.offAllNamed('/home');
+      } else {
+        Get.snackbar('Login Failed', 'Invalid email or password');
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'An error occurred during login: $e');
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   void forgotPassword() {

@@ -229,7 +229,7 @@ class _FesesScoreInputPageState extends State<FesesScoreInputPage> {
 
   String _fieldBadgeValue(int index) {
     if (!_fieldHasData(index)) return '-';
-    return '${_formatValue(_controllers[index].text)} kg';
+    return '${_formatValue(_controllers[index].text)} g';
   }
 
   void _showMessage(String message, {bool success = false}) {
@@ -272,9 +272,31 @@ class _FesesScoreInputPageState extends State<FesesScoreInputPage> {
     final ovenKg = _parseKg(_controllers[2].text);
     final totalKg = fesesKg + cawanKg + ovenKg;
 
+    // Parse selected date from dd/MM/yyyy to combine with current time
+    DateTime finalDate;
+    try {
+      final parts = _fesesController.dateController.text.split('/');
+      final pickedDate = DateTime(
+        int.parse(parts[2]),
+        int.parse(parts[1]),
+        int.parse(parts[0]),
+      );
+      final now = DateTime.now();
+      finalDate = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        now.hour,
+        now.minute,
+        now.second,
+      );
+    } catch (_) {
+      finalDate = DateTime.now();
+    }
+
     _fesesController.addFesesScore(
       FesesScoreEntry(
-        date: _fesesController.dateController.text,
+        date: finalDate.toIso8601String(),
         age: _fesesController.ageController.text.isNotEmpty
             ? _fesesController.ageController.text
             : '-',
