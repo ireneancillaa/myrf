@@ -98,7 +98,7 @@ class MonitoringFirestoreService {
       await _firestore
           .collection('users')
           .doc(userId)
-          .collection('broiler_projects')
+          .collection(baseCollection)
           .doc(projectId.trim())
           .set({
             'last_monitoring_update': FieldValue.serverTimestamp(),

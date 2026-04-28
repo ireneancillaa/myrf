@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'broiler_controller.dart';
 import 'user_session_controller.dart';
+import 'history_controller.dart';
+import '../models/activity_log.dart';
 import '../services/monitoring_firestore_service.dart';
 
 class MaleBirdsEntry {
@@ -52,9 +54,7 @@ class MaleBirdsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _broilerController = Get.isRegistered<BroilerController>()
-        ? Get.find<BroilerController>()
-        : Get.put(BroilerController(), permanent: true);
+    _broilerController = Get.find<BroilerController>();
 
     _monitoringService = Get.isRegistered<MonitoringFirestoreService>()
         ? Get.find<MonitoringFirestoreService>()
@@ -112,6 +112,13 @@ class MaleBirdsController extends GetxController {
       moduleName: 'male_birds',
       data: entry.toJson(),
     );
+
+    HistoryController.log(
+      title: 'Added Male Birds Record',
+      description: 'New male birds data recorded: ${entry.male} birds.',
+      type: ActivityType.maleBirds,
+      projectId: projectId,
+    );
   }
 
   Future<void> deleteMaleBirds(String recordId) async {
@@ -130,7 +137,14 @@ class MaleBirdsController extends GetxController {
       recordId: recordId,
     );
 
-    if (!success) {
+    if (success) {
+      HistoryController.log(
+        title: 'Deleted Male Birds Record',
+        description: 'A male birds record has been removed.',
+        type: ActivityType.maleBirds,
+        projectId: projectId,
+      );
+    } else {
       Get.snackbar(
         'Error',
         'Failed to delete record from server',

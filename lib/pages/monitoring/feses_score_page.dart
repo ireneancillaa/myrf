@@ -6,6 +6,7 @@ import '../../models/broiler_project_data.dart';
 import '../../controller/feses_controller.dart';
 import 'feses_score_input_page.dart';
 
+import '../../widgets/delete_confirmation_dialog.dart';
 import '../../widgets/empty_state_widget.dart';
 
 class FesesScorePage extends StatefulWidget {
@@ -109,9 +110,26 @@ class _FesesScorePageState extends State<FesesScorePage> {
             itemCount: entries.length,
             itemBuilder: (context, index) {
               final item = entries[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: _FesesScoreCard(entry: item),
+              return Dismissible(
+                key: ValueKey(item.id.isEmpty ? DateTime.now().toIso8601String() : item.id),
+                direction: DismissDirection.endToStart,
+                confirmDismiss: (_) => _confirmDelete(item),
+                onDismissed: (_) {
+                  _fesesController.deleteFesesScore(item.id, item.penNumber);
+                },
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.delete, color: Colors.white, size: 28),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _FesesScoreCard(entry: item),
+                ),
               );
             },
           ),
@@ -139,6 +157,15 @@ class _FesesScorePageState extends State<FesesScorePage> {
         ),
       ),
     );
+  }
+
+  Future<bool> _confirmDelete(FesesScoreEntry entry) async {
+    final confirmed = await DeleteConfirmationDialog.show(
+      title: 'Delete Data?',
+      message: 'This data will be permanently deleted. Continue?',
+      onConfirm: () {},
+    );
+    return confirmed ?? false;
   }
 }
 

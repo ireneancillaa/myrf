@@ -5,7 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'broiler_controller.dart';
 import 'user_session_controller.dart';
+import 'history_controller.dart';
 import '../services/monitoring_firestore_service.dart';
+import '../models/activity_log.dart';
 
 class BoxWeight {
   final String title;
@@ -95,9 +97,9 @@ class WeighingRecord {
 class WeighingController extends GetxController {
   final weighingHistory = <WeighingRecord>[].obs;
 
-  late final BroilerController _broilerController;
-  late final MonitoringFirestoreService _monitoringService;
-  late final UserSessionController _sessionController;
+  BroilerController get _broilerController => Get.find<BroilerController>();
+  MonitoringFirestoreService get _monitoringService => Get.find<MonitoringFirestoreService>();
+  UserSessionController get _sessionController => Get.find<UserSessionController>();
   StreamSubscription? _historySub;
 
   final dateController = TextEditingController();
@@ -117,17 +119,6 @@ class WeighingController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _broilerController = Get.isRegistered<BroilerController>()
-        ? Get.find<BroilerController>()
-        : Get.put(BroilerController(), permanent: true);
-
-    _monitoringService = Get.isRegistered<MonitoringFirestoreService>()
-        ? Get.find<MonitoringFirestoreService>()
-        : Get.put(MonitoringFirestoreService(), permanent: true);
-
-    _sessionController = Get.isRegistered<UserSessionController>()
-        ? Get.find<UserSessionController>()
-        : Get.put(UserSessionController(), permanent: true);
 
     ever(_broilerController.selectedProjectId, (String? projectId) {
       _listenToHistory(projectId);
@@ -215,6 +206,37 @@ class WeighingController extends GetxController {
       projectId: projectId,
       moduleName: 'weighing',
       data: record.toJson(),
+    );
+
+    HistoryController.log(
+      title: 'Added Weighing Record',
+      description: 'New weighing data recorded for age ${record.age}.',
+      type: ActivityType.weighing,
+      projectId: projectId,
+    );
+  }
+
+  Future<void> deleteWeighing(String recordId, String age) async {
+    final projectId = _broilerController.selectedProjectId.value;
+    if (projectId == null || projectId.trim().isEmpty || recordId.isEmpty) {
+      return;
+    }
+
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return;
+
+    await _monitoringService.deleteRecord(
+      userId: userId,
+      projectId: projectId,
+      moduleName: 'weighing',
+      recordId: recordId,
+    );
+
+    HistoryController.log(
+      title: 'Deleted Weighing Record',
+      description: 'Weighing data for age $age has been removed.',
+      type: ActivityType.weighing,
+      projectId: projectId,
     );
   }
 

@@ -13,6 +13,7 @@ import 'monitoring/brooding_page.dart';
 import 'monitoring/weighing_page.dart';
 import 'broiler_page.dart';
 import 'profile_page.dart';
+import 'history_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -242,7 +243,7 @@ class _HomePageState extends State<HomePage> {
           _buildHomeTab(),
           const BroilerPage(),
           const _PlaceholderTab(title: 'Layer'),
-          const _PlaceholderTab(title: 'History'),
+          const HistoryPage(),
         ],
       ),
       bottomNavigationBar: NavigationBar(

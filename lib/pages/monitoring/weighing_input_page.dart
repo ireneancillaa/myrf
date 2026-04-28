@@ -269,9 +269,26 @@ class _WeighingInputPageState extends State<WeighingInputPage> {
   }
 
   void _onAddBoxTap() async {
+    String? initialFromPen;
+    if (_weighingController.boxWeights.isNotEmpty) {
+      final lastBox = _weighingController.boxWeights.last;
+      // title format: "Pen $start - $end"
+      final parts = lastBox.title.split(' - ');
+      if (parts.length == 2) {
+        final lastEndStr = parts[1];
+        final lastEnd = int.tryParse(lastEndStr);
+        if (lastEnd != null) {
+          initialFromPen = (lastEnd + 1).toString();
+        }
+      }
+    }
+
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
-        builder: (_) => const WeighingCalculatorPage(calcType: 'boxWeight'),
+        builder: (_) => WeighingCalculatorPage(
+          calcType: 'boxWeight',
+          initialFromPen: initialFromPen,
+        ),
       ),
     );
 

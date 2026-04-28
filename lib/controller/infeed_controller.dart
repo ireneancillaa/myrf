@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 
 import 'broiler_controller.dart';
 import 'user_session_controller.dart';
+import 'history_controller.dart';
+import '../models/activity_log.dart';
 import '../services/monitoring_firestore_service.dart';
 
 class InfeedStageData {
@@ -36,16 +38,21 @@ class InfeedStageData {
   }
 
   Map<String, dynamic> toJson() {
-    return {'stageName': stageName, 'dateStr': dateStr, 'penValues': penValues};
+    return {
+      'stageName': stageName,
+      'dateStr': dateStr,
+      'penValues': penValues,
+      'updated_at': updatedAt ?? DateTime.now(),
+    };
   }
 
   double get weight => penValues.fold(0, (sum, val) => sum + val);
 }
 
 class InfeedController extends GetxController {
-  late final BroilerController _broilerController;
-  late final MonitoringFirestoreService _monitoringService;
-  late final UserSessionController _sessionController;
+  BroilerController get _broilerController => Get.find<BroilerController>();
+  MonitoringFirestoreService get _monitoringService => Get.find<MonitoringFirestoreService>();
+  UserSessionController get _sessionController => Get.find<UserSessionController>();
 
   final dateControllers = List.generate(9, (_) => TextEditingController());
   final stageNames = List<String>.filled(9, '').obs;
@@ -60,12 +67,18 @@ class InfeedController extends GetxController {
 
   List<InfeedStageData> get infeedList {
     final list = <InfeedStageData>[];
+    final counts = <String, int>{};
+    
     for (var i = 0; i < 9; i++) {
       if (penValuesByStage[i].isNotEmpty) {
+        final baseName = stageNames[i];
+        counts[baseName] = (counts[baseName] ?? 0) + 1;
+        final displayNum = counts[baseName]!;
+        
         list.add(
           InfeedStageData(
             stageIndex: i,
-            stageName: stageNames[i],
+            stageName: '$baseName $displayNum',
             dateStr: dateControllers[i].text,
             penValues: penValuesByStage[i],
             updatedAt: stageUpdatedAt[i],
@@ -81,18 +94,7 @@ class InfeedController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _broilerController = Get.isRegistered<BroilerController>()
-        ? Get.find<BroilerController>()
-        : Get.put(BroilerController(), permanent: true);
-
-    _monitoringService = Get.isRegistered<MonitoringFirestoreService>()
-        ? Get.find<MonitoringFirestoreService>()
-        : Get.put(MonitoringFirestoreService(), permanent: true);
-
-    _sessionController = Get.isRegistered<UserSessionController>()
-        ? Get.find<UserSessionController>()
-        : Get.put(UserSessionController(), permanent: true);
-
+    
     ever(_broilerController.selectedProjectId, (String? projectId) {
       _listenToHistory(projectId);
     });
@@ -145,6 +147,15 @@ class InfeedController extends GetxController {
     _clearData();
   }
 
+  int getFirstEmptyIndex() {
+    for (int i = 0; i < 9; i++) {
+      if (penValuesByStage[i].isEmpty) {
+        return i;
+      }
+    }
+    return -1; // All slots full
+  }
+
   Future<void> saveStage({
     required int stageIndex,
     required String stageName,
@@ -182,6 +193,44 @@ class InfeedController extends GetxController {
       moduleName: 'infeed',
       recordId: 'stage_$stageIndex',
       data: stageData.toJson(),
+    );
+
+    HistoryController.log(
+      title: 'Updated Infeed Record',
+      description: 'Infeed data updated for stage "$stageName".',
+      type: ActivityType.infeed,
+      projectId: projectId,
+    );
+  }
+
+  Future<void> deleteStage(int index) async {
+    final projectId = _broilerController.selectedProjectId.value;
+    if (projectId == null || projectId.trim().isEmpty) return;
+
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return;
+
+    final stageName = stageNames[index];
+
+    // Clear local data
+    dateControllers[index].clear();
+    stageNames[index] = '';
+    penValuesByStage[index] = <double>[];
+    stageUpdatedAt[index] = null;
+
+    // Delete from Firestore
+    await _monitoringService.deleteRecord(
+      userId: userId,
+      projectId: projectId,
+      moduleName: 'infeed',
+      recordId: 'stage_$index',
+    );
+
+    HistoryController.log(
+      title: 'Deleted Infeed Record',
+      description: 'Infeed data deleted for stage "$stageName".',
+      type: ActivityType.infeed,
+      projectId: projectId,
     );
   }
 

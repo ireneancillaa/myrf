@@ -5,6 +5,8 @@ import '../controller/broiler_controller.dart';
 import '../controller/diet_mapping_controller.dart';
 import '../controller/sample_doc_controller.dart';
 import 'broiler/project_stepper_page.dart';
+import '../widgets/delete_confirmation_dialog.dart';
+import '../widgets/empty_state_widget.dart';
 
 class BroilerPage extends StatefulWidget {
   const BroilerPage({super.key});
@@ -171,34 +173,28 @@ class _BroilerPageState extends State<BroilerPage> {
 
                           return matchKeyword && matchDate && matchStatus;
                         }).toList()..sort((a, b) {
-                          final aStatus = _controller.statusFor(a.projectId);
-                          final bStatus = _controller.statusFor(b.projectId);
-                          final aPriority =
-                              aStatus == BroilerWorkflowStatus.drafted ? 0 : 1;
-                          final bPriority =
-                              bStatus == BroilerWorkflowStatus.drafted ? 0 : 1;
+                          final aDate =
+                              _parseTrialDate(a.trialDate) ?? DateTime(1970);
+                          final bDate =
+                              _parseTrialDate(b.trialDate) ?? DateTime(1970);
 
-                          if (aPriority != bPriority) {
-                            return aPriority.compareTo(bPriority);
-                          }
+                          // 1. Primary: trial date (newest first)
+                          final dateCompare = bDate.compareTo(aDate);
+                          if (dateCompare != 0) return dateCompare;
 
+                          // 2. Secondary: updatedAt (with time precision)
                           final aTime = a.updatedAt ?? DateTime(1970);
                           final bTime = b.updatedAt ?? DateTime(1970);
-                          return bTime.compareTo(aTime);
+
+                          final timeCompare = bTime.compareTo(aTime);
+                          if (timeCompare != 0) return timeCompare;
+
+                          // 3. Fallback: projectId (guarantees stable order)
+                          return a.projectId.compareTo(b.projectId);
                         });
-                    _controller.projectStatuses.toString();
 
                     if (projects.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'No projects found.',
-                          style: TextStyle(
-                            color: Color(0xFF6F6F6F),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
+                      return const EmptyStateWidget(moduleName: 'Projects');
                     }
 
                     return ListView.separated(
@@ -207,16 +203,24 @@ class _BroilerPageState extends State<BroilerPage> {
                         final data = projects[index];
                         final status = _controller.statusFor(data.projectId);
 
+                        String statusLabel;
+                        BroilerProjectStatus statusType;
+                        if (status == BroilerWorkflowStatus.completed) {
+                          statusLabel = 'Completed';
+                          statusType = BroilerProjectStatus.completed;
+                        } else if (status == BroilerWorkflowStatus.inProgress) {
+                          statusLabel = 'In Progress';
+                          statusType = BroilerProjectStatus.inProgress;
+                        } else {
+                          statusLabel = 'Drafted';
+                          statusType = BroilerProjectStatus.drafted;
+                        }
+
                         final card = BroilerProjectCard(
                           project: BroilerProjectItem(
                             title: data.projectName,
-                            status: status == BroilerWorkflowStatus.inProgress
-                                ? 'In Progress'
-                                : 'Drafted',
-                            statusType:
-                                status == BroilerWorkflowStatus.inProgress
-                                ? BroilerProjectStatus.inProgress
-                                : BroilerProjectStatus.drafted,
+                            status: statusLabel,
+                            statusType: statusType,
                             trialDate: data.trialDate,
                             trialHouse: data.trialHouse,
                           ),
@@ -225,17 +229,19 @@ class _BroilerPageState extends State<BroilerPage> {
                                 status == BroilerWorkflowStatus.inProgress
                                 ? 0
                                 : _controller.lastOpenedStepFor(data.projectId);
-
-                            Get.to(
-                              () => BroilerProjectStepperPage(
-                                projectId: data.projectId,
-                                projectName: data.projectName,
-                                initialStep: initialStep,
-                                readOnly: _controller.isReadOnly(
-                                  data.projectId,
+                            // Navigasi harus di addPostFrameCallback agar tidak glitch
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              Get.to(
+                                () => BroilerProjectStepperPage(
+                                  projectId: data.projectId,
+                                  projectName: data.projectName,
+                                  initialStep: initialStep,
+                                  readOnly: _controller.isReadOnly(
+                                    data.projectId,
+                                  ),
                                 ),
-                              ),
-                            );
+                              );
+                            });
                           },
                         );
 
@@ -331,133 +337,12 @@ class _BroilerPageState extends State<BroilerPage> {
     BuildContext context,
     String projectName,
   ) async {
-    final result = await showDialog<bool>(
-      barrierDismissible: false,
-      context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          backgroundColor: Colors.white,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-                  blurRadius: 24,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEE2E2),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.delete_outline_rounded,
-                          color: Color(0xFFDC2626),
-                          size: 26,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Text(
-                          'Delete Draft Project',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF111827),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'Draft project "$projectName" will be permanently deleted. This action cannot be undone.',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 1.45,
-                      color: Color(0xFF4B5563),
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () =>
-                              Navigator.of(dialogContext).pop(false),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF374151),
-                            side: const BorderSide(color: Color(0xFFD1D5DB)),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () =>
-                              Navigator.of(dialogContext).pop(true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFDC2626),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            'Delete',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+    final confirmed = await DeleteConfirmationDialog.show(
+      title: 'Delete Draft Project',
+      message: 'Draft project "$projectName" will be permanently deleted. This action cannot be undone.',
+      onConfirm: () {},
     );
-
-    return result ?? false;
+    return confirmed ?? false;
   }
 
   String _dateFilterButtonLabel() {
@@ -1017,6 +902,11 @@ class BroilerProjectCard extends StatelessWidget {
         borderColor: Color(0xFF8CBCEC),
         backgroundColor: Color(0xFFF4FAFF),
       ),
+      BroilerProjectStatus.completed => const ProjectStatusStyle(
+        textColor: Color(0xFF16A34A),
+        borderColor: Color(0xFF22C55E),
+        backgroundColor: Color(0xFFEFFCF3),
+      ),
     };
 
     return InkWell(
@@ -1177,7 +1067,7 @@ class BroilerProjectItem {
   final String trialHouse;
 }
 
-enum BroilerProjectStatus { inProgress, drafted }
+enum BroilerProjectStatus { inProgress, drafted, completed }
 
 class ProjectStatusStyle {
   const ProjectStatusStyle({

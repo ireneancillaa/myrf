@@ -4,6 +4,11 @@ import 'package:get/get.dart';
 import '../../controller/broiler_controller.dart';
 import '../../controller/diet_mapping_controller.dart';
 import '../../controller/sample_doc_controller.dart';
+import '../../controller/infeed_controller.dart';
+import '../../controller/mortality_controller.dart';
+import '../../controller/weighing_controller.dart';
+import '../../controller/male_birds_controller.dart';
+import '../../controller/feses_controller.dart';
 import 'sample_doc.dart';
 import 'diet_pen_mapping.dart';
 import 'project_information.dart';
@@ -46,12 +51,10 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    controller = Get.isRegistered<BroilerController>()
-        ? Get.find<BroilerController>()
-        : Get.put(BroilerController(), permanent: true);
-    dietMappingController = Get.isRegistered<DietMappingController>()
-        ? Get.find<DietMappingController>()
-        : Get.put(DietMappingController(), permanent: true);
+    // Controller utama WAJIB hanya Get.find, tidak boleh Get.put di sini!
+    controller = Get.find<BroilerController>();
+    dietMappingController = Get.find<DietMappingController>();
+    // SampleDocController boleh Get.put jika belum ada (karena child)
     sampleDocController = Get.isRegistered<SampleDocController>()
         ? Get.find<SampleDocController>()
         : Get.put(SampleDocController());
@@ -346,8 +349,8 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
   }
 
   Widget _buildBottomActionBar() {
-    final finalButtonLabel = _openedFromDraft ? 'Update Project' : 'Finish';
-    final isStepTwoLocked = _currentStep == 1 && !_canProceedFromDietMapping();
+    // final finalButtonLabel = _openedFromDraft ? 'Update Project' : 'Finish';
+    // final isStepTwoLocked = _currentStep == 1 && !_canProceedFromDietMapping();
 
     return SafeArea(
       top: false,
@@ -446,96 +449,145 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                     flex: 3,
                     child: SizedBox(
                       height: 50,
-                      child: ElevatedButton(
-                        onPressed: isStepTwoLocked
-                            ? null
-                            : (_currentStep == 2 &&
-                                  (_isReadOnly || !_canFinishProject()))
-                            ? null
-                            : _isUploadingAttachments
-                            ? () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Please wait for photo upload to finish',
-                                    ),
-                                    backgroundColor: Color(0xFFEF4444),
-                                  ),
-                                );
-                              }
-                            : () async {
-                                if (!_isReadOnly) {
-                                  final isSaved =
-                                      await _persistCurrentProjectProgress();
-                                  if (!isSaved) return;
-                                }
-                                if (_currentStep < 2) {
-                                  if (_isReadOnly) {
-                                    _goToStep(_currentStep + 1);
-                                    return;
-                                  }
-                                  if (_projectId != null &&
-                                      _projectId!.isNotEmpty) {
-                                    await controller.markDrafted(
-                                      _projectId!,
-                                      step: _currentStep + 1,
-                                    );
-                                  }
-                                  await _persistCurrentProjectProgress();
-                                  await _goToStep(_currentStep + 1);
-                                } else {
-                                  if (_projectId == null ||
-                                      _projectId!.isEmpty) {
-                                    final isSaved = await controller
-                                        .saveProject();
-                                    if (!isSaved) return;
-                                    _projectId =
-                                        controller.selectedProjectId.value;
-                                    _projectName = controller
-                                        .projectNameController
-                                        .text
-                                        .trim();
-                                  }
-                                  await _persistCurrentProjectProgress();
-                                  await controller.markInProgress(_projectId!);
-                                  if (!mounted) return;
-                                  setState(() {
-                                    _isReadOnly = true;
-                                  });
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Project finalized successfully',
-                                      ),
-                                      backgroundColor: Color(0xFF22C55E),
-                                    ),
-                                  );
-                                  Get.back();
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF22C55E),
-                          disabledBackgroundColor: const Color(0xFFBDBDBD),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          _currentStep < 2 ? 'Next' : finalButtonLabel,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                      child: _buildNextFinishButton(),
                     ),
                   ),
                 ],
               ),
       ),
     );
+  }
+
+  Widget _buildNextFinishButton() {
+    return Obx(() {
+      final isStepTwoLocked =
+          _currentStep == 1 && !_canProceedFromDietMapping();
+      final isInProgress = _projectId != null &&
+          controller.statusFor(_projectId!) == BroilerWorkflowStatus.inProgress;
+
+      // Step 3 read-only (inProgress) and all monitoring complete → show Completed button
+      if (_currentStep == 2 && isInProgress && _allMonitoringComplete()) {
+        return ElevatedButton(
+          onPressed: _isUploadingAttachments
+              ? null
+              : () async {
+                  await controller.markCompleted(_projectId!);
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Project marked as completed!'),
+                      backgroundColor: Color(0xFF22C55E),
+                    ),
+                  );
+                  // Pastikan navigasi dilakukan setelah frame selesai
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) Get.back();
+                  });
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF16A34A),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.check_circle_outline, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Completed',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        );
+      }
+
+      // Default next/finish button
+      final finalButtonLabel = _openedFromDraft ? 'Update Project' : 'Finish';
+      return ElevatedButton(
+        onPressed: isStepTwoLocked
+            ? null
+            : (_currentStep == 2 && (_isReadOnly || !_canFinishProject()))
+                ? null
+                : _isUploadingAttachments
+                    ? () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Please wait for photo upload to finish',
+                            ),
+                            backgroundColor: Color(0xFFEF4444),
+                          ),
+                        );
+                      }
+                    : () async {
+                        if (!_isReadOnly) {
+                          final isSaved =
+                              await _persistCurrentProjectProgress();
+                          if (!isSaved) return;
+                        }
+                        if (_currentStep < 2) {
+                          if (_isReadOnly) {
+                            _goToStep(_currentStep + 1);
+                            return;
+                          }
+                          if (_projectId != null && _projectId!.isNotEmpty) {
+                            await controller.markDrafted(
+                              _projectId!,
+                              step: _currentStep + 1,
+                            );
+                          }
+                          await _persistCurrentProjectProgress();
+                          await _goToStep(_currentStep + 1);
+                        } else {
+                          if (_projectId == null || _projectId!.isEmpty) {
+                            final isSaved = await controller.saveProject();
+                            if (!isSaved) return;
+                            _projectId = controller.selectedProjectId.value;
+                            _projectName =
+                                controller.projectNameController.text.trim();
+                          }
+                          await _persistCurrentProjectProgress();
+                          Future.microtask(() async {
+                            await controller.markInProgress(_projectId!);
+                          });
+                          if (!mounted) return;
+                          setState(() {
+                            _isReadOnly = true;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Project finalized successfully',
+                              ),
+                              backgroundColor: Color(0xFF22C55E),
+                            ),
+                          );
+                          Get.back();
+                        }
+                      },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF22C55E),
+          disabledBackgroundColor: const Color(0xFFBDBDBD),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        child: Text(
+          _currentStep < 2 ? 'Next' : finalButtonLabel,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+    });
   }
 
   Widget _buildCurrentStepContent() {
@@ -657,6 +709,34 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
         hasDocDistributionData;
 
     return hasSampleData;
+  }
+
+  bool _allMonitoringComplete() {
+    if (_projectId == null || _projectId!.isEmpty) return false;
+
+    final infeedController = Get.isRegistered<InfeedController>()
+        ? Get.find<InfeedController>()
+        : Get.put(InfeedController());
+    final mortalityController = Get.isRegistered<MortalityController>()
+        ? Get.find<MortalityController>()
+        : Get.put(MortalityController());
+    final weighingController = Get.isRegistered<WeighingController>()
+        ? Get.find<WeighingController>()
+        : Get.put(WeighingController());
+    final maleBirdsController = Get.isRegistered<MaleBirdsController>()
+        ? Get.find<MaleBirdsController>()
+        : Get.put(MaleBirdsController());
+    final fesesController = Get.isRegistered<FesesController>()
+        ? Get.find<FesesController>()
+        : Get.put(FesesController());
+
+    final hasInfeed = infeedController.infeedList.isNotEmpty;
+    final hasDepletion = mortalityController.entries.isNotEmpty;
+    final hasWeighing = weighingController.weighingHistory.isNotEmpty;
+    final hasMaleBirds = maleBirdsController.entries.isNotEmpty;
+    final hasFeses = fesesController.entries.isNotEmpty;
+
+    return hasInfeed && hasDepletion && hasWeighing && hasMaleBirds && hasFeses;
   }
 
   bool _canProceedFromDietMapping() {

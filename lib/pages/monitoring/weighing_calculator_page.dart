@@ -9,11 +9,13 @@ class WeighingCalculatorPage extends StatefulWidget {
     required this.calcType,
     this.initialDate = '',
     this.initialValues = const <double>[],
+    this.initialFromPen,
   });
 
   final String calcType; // feedAndBag, lastBirds, actualBirds, birdsWeight
   final String initialDate;
   final List<double> initialValues;
+  final String? initialFromPen;
 
   @override
   State<WeighingCalculatorPage> createState() => _WeighingCalculatorPageState();
@@ -34,7 +36,12 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
       for (int i = 0; i < 4; i++) {
         _controllers.add(TextEditingController());
       }
-      _activeIndex = 0;
+      if (widget.initialFromPen != null) {
+        _controllers[0].text = widget.initialFromPen!;
+        _activeIndex = 1; // Start at "To" field
+      } else {
+        _activeIndex = 0; // Start at "From" field
+      }
       return;
     }
     if (widget.initialValues.isEmpty) {
@@ -64,6 +71,11 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
   }
 
   void _appendToActive(String value) {
+    if (widget.calcType == 'boxWeight' &&
+        _activeIndex == 0 &&
+        widget.initialFromPen != null) {
+      return;
+    }
     final controller = _controllers[_activeIndex];
     var current = controller.text;
     if (value == '.') {
@@ -78,6 +90,11 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
   }
 
   void _removeLastChar() {
+    if (widget.calcType == 'boxWeight' &&
+        _activeIndex == 0 &&
+        widget.initialFromPen != null) {
+      return;
+    }
     final controller = _controllers[_activeIndex];
     if (controller.text.isEmpty) return;
     controller.text = controller.text.substring(0, controller.text.length - 1);
@@ -85,6 +102,11 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
   }
 
   void _clearActiveField() {
+    if (widget.calcType == 'boxWeight' &&
+        _activeIndex == 0 &&
+        widget.initialFromPen != null) {
+      return;
+    }
     _controllers[_activeIndex].clear();
     setState(() {});
   }
@@ -702,15 +724,26 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
 
   Widget _buildBoxInputField(int index, String label) {
     final isActive = index == _activeIndex;
+    final isLocked =
+        widget.calcType == 'boxWeight' &&
+        index == 0 &&
+        widget.initialFromPen != null;
+
     return GestureDetector(
-      onTap: () => setState(() => _activeIndex = index),
+      onTap: isLocked ? null : () => setState(() => _activeIndex = index),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFEAF4EA) : Colors.white,
+          color: isLocked
+              ? const Color(0xFFF3F4F6)
+              : (isActive ? const Color(0xFFEAF4EA) : Colors.white),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isActive ? const Color(0xFF22C55E) : const Color(0xFFE0E0E0),
+            color: isLocked
+                ? const Color(0xFFD1D5DB)
+                : (isActive
+                    ? const Color(0xFF22C55E)
+                    : const Color(0xFFE0E0E0)),
             width: isActive ? 1.5 : 1,
           ),
         ),
@@ -719,14 +752,20 @@ class _WeighingCalculatorPageState extends State<WeighingCalculatorPage> {
             Text(
               label,
               style: TextStyle(
-                color: isActive ? const Color(0xFF22C55E) : Colors.grey[600],
+                color: isLocked
+                    ? const Color(0xFF9CA3AF)
+                    : (isActive ? const Color(0xFF22C55E) : Colors.grey[600]),
                 fontSize: 15,
               ),
             ),
             const Spacer(),
             Text(
               _controllers[index].text.isEmpty ? '-' : _controllers[index].text,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isLocked ? const Color(0xFF9CA3AF) : Colors.black,
+              ),
             ),
           ],
         ),

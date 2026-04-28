@@ -20,27 +20,13 @@ class _InfeedInputPageState extends State<InfeedInputPage> {
   late final BroilerController _broilerController;
   late final InfeedController _infeedController;
 
-  int _selectedStageIndex = 1;
+  final List<String> _stages = ['Pre Starter', 'Starter', 'Finisher'];
+  String _baseStageName = 'Pre Starter';
+  int _selectedStageIndex = 0;
+  String _selectedStageName = 'Pre Starter';
   DateTime _selectedDate = DateTime.now();
   List<double> _penValues = [];
   bool _isLoading = false;
-
-  String get _dynamicStageName {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final selected = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
-
-    if (selected.isAtSameMomentAs(today)) {
-      return 'Starter';
-    } else if (selected.isBefore(today)) {
-      return 'Pre Starter';
-    }
-    return 'Starter';
-  }
 
   @override
   void initState() {
@@ -48,27 +34,164 @@ class _InfeedInputPageState extends State<InfeedInputPage> {
     _broilerController = Get.find<BroilerController>();
     _infeedController = Get.find<InfeedController>();
 
-    // Initialize with existing data if available for the default stage
-    _loadStageData(0);
+    // Initialize with first available slot
+    _selectedStageIndex = _infeedController.getFirstEmptyIndex();
+    if (_selectedStageIndex == -1) {
+      // Handle all slots full case if necessary, for now use 0
+      _selectedStageIndex = 0;
+    }
   }
 
-  void _loadStageData(int index) {
+  void _updateStageInfo(String baseName) {
     setState(() {
-      _selectedStageIndex = index;
-      final dateStr = _infeedController.dateControllers[index].text;
-
-      // Hanya update _selectedDate jika data yang dimuat memiliki tanggal yang valid
-      // dan kita tidak sedang dalam proses mengganti tanggal secara manual
-      if (dateStr.isNotEmpty) {
-        try {
-          _selectedDate = DateFormat('dd/MM/yyyy').parse(dateStr);
-        } catch (e) {
-          // Keep current _selectedDate if parse fails
-        }
-      }
-
-      _penValues = List<double>.from(_infeedController.penValuesByStage[index]);
+      _baseStageName = baseName;
+      _selectedStageName = baseName;
+      // Index is already set in initState for new entries, 
+      // or set when editing (if editing is implemented later)
+      
+      // Clear data for new entry section
+      _penValues = [];
+      _selectedDate = DateTime.now();
     });
+  }
+
+  // void _loadStageData(int index) {
+  //   // This method is now less relevant for new numbered stages,
+  //   // but we keep it for consistency if needed to load data from a slot.
+  //   setState(() {
+  //     _selectedStageIndex = index;
+  //     if (index < _infeedController.stageNames.length) {
+  //       _selectedStageName = _infeedController.stageNames[index];
+  //     }
+      
+  //     final dateStr = _infeedController.dateControllers[index].text;
+  //     if (dateStr.isNotEmpty) {
+  //       try {
+  //         _selectedDate = DateFormat('dd/MM/yyyy').parse(dateStr);
+  //       } catch (e) {}
+  //     }
+
+  //     _penValues = List<double>.from(_infeedController.penValuesByStage[index]);
+  //   });
+  // }
+
+  Future<void> _showStageSelection() async {
+    const double optionRadius = 10.0;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE5E7EB),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Select Stage',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Current: $_selectedStageName',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 400),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: _stages.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final stage = _stages[index];
+                        final isSelected = _baseStageName == stage;
+
+                        return InkWell(
+                          onTap: () => Navigator.pop(context, stage),
+                          borderRadius: BorderRadius.circular(optionRadius),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFFEAF8EE)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(optionRadius),
+                              border: Border.all(
+                                color: isSelected
+                                    ? const Color(0xFF22C55E)
+                                    : const Color(0xFFE5E7EB),
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    stage,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? const Color(0xFF15803D)
+                                          : const Color(0xFF1F2937),
+                                    ),
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Color(0xFF22C55E),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (picked != null) {
+      _updateStageInfo(picked);
+    }
   }
 
   double get _totalWeight => _penValues.fold(0, (sum, val) => sum + val);
@@ -109,17 +232,8 @@ class _InfeedInputPageState extends State<InfeedInputPage> {
         _selectedDate = picked;
 
         // 2. Tentukan stage index: 0 (H-1), 1 (Hari ini)
-        final now = DateTime.now();
-        final today = DateTime(now.year, now.month, now.day);
-        final selected = DateTime(picked.year, picked.month, picked.day);
-        final newIndex = selected.isAtSameMomentAs(today) ? 1 : 0;
-
-        _selectedStageIndex = newIndex;
-
-        // 3. Muat hanya nilai pakan (penValues) untuk stage tersebut tanpa menimpa tanggal
-        _penValues = List<double>.from(
-          _infeedController.penValuesByStage[newIndex],
-        );
+        // final now = DateTime.now();
+        _selectedDate = picked;
       });
     }
   }
@@ -128,7 +242,7 @@ class _InfeedInputPageState extends State<InfeedInputPage> {
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
         builder: (_) => InfeedCalculatorPage(
-          stageTitle: _dynamicStageName,
+          stageTitle: _selectedStageName,
           stageGroup: 'Infeed',
           stageRange: '-',
           initialDate: _formatDate(_selectedDate),
@@ -166,7 +280,7 @@ class _InfeedInputPageState extends State<InfeedInputPage> {
     try {
       await _infeedController.saveStage(
         stageIndex: _selectedStageIndex,
-        stageName: _dynamicStageName,
+        stageName: _selectedStageName,
         dateStr: _formatDate(_selectedDate),
         values: _penValues,
       );
@@ -289,8 +403,9 @@ class _InfeedInputPageState extends State<InfeedInputPage> {
                 icon: Icons.person,
                 label: 'Stages',
                 hintText: 'Select Stage',
-                controller: TextEditingController(text: _dynamicStageName),
+                controller: TextEditingController(text: _selectedStageName),
                 readOnly: true,
+                onTap: _showStageSelection,
               ),
               const SizedBox(height: 32),
 

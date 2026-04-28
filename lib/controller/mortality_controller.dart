@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'broiler_controller.dart';
 import 'user_session_controller.dart';
+import 'history_controller.dart';
+import '../models/activity_log.dart';
 import '../services/monitoring_firestore_service.dart';
 
 class DepletionEntry {
@@ -68,9 +70,7 @@ class MortalityController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _broilerController = Get.isRegistered<BroilerController>()
-        ? Get.find<BroilerController>()
-        : Get.put(BroilerController(), permanent: true);
+    _broilerController = Get.find<BroilerController>();
 
     _monitoringService = Get.isRegistered<MonitoringFirestoreService>()
         ? Get.find<MonitoringFirestoreService>()
@@ -128,7 +128,39 @@ class MortalityController extends GetxController {
       moduleName: 'mortality',
       data: entry.toJson(),
     );
+
+    HistoryController.log(
+      title: 'Added Mortality Record',
+      description: 'New mortality data recorded for Pen ${entry.penNumber}.',
+      type: ActivityType.mortality,
+      projectId: projectId,
+    );
   }
+
+  Future<void> deleteDepletion(String recordId, String penNumber) async {
+    final projectId = _broilerController.selectedProjectId.value;
+    if (projectId == null || projectId.trim().isEmpty || recordId.isEmpty) {
+      return;
+    }
+
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return;
+
+    await _monitoringService.deleteRecord(
+      userId: userId,
+      projectId: projectId,
+      moduleName: 'mortality',
+      recordId: recordId,
+    );
+
+    HistoryController.log(
+      title: 'Deleted Mortality Record',
+      description: 'Mortality data for Pen $penNumber has been removed.',
+      type: ActivityType.mortality,
+      projectId: projectId,
+    );
+  }
+
 
   @override
   void onClose() {

@@ -9,6 +9,8 @@ import '../models/temperature_standard.dart';
 import '../services/broiler_firestore_service.dart';
 import '../services/config_firestore_service.dart';
 import 'user_session_controller.dart';
+import 'history_controller.dart';
+import '../models/activity_log.dart';
 
 enum BroilerWorkflowStatus { drafted, inProgress, completed }
 
@@ -61,9 +63,12 @@ class BroilerController extends GetxController {
   final maxTempStat = 0.0.obs;
 
   VoidCallback? _onStatusChangeCallback;
-  late final BroilerFirestoreService _firestoreService;
-  late final ConfigFirestoreService _configService;
-  late final UserSessionController _sessionController;
+  BroilerFirestoreService get _firestoreService =>
+      Get.find<BroilerFirestoreService>();
+  ConfigFirestoreService get _configService =>
+      Get.find<ConfigFirestoreService>();
+  UserSessionController get _sessionController =>
+      Get.find<UserSessionController>();
   StreamSubscription<Map<String, String>>? _statusSubscription;
   StreamSubscription<List<BroilerProjectData>>? _projectsSubscription;
   final Map<String, Future<void>> _projectSyncQueue = <String, Future<void>>{};
@@ -73,16 +78,7 @@ class BroilerController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _firestoreService = Get.isRegistered<BroilerFirestoreService>()
-        ? Get.find<BroilerFirestoreService>()
-        : Get.put(BroilerFirestoreService(), permanent: true);
-    _configService = Get.isRegistered<ConfigFirestoreService>()
-        ? Get.find<ConfigFirestoreService>()
-        : Get.put(ConfigFirestoreService(), permanent: true);
-    _sessionController = Get.isRegistered<UserSessionController>()
-        ? Get.find<UserSessionController>()
-        : Get.put(UserSessionController(), permanent: true);
-
+    
     projectNameController.addListener(_validateProjectName);
     docInDateController.addListener(updateCurrentAgeAndStandard);
 
@@ -97,14 +93,9 @@ class BroilerController extends GetxController {
       }
     });
 
-    // Handle case where userId is already set when controller is initialized
+    // Initial load if already logged in
     if (_sessionController.userId.isNotEmpty) {
-      debugPrint(
-        'BroilerController: userId already present on init: ${_sessionController.userId}',
-      );
       _bindFirestoreStreams();
-    } else {
-      debugPrint('BroilerController: userId is empty on init');
     }
 
     ever(selectedProjectId, (_) => _listenToTemperatureRecords());
@@ -299,19 +290,31 @@ class BroilerController extends GetxController {
   }
 
   bool isReadOnly(String projectId) {
-    return statusFor(projectId) == BroilerWorkflowStatus.inProgress;
+    final status = statusFor(projectId);
+    return status == BroilerWorkflowStatus.inProgress ||
+        status == BroilerWorkflowStatus.completed;
   }
 
   BroilerWorkflowStatus _statusFromFirestore(String value) {
-    return value.trim().toLowerCase() == 'in_progress'
-        ? BroilerWorkflowStatus.inProgress
-        : BroilerWorkflowStatus.drafted;
+    switch (value.trim().toLowerCase()) {
+      case 'in_progress':
+        return BroilerWorkflowStatus.inProgress;
+      case 'completed':
+        return BroilerWorkflowStatus.completed;
+      default:
+        return BroilerWorkflowStatus.drafted;
+    }
   }
 
   String _statusToFirestore(BroilerWorkflowStatus status) {
-    return status == BroilerWorkflowStatus.inProgress
-        ? 'in_progress'
-        : 'drafted';
+    switch (status) {
+      case BroilerWorkflowStatus.inProgress:
+        return 'in_progress';
+      case BroilerWorkflowStatus.completed:
+        return 'completed';
+      default:
+        return 'drafted';
+    }
   }
 
   void _bindFirestoreStreams() {
@@ -691,21 +694,69 @@ class BroilerController extends GetxController {
 
   Future<void> markDrafted(String projectId, {int step = 1}) {
     final actualId = _migratedIdMap[projectId] ?? projectId;
-    projectStatuses[actualId] = BroilerWorkflowStatus.drafted;
-    projectStatuses.refresh();
-    updateLastOpenedStep(actualId, step);
-    _enqueueProjectSync(actualId);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      projectStatuses[actualId] = BroilerWorkflowStatus.drafted;
+      projectStatuses.refresh();
+      updateLastOpenedStep(actualId, step);
+      _notifyStatusChange();
+      _enqueueProjectSync(actualId);
+
+      HistoryController.log(
+        title: 'Project Drafted',
+        description: 'Project was moved to draft status.',
+        type: ActivityType.project,
+        projectId: actualId,
+      );
+    });
+
     return Future<void>.value();
   }
 
-  Future<void> markInProgress(String projectId) {
+  Future<void> markInProgress(String projectId) async {
     final actualId = _migratedIdMap[projectId] ?? projectId;
-    projectStatuses[actualId] = BroilerWorkflowStatus.inProgress;
-    projectStatuses.refresh();
-    projects.refresh();
-    _notifyStatusChange();
-    updateLastOpenedStep(actualId, 2);
-    _enqueueProjectSync(actualId);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      projectStatuses[actualId] = BroilerWorkflowStatus.inProgress;
+      projectStatuses.refresh();
+      _notifyStatusChange();
+      updateLastOpenedStep(actualId, 2);
+      _enqueueProjectSync(actualId);
+
+      HistoryController.log(
+        title: 'Project Finalized',
+        description: 'Project is now active and ready for monitoring.',
+        type: ActivityType.project,
+        projectId: actualId,
+      );
+    });
+  }
+
+  Future<void> markCompleted(String projectId) {
+    final actualId = _migratedIdMap[projectId] ?? projectId;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      projectStatuses[actualId] = BroilerWorkflowStatus.completed;
+
+      final index = projects.indexWhere((item) => item.projectId == actualId);
+      if (index != -1) {
+        final oldProject = projects[index];
+        projects[index] = oldProject.copyWith();
+      }
+
+      projects.refresh();
+      projectStatuses.refresh();
+      _notifyStatusChange();
+      _enqueueProjectSync(actualId);
+
+      HistoryController.log(
+        title: 'Project Completed',
+        description: 'Project monitoring is finished and marked as completed.',
+        type: ActivityType.project,
+        projectId: actualId,
+      );
+    });
+
     return Future<void>.value();
   }
 
@@ -899,8 +950,20 @@ class BroilerController extends GetxController {
     );
     if (existingIndex >= 0) {
       projects[existingIndex] = data;
+      HistoryController.log(
+        title: 'Project Updated',
+        description: 'Project "$projectName" has been updated.',
+        type: ActivityType.project,
+        projectId: currentProjectId,
+      );
     } else {
       projects.add(data);
+      HistoryController.log(
+        title: 'Project Created',
+        description: 'New project "$projectName" has been drafted.',
+        type: ActivityType.project,
+        projectId: currentProjectId,
+      );
     }
 
     final dietMappingController = Get.isRegistered<DietMappingController>()
@@ -912,6 +975,7 @@ class BroilerController extends GetxController {
     selectedProjectName.value = projectName;
     _enqueueProjectSync(currentProjectId, showErrorSnackbar: true);
     Get.snackbar('Draft', 'Project saved to drafts');
+
     return true;
   }
 
@@ -1009,6 +1073,12 @@ class BroilerController extends GetxController {
     if (selectedProjectId.value == projectId) {
       clearForm();
     }
+
+    HistoryController.log(
+      title: 'Project Deleted',
+      description: 'Project has been removed.',
+      type: ActivityType.project,
+    );
 
     Get.snackbar('Deleted', 'Draft project removed');
     return true;

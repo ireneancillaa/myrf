@@ -5,6 +5,8 @@ import 'dart:async';
 
 import 'broiler_controller.dart';
 import 'user_session_controller.dart';
+import 'history_controller.dart';
+import '../models/activity_log.dart';
 import '../services/monitoring_firestore_service.dart';
 
 class FesesScoreEntry {
@@ -72,9 +74,7 @@ class FesesController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _broilerController = Get.isRegistered<BroilerController>()
-        ? Get.find<BroilerController>()
-        : Get.put(BroilerController(), permanent: true);
+    _broilerController = Get.find<BroilerController>();
 
     _monitoringService = Get.isRegistered<MonitoringFirestoreService>()
         ? Get.find<MonitoringFirestoreService>()
@@ -136,7 +136,39 @@ class FesesController extends GetxController {
       moduleName: 'feses',
       data: entry.toJson(),
     );
+
+    HistoryController.log(
+      title: 'Added Feses Record',
+      description: 'New feses score recorded for Pen ${entry.penNumber}.',
+      type: ActivityType.feses,
+      projectId: projectId,
+    );
   }
+
+  Future<void> deleteFesesScore(String recordId, String penNumber) async {
+    final projectId = _broilerController.selectedProjectId.value;
+    if (projectId == null || projectId.trim().isEmpty || recordId.isEmpty) {
+      return;
+    }
+
+    final userId = _sessionController.userId.value;
+    if (userId.isEmpty) return;
+
+    await _monitoringService.deleteRecord(
+      userId: userId,
+      projectId: projectId,
+      moduleName: 'feses',
+      recordId: recordId,
+    );
+
+    HistoryController.log(
+      title: 'Deleted Feses Record',
+      description: 'Feses score for Pen $penNumber has been removed.',
+      type: ActivityType.feses,
+      projectId: projectId,
+    );
+  }
+
 
   @override
   void onClose() {
