@@ -55,7 +55,9 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
     _scrollController = ScrollController();
     // Controller utama WAJIB hanya Get.find, tidak boleh Get.put di sini!
     controller = Get.find<BroilerController>();
-    dietMappingController = Get.find<DietMappingController>();
+    dietMappingController = Get.isRegistered<DietMappingController>()
+        ? Get.find<DietMappingController>()
+        : Get.put(DietMappingController());
     // SampleDocController boleh Get.put jika belum ada (karena child)
     sampleDocController = Get.isRegistered<SampleDocController>()
         ? Get.find<SampleDocController>()
@@ -323,9 +325,15 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                       docDistributions: sampleDocController.docDistributions,
                       attachmentUrls: sampleDocController.attachmentUrls,
                       boxValues: {
-                        'heaviest': sampleDocController.boxHeaviestController.text,
-                        'average': sampleDocController.boxAverageController.text,
-                        'lightest': sampleDocController.boxLightestController.text,
+                        'heaviest': sampleDocController.boxHeaviestController.text.isNotEmpty 
+                            ? sampleDocController.boxHeaviestController.text 
+                            : (controller.projectBoxValues[project.projectId]?['heaviest'] ?? ''),
+                        'average': sampleDocController.boxAverageController.text.isNotEmpty 
+                            ? sampleDocController.boxAverageController.text 
+                            : (controller.projectBoxValues[project.projectId]?['average'] ?? ''),
+                        'lightest': sampleDocController.boxLightestController.text.isNotEmpty 
+                            ? sampleDocController.boxLightestController.text 
+                            : (controller.projectBoxValues[project.projectId]?['lightest'] ?? ''),
                       },
                       dietPens: dietMappingController.dietPenSelections,
                       dietInputs: dietMappingController.dietInputValues,
@@ -506,10 +514,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                       backgroundColor: Color(0xFF22C55E),
                     ),
                   );
-                  // Pastikan navigasi dilakukan setelah frame selesai
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) Get.back();
-                  });
+                  Get.back();
                 },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF16A34A),
@@ -579,9 +584,7 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
                                 controller.projectNameController.text.trim();
                           }
                           await _persistCurrentProjectProgress();
-                          Future.microtask(() async {
-                            await controller.markInProgress(_projectId!);
-                          });
+                          await controller.markInProgress(_projectId!);
                           if (!mounted) return;
                           setState(() {
                             _isReadOnly = true;

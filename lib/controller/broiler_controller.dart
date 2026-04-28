@@ -695,20 +695,26 @@ class BroilerController extends GetxController {
   Future<void> markDrafted(String projectId, {int step = 1}) {
     final actualId = _migratedIdMap[projectId] ?? projectId;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      projectStatuses[actualId] = BroilerWorkflowStatus.drafted;
-      projectStatuses.refresh();
-      updateLastOpenedStep(actualId, step);
-      _notifyStatusChange();
-      _enqueueProjectSync(actualId);
+    projectStatuses[actualId] = BroilerWorkflowStatus.drafted;
+    projectStatuses.refresh();
+    updateLastOpenedStep(actualId, step);
+    _notifyStatusChange();
+    
+    // Update directly to Firestore to bypass sync queue delay
+    _firestoreService.updateProjectStatus(
+      userId: _sessionController.userId.value,
+      projectId: actualId,
+      status: _statusToFirestore(BroilerWorkflowStatus.drafted),
+    );
 
-      HistoryController.log(
-        title: 'Project Drafted',
-        description: 'Project was moved to draft status.',
-        type: ActivityType.project,
-        projectId: actualId,
-      );
-    });
+    _enqueueProjectSync(actualId);
+
+    HistoryController.log(
+      title: 'Project Drafted',
+      description: 'Project was moved to draft status.',
+      type: ActivityType.project,
+      projectId: actualId,
+    );
 
     return Future<void>.value();
   }
@@ -716,46 +722,58 @@ class BroilerController extends GetxController {
   Future<void> markInProgress(String projectId) async {
     final actualId = _migratedIdMap[projectId] ?? projectId;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      projectStatuses[actualId] = BroilerWorkflowStatus.inProgress;
-      projectStatuses.refresh();
-      _notifyStatusChange();
-      updateLastOpenedStep(actualId, 2);
-      _enqueueProjectSync(actualId);
+    projectStatuses[actualId] = BroilerWorkflowStatus.inProgress;
+    projectStatuses.refresh();
+    _notifyStatusChange();
+    updateLastOpenedStep(actualId, 2);
 
-      HistoryController.log(
-        title: 'Project Finalized',
-        description: 'Project is now active and ready for monitoring.',
-        type: ActivityType.project,
-        projectId: actualId,
-      );
-    });
+    // Update directly to Firestore to bypass sync queue delay
+    _firestoreService.updateProjectStatus(
+      userId: _sessionController.userId.value,
+      projectId: actualId,
+      status: _statusToFirestore(BroilerWorkflowStatus.inProgress),
+    );
+
+    _enqueueProjectSync(actualId);
+
+    HistoryController.log(
+      title: 'Project Finalized',
+      description: 'Project is now active and ready for monitoring.',
+      type: ActivityType.project,
+      projectId: actualId,
+    );
   }
 
   Future<void> markCompleted(String projectId) {
     final actualId = _migratedIdMap[projectId] ?? projectId;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      projectStatuses[actualId] = BroilerWorkflowStatus.completed;
+    projectStatuses[actualId] = BroilerWorkflowStatus.completed;
 
-      final index = projects.indexWhere((item) => item.projectId == actualId);
-      if (index != -1) {
-        final oldProject = projects[index];
-        projects[index] = oldProject.copyWith();
-      }
+    final index = projects.indexWhere((item) => item.projectId == actualId);
+    if (index != -1) {
+      final oldProject = projects[index];
+      projects[index] = oldProject.copyWith();
+    }
 
-      projects.refresh();
-      projectStatuses.refresh();
-      _notifyStatusChange();
-      _enqueueProjectSync(actualId);
+    projects.refresh();
+    projectStatuses.refresh();
+    _notifyStatusChange();
 
-      HistoryController.log(
-        title: 'Project Completed',
-        description: 'Project monitoring is finished and marked as completed.',
-        type: ActivityType.project,
-        projectId: actualId,
-      );
-    });
+    // Update directly to Firestore to bypass sync queue delay
+    _firestoreService.updateProjectStatus(
+      userId: _sessionController.userId.value,
+      projectId: actualId,
+      status: _statusToFirestore(BroilerWorkflowStatus.completed),
+    );
+
+    _enqueueProjectSync(actualId);
+
+    HistoryController.log(
+      title: 'Project Completed',
+      description: 'Project monitoring is finished and marked as completed.',
+      type: ActivityType.project,
+      projectId: actualId,
+    );
 
     return Future<void>.value();
   }

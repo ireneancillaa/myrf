@@ -350,9 +350,9 @@ class PdfGeneratorService {
             _buildCell('Notes', isHeader: true),
           ],
         ),
-        _buildSampleDocRow('Heaviest', '', boxValues['heaviest'] ?? ''),
-        _buildSampleDocRow('Average', '', boxValues['average'] ?? ''),
-        _buildSampleDocRow('Lightest', '', boxValues['lightest'] ?? ''),
+        _buildSampleDocRow('Heaviest', '-', (boxValues['heaviest'] ?? '').trim().isNotEmpty ? boxValues['heaviest']!.trim() : '-'),
+        _buildSampleDocRow('Average', '-', (boxValues['average'] ?? '').trim().isNotEmpty ? boxValues['average']!.trim() : '-'),
+        _buildSampleDocRow('Lightest', '-', (boxValues['lightest'] ?? '').trim().isNotEmpty ? boxValues['lightest']!.trim() : '-'),
       ],
     );
   }
@@ -363,7 +363,7 @@ class PdfGeneratorService {
         _buildCell(category, isHeader: false, isLabel: true),
         _buildCell(id, isHeader: false),
         _buildCell(weight, isHeader: false),
-        _buildCell('', isHeader: false),
+        _buildCell('-', isHeader: false),
       ],
     );
   }

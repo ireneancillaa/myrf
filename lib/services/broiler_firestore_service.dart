@@ -206,13 +206,13 @@ class BroilerFirestoreService {
           .map((item) => item.trim())
           .where((item) => item.isNotEmpty)
           .toList(),
-      'status': status,
-      'status_updated_at': FieldValue.serverTimestamp(),
       'updated_at': FieldValue.serverTimestamp(),
     };
 
     if (!snapshot.exists) {
       payload['created_at'] = FieldValue.serverTimestamp();
+      payload['status'] = status;
+      payload['status_updated_at'] = FieldValue.serverTimestamp();
       // Initialize empty temperature fields for new projects
       payload['front_temp'] = data.frontTemp;
       payload['middle_temp'] = data.middleTemp;
@@ -238,5 +238,18 @@ class BroilerFirestoreService {
   }) async {
     final docRef = _userCollection(userId).doc(projectId);
     await docRef.delete();
+  }
+
+  Future<void> updateProjectStatus({
+    required String userId,
+    required String projectId,
+    required String status,
+  }) async {
+    final docRef = _userCollection(userId).doc(projectId);
+    await docRef.set({
+      'status': status,
+      'status_updated_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

@@ -1123,7 +1123,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
               _buildWeightBadge(
                 totalDistribution,
                 hasData: hasData,
-                unit: 'kg',
+                unit: ' kg',
               ),
             ],
           ),
@@ -1241,7 +1241,7 @@ class _SampleDocSectionState extends State<SampleDocSection> {
                   ],
                 ),
               ),
-              _buildWeightBadge(totalWeight, hasData: hasData, unit: 'g'),
+              _buildWeightBadge(totalWeight, hasData: hasData, unit: ' g'),
             ],
           ),
         ),
