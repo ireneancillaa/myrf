@@ -9,6 +9,8 @@ import '../../controller/mortality_controller.dart';
 import '../../controller/weighing_controller.dart';
 import '../../controller/male_birds_controller.dart';
 import '../../controller/feses_controller.dart';
+// import '../../services/pdf_generator_service.dart';
+import 'project_pdf_preview_page.dart';
 import 'sample_doc.dart';
 import 'diet_pen_mapping.dart';
 import 'project_information.dart';
@@ -68,10 +70,15 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
     if (_projectId != null && _projectId!.isNotEmpty) {
       _openedFromDraft =
           controller.statusFor(_projectId!) == BroilerWorkflowStatus.drafted;
-      controller.selectProject(_projectId);
-      _projectName = controller.selectedProjectName.value ?? _projectName;
-      _applySavedStepperState();
-      _hydrateRemoteStepperState();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        controller.selectProject(_projectId);
+        setState(() {
+          _projectName = controller.selectedProjectName.value ?? _projectName;
+        });
+        _applySavedStepperState();
+        _hydrateRemoteStepperState();
+      });
     }
 
     _setupFormListeners();
@@ -301,8 +308,28 @@ class _BroilerProjectStepperPageState extends State<BroilerProjectStepperPage> {
               Padding(
                 padding: const EdgeInsets.only(right: 4),
                 child: IconButton(
-                  onPressed: () {
-                    // TODO: Implement PDF export for project
+                  onPressed: () async {
+                    if (_projectId == null || _projectId!.isEmpty) return;
+                    final project = controller.projects.firstWhereOrNull(
+                      (p) => p.projectId == _projectId,
+                    );
+                    if (project == null) return;
+
+                    Get.to(() => PdfPreviewPage(
+                      project: project,
+                      sampleWeights: sampleDocController.docWeights,
+                      sampleGroups: sampleDocController.sampleGroups,
+                      sampleGroupBluetoothFlags: sampleDocController.sampleGroupBluetoothFlags,
+                      docDistributions: sampleDocController.docDistributions,
+                      attachmentUrls: sampleDocController.attachmentUrls,
+                      boxValues: {
+                        'heaviest': sampleDocController.boxHeaviestController.text,
+                        'average': sampleDocController.boxAverageController.text,
+                        'lightest': sampleDocController.boxLightestController.text,
+                      },
+                      dietPens: dietMappingController.dietPenSelections,
+                      dietInputs: dietMappingController.dietInputValues,
+                    ));
                   },
                   icon: const Icon(
                     Icons.picture_as_pdf,
