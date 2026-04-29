@@ -1,17 +1,84 @@
-# myrf
+# MYRF - Broiler Farm Monitoring System
 
-A new Flutter project.
+MYRF is a comprehensive, real-time Flutter application designed to digitize and streamline data collection, monitoring, and analysis for broiler chicken farm operations. It replaces manual paperwork with an intuitive, dynamic mobile interface backed by Firebase.
 
-## Getting Started
+## 🌟 Key Features
 
-This project is a starting point for a Flutter application.
+- **End-to-End Project Management**: Plan and manage broiler projects through distinct workflow stages (Drafted, In Progress, Completed).
+- **Comprehensive Monitoring Modules**:
+  - **Infeed**: Track daily feed intake dynamically.
+  - **Depletion**: Record mortality and culling with dynamic pen constraints.
+  - **Weighing**: Capture and calculate body weight metrics.
+  - **Male Birds**: Specialized monitoring for male broilers.
+  - **Feces Score**: Detailed health checks and visual health scoring.
+- **Real-Time Configuration Sync**: Core operational data (like Strains, Hatcheries, and Trial Houses) are streamed directly from Firestore in real-time, instantly reflecting administrative updates across the app.
+- **Dynamic Pen Mapping**: Automatically adapts UI constraints based on the specific `penTrialhouse` capacity of the selected facility.
+- **Bluetooth IoT Integration**: Seamlessly connect to Bluetooth weighing scales via `flutter_blue_plus` for automated, error-free data entry.
+- **Offline-First & Draft Capabilities**: Robust drafting system that saves local progress before pushing deterministic, timestamp-based records to Firestore.
+- **Smart Data Persistence**: Inline Base64 image compression to store attachments securely within Firestore's limits, eliminating complex Storage permission issues.
+- **PDF Generation**: Native support for generating and sharing comprehensive PDF reports of project data.
 
-A few resources to get you started if this is your first Flutter project:
+## 🛠 Tech Stack
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- **Framework**: [Flutter](https://flutter.dev/) (Dart)
+- **State Management**: [GetX](https://pub.dev/packages/get) (Reactive State Management, Dependency Injection, and Routing)
+- **Backend as a Service (BaaS)**: [Firebase](https://firebase.google.com/)
+  - **Cloud Firestore**: Real-time NoSQL database
+  - **Firebase Auth**: Secure user authentication
+- **Key Packages**:
+  - `flutter_blue_plus`: For Bluetooth low energy hardware integration.
+  - `pdf` & `printing`: Document generation and layout formatting.
+  - `image_picker`: Camera and gallery attachments.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 📂 Project Structure
+
+```text
+lib/
+├── bindings/       # GetX bindings for dependency injection
+├── controller/     # Business logic and reactive state controllers
+├── models/         # Dart data classes and Firestore serialization
+├── pages/          # UI Screens (Broiler, Monitoring, Login, Home)
+├── services/       # External services (Firestore, PDF, Bluetooth)
+└── widgets/        # Reusable UI components
+```
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Flutter SDK (`^3.11.0` or newer)
+- Dart SDK
+- Firebase Project (configured for Android/iOS)
+
+### Installation
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-username/myrf.git
+   cd myrf
+   ```
+
+2. **Install Dependencies:**
+   ```bash
+   flutter pub get
+   ```
+
+3. **Firebase Configuration:**
+   - Add your `google-services.json` to `android/app/`.
+   - Add your `GoogleService-Info.plist` to `ios/Runner/` (if deploying to iOS).
+   - Ensure your Firestore Security Rules are configured to allow appropriate scoped read/writes.
+
+4. **Run the App:**
+   ```bash
+   flutter run
+   ```
+
+## 🔒 Security Rules Note
+For production environments, ensure that your Firestore security rules restrict user access to their own `userId` paths:
+```javascript
+match /users/{userId}/{document=**} {
+  allow read, write: if request.auth != null && request.auth.uid == userId;
+}
+```
+Public configuration collections like `strain-rf`, `hatchery-rf`, and `trialHouse-rf` should allow global read access for authenticated users.
+
+## 📝 License
+This project is proprietary and intended for internal farm monitoring and research use.
