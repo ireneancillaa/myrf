@@ -71,14 +71,5 @@ lib/
    flutter run
    ```
 
-## 🔒 Security Rules Note
-For production environments, ensure that your Firestore security rules restrict user access to their own `userId` paths:
-```javascript
-match /users/{userId}/{document=**} {
-  allow read, write: if request.auth != null && request.auth.uid == userId;
-}
-```
-Public configuration collections like `strain-rf`, `hatchery-rf`, and `trialHouse-rf` should allow global read access for authenticated users.
-
 ## 📝 License
 This project is proprietary and intended for internal farm monitoring and research use.
