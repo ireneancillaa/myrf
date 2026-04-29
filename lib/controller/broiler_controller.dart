@@ -11,6 +11,7 @@ import '../services/config_firestore_service.dart';
 import 'user_session_controller.dart';
 import 'history_controller.dart';
 import '../models/activity_log.dart';
+import '../models/trial_house.dart';
 
 enum BroilerWorkflowStatus { drafted, inProgress, completed }
 
@@ -61,6 +62,20 @@ class BroilerController extends GetxController {
   final rearTemp = '-'.obs;
   final minTempStat = 0.0.obs;
   final maxTempStat = 0.0.obs;
+  final availableStrains = <String>[].obs;
+  final availableHatcheries = <String>[].obs;
+  final availableTrialHouses = <TrialHouse>[].obs;
+  final availableTrialHouseNames = <String>[].obs;
+
+  // Computed max pens based on selected trial house
+  int get maxPens {
+    final houseName = selectedTrialHouse.value;
+    if (houseName == null || houseName.isEmpty) return 0;
+    final house = availableTrialHouses.firstWhereOrNull(
+      (h) => h.name == houseName,
+    );
+    return house?.pens ?? 0;
+  }
 
   VoidCallback? _onStatusChangeCallback;
   BroilerFirestoreService get _firestoreService =>
@@ -71,6 +86,9 @@ class BroilerController extends GetxController {
       Get.find<UserSessionController>();
   StreamSubscription<Map<String, String>>? _statusSubscription;
   StreamSubscription<List<BroilerProjectData>>? _projectsSubscription;
+  StreamSubscription<List<String>>? _strainsSubscription;
+  StreamSubscription<List<String>>? _hatcheriesSubscription;
+  StreamSubscription<List<TrialHouse>>? _trialHousesSubscription;
   final Map<String, Future<void>> _projectSyncQueue = <String, Future<void>>{};
   final Map<String, String> _migratedIdMap =
       <String, String>{}; // localId -> firestoreId
@@ -99,6 +117,64 @@ class BroilerController extends GetxController {
     }
 
     ever(selectedProjectId, (_) => _listenToTemperatureRecords());
+    _loadAvailableStrains();
+    _loadAvailableHatcheries();
+    _loadAvailableTrialHouses();
+
+    ever(selectedTrialHouse, (_) => _updateMaxPens());
+    ever(availableTrialHouses, (_) => _updateMaxPens());
+  }
+
+  void _loadAvailableStrains() {
+    _strainsSubscription?.cancel();
+    _strainsSubscription = _configService.streamStrains().listen((strains) {
+      if (strains.isNotEmpty) {
+        availableStrains.assignAll(strains);
+      } else {
+        availableStrains.clear();
+      }
+    });
+  }
+
+  void _loadAvailableHatcheries() {
+    _hatcheriesSubscription?.cancel();
+    _hatcheriesSubscription = _configService.streamHatcheries().listen((hatcheries) {
+      if (hatcheries.isNotEmpty) {
+        availableHatcheries.assignAll(hatcheries);
+      } else {
+        availableHatcheries.clear();
+      }
+    });
+  }
+
+  void _loadAvailableTrialHouses() {
+    _trialHousesSubscription?.cancel();
+    _trialHousesSubscription = _configService.streamTrialHouses().listen((houses) {
+      if (houses.isNotEmpty) {
+        availableTrialHouses.assignAll(houses);
+        availableTrialHouseNames.assignAll(houses.map((h) => h.name));
+      } else {
+        availableTrialHouses.clear();
+        availableTrialHouseNames.clear();
+      }
+    });
+  }
+
+  void _updateMaxPens() {
+    final houseName = selectedTrialHouse.value;
+    if (houseName == null || houseName.isEmpty) return;
+
+    final house = availableTrialHouses.firstWhereOrNull(
+      (h) => h.name == houseName,
+    );
+
+    if (house != null && Get.isRegistered<DietMappingController>()) {
+      Get.find<DietMappingController>().maxPens.value = house.pens;
+      Get.find<DietMappingController>().syncFromValues(
+        diet: dietController.text,
+        replication: replicationController.text,
+      );
+    }
   }
 
   void _listenToTemperatureRecords() {
@@ -1106,6 +1182,9 @@ class BroilerController extends GetxController {
   void onClose() {
     _statusSubscription?.cancel();
     _projectsSubscription?.cancel();
+    _strainsSubscription?.cancel();
+    _hatcheriesSubscription?.cancel();
+    _trialHousesSubscription?.cancel();
     projectNameController.dispose();
     trialDateController.dispose();
     trialHouseController.dispose();

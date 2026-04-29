@@ -245,6 +245,10 @@ class BroilerFirestoreService {
     required String projectId,
     required String status,
   }) async {
+    if (projectId.startsWith('local_')) {
+      debugPrint('BroilerFirestoreService: Skipping status update for local ID $projectId to prevent ghost documents');
+      return;
+    }
     final docRef = _userCollection(userId).doc(projectId);
     await docRef.set({
       'status': status,

@@ -107,8 +107,9 @@ class _DietCardState extends State<_DietCard> {
             final usedPens = widget.controller.usedPensExcept(
               widget.dietNumber,
             );
+            final maxPens = widget.controller.maxPens.value;
             final availablePens = List<int>.generate(
-              42,
+              maxPens,
               (index) => index + 1,
             ).where((penNumber) => !usedPens.contains(penNumber)).toList();
             final allAvailableSelected =
@@ -209,7 +210,7 @@ class _DietCardState extends State<_DietCard> {
                                   borderRadius: BorderRadius.circular(999),
                                 ),
                                 child: Text(
-                                  '${tempSelectedPens.length}/42 selected',
+                                  '${tempSelectedPens.length}/$maxPens selected',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -223,7 +224,7 @@ class _DietCardState extends State<_DietCard> {
                           Expanded(
                             child: Scrollbar(
                               child: ListView.separated(
-                                itemCount: 42,
+                                itemCount: maxPens,
                                 separatorBuilder: (_, _) =>
                                     const SizedBox(height: 10),
                                 itemBuilder: (context, index) {

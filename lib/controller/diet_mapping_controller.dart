@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 class DietMappingController extends GetxController {
   final dietCount = RxnInt();
   final dietReplication = RxnInt();
+  final maxPens = 0.obs;
   final dietPenSelections = <int, List<int>>{}.obs;
   final dietInputValues = <int, Map<String, String>>{}.obs;
   final copiedDietInputs = Rxn<Map<String, String>>();
@@ -106,6 +107,11 @@ class DietMappingController extends GetxController {
 
     // Keep pen selections valid when diet count changes.
     dietPenSelections.removeWhere((key, value) => key > nextDietCount);
+    // Remove pens that exceed maxPens
+    for (final key in dietPenSelections.keys) {
+      final pens = dietPenSelections[key]!;
+      dietPenSelections[key] = pens.where((p) => p <= maxPens.value).toList();
+    }
     dietPenSelections.refresh();
     dietInputValues.removeWhere((key, value) => key > nextDietCount);
     dietInputValues.refresh();

@@ -95,8 +95,12 @@ class _MortalityInputPageState extends State<MortalityInputPage> {
     if (parsed == null) {
       return 'Pen Number must be a valid number';
     }
-    if (parsed > 42) {
-      return 'Max. 42';
+    
+    final maxPens = _broilerController.maxPens;
+    final limit = maxPens > 0 ? maxPens : 42; // Fallback to 42 if 0
+
+    if (parsed > limit) {
+      return 'Max. $limit';
     }
     return null;
   }

@@ -81,19 +81,13 @@ class BroilerProjectInformationSection extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // 2. Strain (string, dropdown)
             _buildStringDropdownField(
               context: context,
               valueListenable: controller.selectedStrain,
               label: 'Strain',
               hint: 'Select Strain',
               icon: Icons.category_outlined,
-              items: const [
-                DropdownMenuItem(value: 'Cobb 500', child: Text('Cobb 500')),
-                DropdownMenuItem(value: 'Ross 308', child: Text('Ross 308')),
-                DropdownMenuItem(value: 'Hubbard', child: Text('Hubbard')),
-                DropdownMenuItem(value: 'Aviagen', child: Text('Aviagen')),
-              ],
+              dynamicOptions: controller.availableStrains,
               onChanged: (value) {
                 controller.selectedStrain.value = value;
                 controller.strainController.text = value ?? '';
@@ -108,20 +102,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
               label: 'Hatchery',
               hint: 'Select Hatchery',
               icon: Icons.egg_alt_outlined,
-              items: const [
-                DropdownMenuItem(
-                  value: 'Main Hatchery',
-                  child: Text('Main Hatchery'),
-                ),
-                DropdownMenuItem(
-                  value: 'North Hatchery',
-                  child: Text('North Hatchery'),
-                ),
-                DropdownMenuItem(
-                  value: 'South Hatchery',
-                  child: Text('South Hatchery'),
-                ),
-              ],
+              dynamicOptions: controller.availableHatcheries,
               onChanged: (value) {
                 controller.selectedHatchery.value = value;
                 controller.hatcheryController.text = value ?? '';
@@ -295,13 +276,7 @@ class BroilerProjectInformationSection extends StatelessWidget {
               icon: Icons.map_outlined,
               isMandatory: true,
               showMandatoryInHint: false,
-              items: List.generate(
-                5,
-                (index) => DropdownMenuItem(
-                  value: '${index + 1}A',
-                  child: Text('${index + 1}A'),
-                ),
-              ),
+              dynamicOptions: controller.availableTrialHouseNames,
               onChanged: (value) {
                 controller.selectedTrialHouse.value = value;
                 controller.trialHouseController.text = value ?? '';
@@ -451,7 +426,8 @@ class BroilerProjectInformationSection extends StatelessWidget {
     required String label,
     required String hint,
     required IconData icon,
-    required List<DropdownMenuItem<String>> items,
+    List<DropdownMenuItem<String>>? items,
+    RxList<String>? dynamicOptions,
     required ValueChanged<String?> onChanged,
     bool isMandatory = false,
     bool showMandatoryInHint = false,
@@ -460,10 +436,15 @@ class BroilerProjectInformationSection extends StatelessWidget {
       final rawSelectedValue = valueListenable.value?.trim() ?? '';
       final hasSelectedValue = rawSelectedValue.isNotEmpty;
 
-      final optionValues = items
-          .map((item) => item.value?.trim() ?? '')
-          .where((value) => value.isNotEmpty)
-          .toList();
+      final optionValues = dynamicOptions != null
+          ? dynamicOptions
+              .map((item) => item.trim())
+              .where((value) => value.isNotEmpty)
+              .toList()
+          : (items ?? [])
+              .map((item) => item.value?.trim() ?? '')
+              .where((value) => value.isNotEmpty)
+              .toList();
 
       final selectedValue = hasSelectedValue ? rawSelectedValue : null;
 
